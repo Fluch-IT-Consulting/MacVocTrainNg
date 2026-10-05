@@ -67,6 +67,19 @@ cd Packages/VocabCore && MVT_SAMPLE=~/Private/polska.mvt swift test --filter imp
 Neue Swift-Dateien einfach in `MacVocTrainNg/` anlegen: Der Ordner ist mit dem Target
 synchronisiert, die Projektdatei muss nicht angepasst werden.
 
+## Weitergeben
+
+```bash
+Tools/make-release.sh
+```
+
+erzeugt `build/release/MacVocTrain-<Version>.dmg`: ein Universal Binary (Apple Silicon und
+Intel) für macOS 14 oder neuer. Ohne Apple-Developer-Zertifikat ist die App nur ad hoc
+signiert. Empfänger müssen sie beim ersten Start einmal erlauben: *Systemeinstellungen →
+Datenschutz & Sicherheit → Dennoch öffnen*. Mit einer Developer ID (Apple Developer
+Program) signiert und notarisiert das Skript die App, dann startet sie ohne Warnung.
+Die Variablen dafür stehen im Kopf des Skripts.
+
 ## Lernalgorithmus
 
 - **FSRS-6** mit den Standardparametern von open-spaced-repetition; das Speichermodell ist
