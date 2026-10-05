@@ -31,3 +31,25 @@ The active developer dir may be the Command Line Tools; prefix with
   validated one-hue ordinal ramp, keep it that way.
 - File format changes: bump `DeckFile.currentVersion` only for incompatible changes; new
   optional fields decode with defaults.
+
+## Workflow
+
+Every change goes through a GitHub issue, its own branch and a pull request; never
+commit to `main` directly. Branch `bugfix/<n>`, `feature/<n>` or `task/<n>` after the
+issue type; commit titles `typ(#n): Satz` (German), ending with `Teil von #n`; the PR
+body closes the issue (`Closes #n`). Merge by rebase. Assign the issue before starting
+and don't take over issues assigned to someone else.
+
+### Issue tracker
+
+GitHub issues in `Fluch-IT-Consulting/MacVocTrainNg`, via the `gh` CLI.
+See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five standard roles, label equals role name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single context: `CONTEXT.md` and `docs/adr/` at the root, created when needed.
+See `docs/agents/domain.md`.
