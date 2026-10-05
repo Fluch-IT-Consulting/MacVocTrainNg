@@ -192,6 +192,17 @@ struct StudySessionTests {
         #expect(session.failedCardIDs == [target])
     }
 
+    @Test func skipDropsCardWithoutCountingIt() {
+        var session = StudySession(deck: deck(newCards: 2), at: now, random: SeededRandom(seed: 1))
+        let skipped = session.currentCardID
+        session.skip()
+        #expect(session.totalCount == 1)
+        #expect(session.answerCount == 0)
+        #expect(session.currentCardID != skipped)
+        session.skip()
+        #expect(session.isFinished)
+    }
+
     @Test func stopEndsImmediately() {
         var session = StudySession(deck: deck(newCards: 3), at: now, random: SeededRandom(seed: 1))
         session.stop()

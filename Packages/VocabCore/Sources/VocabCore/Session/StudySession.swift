@@ -13,6 +13,7 @@ public struct StudySession: Sendable {
         case practice
     }
 
+    public let id = UUID()
     public let mode: Mode
     public let startedAt: Date
     public private(set) var currentCardID: Card.ID?
@@ -96,6 +97,14 @@ public struct StudySession: Sendable {
         if let id = currentCardID, !queue.contains(id) {
             advance()
         }
+    }
+
+    /// Drops the current card without recording an answer, e.g. because it was deleted.
+    public mutating func skip() {
+        guard let id = currentCardID else { return }
+        queue.remove(id)
+        totalCount -= 1
+        advance()
     }
 
     /// Ends the session immediately.
