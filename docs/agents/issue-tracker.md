@@ -93,7 +93,7 @@ wenn `DeckFile.currentVersion` steigt, die App ältere Dateien aber weiter liest
 Ältere App-Versionen können neue Dateien dann nicht mehr öffnen.
 
 ```
-feat(#7)!: Jede Karte kennt beide Abfragerichtungen
+feat(#3)!: Jede Karte kennt beide Abfragerichtungen
 ```
 
 ## Commits und Issues verbinden
