@@ -41,7 +41,9 @@ public enum LegacyImporter {
                         due: lastAnswered
                     )
                 } else {
-                    let days = levelDuration(legacy.level) * (1 + Double(legacy.levelDurationAdjustment))
+                    // MacVocTrain 1 used ±10 %; clamp in case the file is damaged.
+                    let adjustment = Double(legacy.levelDurationAdjustment)
+                    let days = levelDuration(legacy.level) * (1 + (adjustment.isFinite ? min(max(adjustment, -0.5), 0.5) : 0))
                     card.memory = MemoryState(
                         phase: .review,
                         stability: days,

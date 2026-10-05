@@ -126,6 +126,15 @@ struct CalendarTests {
         #expect(calendar.dayNumber(for: start.addingTimeInterval(-1)) == CivilDate(year: 2026, month: 10, day: 4).dayNumber)
     }
 
+    @Test(arguments: [("Europe/Berlin", 2026, 3, 29), ("Europe/Berlin", 2026, 10, 25), ("America/New_York", 2026, 3, 8)])
+    func studyDayStartsAtRolloverOnDaylightSavingDays(zone: String, year: Int, month: Int, day: Int) {
+        let calendar = StudyCalendar(timeZone: TimeZone(identifier: zone)!, rolloverHour: 4)
+        let dayNumber = CivilDate(year: year, month: month, day: day).dayNumber
+        let start = calendar.start(ofDay: dayNumber)
+        #expect(calendar.dayNumber(for: start) == dayNumber)
+        #expect(calendar.dayNumber(for: start.addingTimeInterval(-60)) == dayNumber - 1)
+    }
+
     @Test func daylightSavingDoesNotShiftDays() {
         // Clocks go back on 2026-10-25 in Berlin.
         let before = calendar.start(ofDay: CivilDate(year: 2026, month: 10, day: 24).dayNumber)

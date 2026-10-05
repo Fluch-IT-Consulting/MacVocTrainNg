@@ -40,6 +40,18 @@ struct DeckFileTests {
         #expect(deck.settings == DeckSettings())
     }
 
+    @Test func clampsInvalidSettings() throws {
+        let json = """
+        {"format": "com.mfluch.voctrain.deck", "version": 1, "history": [], "cards": [],
+         "settings": {"desiredRetention": 0, "learningSteps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
+        """
+        let settings = try DeckFile.decode(Data(json.utf8)).settings
+        #expect(settings.desiredRetention == DeckSettings.retentionRange.lowerBound)
+        #expect(settings.learningSteps == 1)
+        #expect(settings.maximumInterval == 1)
+        #expect(settings.cardsPerSession == 1)
+    }
+
     @Test func rejectsForeignAndFutureFiles() {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("{\"foo\": 1}".utf8)) }
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("not json".utf8)) }

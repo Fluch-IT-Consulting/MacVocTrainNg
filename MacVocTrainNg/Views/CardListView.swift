@@ -10,12 +10,11 @@ private struct CardRow: Identifiable {
     var remark: String
     var category: MaturityCategory
     var categoryRank: Int
-    var dueText: String
-    var isNew: Bool
+    var due: Date?
     /// New cards first, then by due date.
     var dueSortKey: Double
 
-    init(card: Card, position: Int, now: Date) {
+    init(card: Card, position: Int) {
         id = card.id
         self.position = position
         question = card.question
@@ -23,8 +22,7 @@ private struct CardRow: Identifiable {
         remark = card.remark
         category = MaturityCategory(card: card)
         categoryRank = StabilityBins.bin(for: card)
-        dueText = Format.due(card, now: now)
-        isNew = card.isNew
+        due = card.memory?.due
         dueSortKey = card.memory?.due.timeIntervalSinceReferenceDate ?? -.infinity
     }
 }
@@ -39,7 +37,7 @@ struct CardListView: View {
 
     var body: some View {
         let now = Date()
-        let rows = rows(now: now)
+        let rows = rows()
 
         VStack(spacing: 0) {
             AddCardForm(document: document) { id in
@@ -58,8 +56,8 @@ struct CardListView: View {
                 }
                 .width(min: 90, ideal: 110)
                 TableColumn("Due", value: \.dueSortKey) { row in
-                    Text(row.dueText)
-                        .foregroundStyle(row.isNew ? .secondary : .primary)
+                    // Formatted per visible cell rather than for all rows up front.
+                    DueText(due: row.due, now: now)
                 }
                 .width(min: 80, ideal: 110)
             }
@@ -123,13 +121,13 @@ struct CardListView: View {
         }
     }
 
-    private func rows(now: Date) -> [CardRow] {
+    private func rows() -> [CardRow] {
         let needle = searchText.trimmingCharacters(in: .whitespaces)
         var rows: [CardRow] = []
         rows.reserveCapacity(document.deck.cards.count)
         for (position, card) in document.deck.cards.enumerated() {
             if !needle.isEmpty, !card.matches(needle) { continue }
-            rows.append(CardRow(card: card, position: position, now: now))
+            rows.append(CardRow(card: card, position: position))
         }
         return rows.sorted(using: sortOrder)
     }
@@ -147,6 +145,20 @@ private extension Card {
         return question.range(of: needle, options: options) != nil
             || answer.range(of: needle, options: options) != nil
             || remark.range(of: needle, options: options) != nil
+    }
+}
+
+private struct DueText: View {
+    var due: Date?
+    var now: Date
+
+    var body: some View {
+        if let due {
+            Text(due <= now ? String(localized: "Now") : due.formatted(.relative(presentation: .named)))
+        } else {
+            Text("New")
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

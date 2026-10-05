@@ -76,7 +76,10 @@ final class StudyViewModel {
             )
             document.applyReview(scheduled, undoManager: undoManager, hook: hook)
         case .practice:
+            // Practice doesn't touch the cards, but ⌘Z should still take back the
+            // last answer instead of reaching an answer of the earlier session.
             session.record(grade)
+            registerSessionUndo(from: before, to: session, undoManager: undoManager)
         }
 
         previous = PreviousAnswer(question: card.question, answer: card.answer, grade: grade)
@@ -113,6 +116,25 @@ final class StudyViewModel {
             session.skip()
         }
         stage = session.isFinished ? .finished : .asking
+    }
+
+    /// Re-validates the current card after the document changed from outside the
+    /// session, e.g. undoing "Add Card" removed the card being asked.
+    func documentDidChange() {
+        guard stage != .finished, let id = session.currentCardID, document.card(withID: id) == nil else { return }
+        moveOn()
+    }
+
+    private func registerSessionUndo(from before: StudySession, to after: StudySession, undoManager: UndoManager?) {
+        // Undo handlers run on the main thread, where the undo manager lives.
+        nonisolated(unsafe) let undoManager = undoManager
+        undoManager?.registerUndo(withTarget: self) { model in
+            MainActor.assumeIsolated {
+                model.restore(before)
+                model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
+            }
+        }
+        undoManager?.setActionName(String(localized: "Answer"))
     }
 
     /// Called by undo/redo of an answer.

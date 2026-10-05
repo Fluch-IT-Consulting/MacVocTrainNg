@@ -10,6 +10,13 @@ import VocabCore
 struct StudyView: View {
     @Bindable var model: StudyViewModel
     var onClose: () -> Void
+    @ObservedObject private var document: VocabularyDocument
+
+    init(model: StudyViewModel, onClose: @escaping () -> Void) {
+        self.model = model
+        self.onClose = onClose
+        document = model.document
+    }
 
     @Environment(\.undoManager) private var undoManager
     @FocusState private var answerFocused: Bool
@@ -28,6 +35,9 @@ struct StudyView: View {
                 Divider()
                 PreviousAnswerBar(previous: previous)
             }
+        }
+        .onChange(of: document.deck.cards.count) {
+            model.documentDidChange()
         }
         .confirmationDialog("End this session?", isPresented: $confirmingEnd) {
             if model.session.startedCount > 0 {

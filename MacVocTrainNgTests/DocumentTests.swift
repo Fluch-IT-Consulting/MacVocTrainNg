@@ -185,6 +185,41 @@ struct StudyViewModelTests {
         #expect(document.deck == before)
     }
 
+    @Test func undoingPracticeAnswerKeepsEarlierSessionIntact() throws {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        let model = StudyViewModel(document: document, autoAdvance: true)
+        model.input = "wrong"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        model.input = "a0"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        model.practiceMistakes()
+        let scheduled = document.deck
+
+        model.input = "a0"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        #expect(model.isFinished)
+        undoManager.undo()
+        #expect(!model.isFinished)
+        #expect(model.session.mode == .practice)
+        #expect(document.deck == scheduled)
+        undoManager.redo()
+        #expect(model.isFinished)
+    }
+
+    @Test func removingTheCurrentCardMovesOn() throws {
+        let document = makeDocument(cards: 2)
+        let undoManager = makeUndoManager()
+        let model = StudyViewModel(document: document, autoAdvance: true)
+        let current = try #require(model.currentCard)
+        step(undoManager) { document.delete([current.id], undoManager: undoManager) }
+        model.documentDidChange()
+        #expect(model.currentCard != nil)
+        #expect(model.currentCard?.id != current.id)
+        #expect(model.session.totalCount == 1)
+    }
+
     @Test func emptyAnswerRevealsTheAnswer() {
         let document = makeDocument(cards: 1)
         let model = StudyViewModel(document: document, autoAdvance: true)

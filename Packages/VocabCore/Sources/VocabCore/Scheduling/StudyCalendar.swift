@@ -21,9 +21,11 @@ public struct StudyCalendar: Sendable {
 
     /// The study day containing `date`, as days since 1970-01-01.
     public func dayNumber(for date: Date) -> Int {
-        let shifted = date.addingTimeInterval(-Double(rolloverHour) * 3600)
-        let components = calendar.dateComponents([.year, .month, .day], from: shifted)
-        return CivilDate(year: components.year!, month: components.month!, day: components.day!).dayNumber
+        // Compare wall-clock hours, so the rollover stays at the same local time
+        // on days when daylight saving time starts or ends.
+        let components = calendar.dateComponents([.year, .month, .day, .hour], from: date)
+        let day = CivilDate(year: components.year!, month: components.month!, day: components.day!).dayNumber
+        return components.hour! < rolloverHour ? day - 1 : day
     }
 
     /// The moment the given study day begins.

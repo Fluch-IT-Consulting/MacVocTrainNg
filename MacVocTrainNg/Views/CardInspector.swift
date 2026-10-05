@@ -10,9 +10,8 @@ struct CardInspector: View {
     var body: some View {
         Group {
             if selection.count == 1, let id = selection.first, let card = document.card(withID: id) {
-                // Recreated whenever the card changes (e.g. by undo) to show fresh values.
                 CardDetail(document: document, card: card)
-                    .id(card)
+                    .id(card.id)
             } else if selection.count > 1 {
                 VStack(spacing: 12) {
                     Text("\(selection.count) cards selected")
@@ -102,6 +101,12 @@ private struct CardDetail: View {
         .onChange(of: focus) { oldValue, _ in
             if oldValue != nil { commit() }
         }
+        .onChange(of: card) { _, card in
+            // Show changes made elsewhere, e.g. by undo.
+            question = card.question
+            answer = card.answer
+            remark = card.remark
+        }
         .onDisappear(perform: commit)
     }
 
@@ -113,7 +118,6 @@ private struct CardDetail: View {
 
     /// Writes edited text back to the document as one undoable change.
     private func commit() {
-        // Only the user's edits; the card itself may have changed meanwhile (undo).
         guard question != card.question || answer != card.answer || remark != card.remark,
               var current = document.card(withID: card.id)
         else { return }

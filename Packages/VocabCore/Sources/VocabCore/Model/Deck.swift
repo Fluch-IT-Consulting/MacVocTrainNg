@@ -42,6 +42,17 @@ extension DeckSettings {
         caseSensitive = try container.decodeIfPresent(Bool.self, forKey: .caseSensitive) ?? defaults.caseSensitive
         fuzzing = try container.decodeIfPresent(Bool.self, forKey: .fuzzing) ?? defaults.fuzzing
         parameters = try container.decodeIfPresent(FSRSParameters.self, forKey: .parameters) ?? defaults.parameters
+        sanitize()
+    }
+
+    /// Clamps values from hand-edited or corrupt files into usable ranges.
+    mutating func sanitize() {
+        if !desiredRetention.isFinite { desiredRetention = DeckSettings().desiredRetention }
+        desiredRetention = min(max(desiredRetention, Self.retentionRange.lowerBound), Self.retentionRange.upperBound)
+        maximumInterval = max(1, maximumInterval)
+        learningSteps = min(max(learningSteps, Self.learningStepsRange.lowerBound), Self.learningStepsRange.upperBound)
+        cardsPerSession = cardsPerSession.map { max(1, $0) }
+        newCardsPerSession = newCardsPerSession.map { max(0, $0) }
     }
 
     public func encode(to encoder: Encoder) throws {

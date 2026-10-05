@@ -86,6 +86,7 @@ public struct Scheduler: Sendable {
     public func intervalDays<R: RandomNumberGenerator>(stability: Double, using random: inout R) -> Int {
         let maximum = max(1, settings.maximumInterval)
         let raw = fsrs.interval(stability: stability, desiredRetention: settings.desiredRetention)
+        guard raw.isFinite else { return raw > 0 ? maximum : 1 }
         let interval = min(max(Int(raw.rounded()), 1), maximum)
         guard settings.fuzzing else { return interval }
         return Self.fuzzed(interval: interval, maximum: maximum, using: &random)

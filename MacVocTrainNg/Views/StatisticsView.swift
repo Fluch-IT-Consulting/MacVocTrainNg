@@ -54,7 +54,7 @@ struct StatisticsView: View {
                             today: document.calendar.dayNumber(for: now),
                             days: 30
                         ),
-                        today: now
+                        today: document.calendar.dayNumber(for: now)
                     )
                     .frame(height: 200)
                 }
@@ -243,11 +243,12 @@ private struct ProgressTooltip: View {
 
 private struct ForecastChart: View {
     var counts: [Int]
-    var today: Date
+    /// Study day of index 0.
+    var today: Int
     @State private var selection: Date?
 
     private func date(forOffset offset: Int) -> Date {
-        Calendar.current.date(byAdding: .day, value: offset, to: today) ?? today
+        chartDate(forDay: today + offset)
     }
 
     var body: some View {
@@ -287,8 +288,9 @@ private struct ForecastChart: View {
     }
 
     private func selectedOffset(_ date: Date) -> Int? {
-        let start = Calendar.current.startOfDay(for: today)
-        let offset = Calendar.current.dateComponents([.day], from: start, to: date).day ?? 0
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        guard let year = components.year, let month = components.month, let day = components.day else { return nil }
+        let offset = CivilDate(year: year, month: month, day: day).dayNumber - today
         return counts.indices.contains(offset) ? offset : nil
     }
 }

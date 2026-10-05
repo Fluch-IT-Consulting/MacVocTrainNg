@@ -92,8 +92,9 @@ public struct StudySession: Sendable {
 
     /// Stops introducing new cards; only cards already asked are finished.
     public mutating func finishUp() {
+        let completed = completedCount
         queue.finishUp()
-        totalCount = completedCount + queue.count
+        totalCount = completed + queue.count
         if let id = currentCardID, !queue.contains(id) {
             advance()
         }

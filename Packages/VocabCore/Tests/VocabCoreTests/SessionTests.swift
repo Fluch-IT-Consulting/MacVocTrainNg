@@ -169,10 +169,12 @@ struct StudySessionTests {
             session.record(.good, scheduledCard: deck.cards[index])
         }
         let started = session.startedCount
+        let completed = session.completedCount
         #expect(started > 0)
         session.finishUp()
         #expect(session.remainingCount == started)
-        #expect(session.totalCount == session.completedCount + started)
+        #expect(session.completedCount == completed)
+        #expect(session.totalCount == completed + started)
         _ = play(&session, deck: &deck) { _ in .good }
         #expect(session.isFinished)
     }

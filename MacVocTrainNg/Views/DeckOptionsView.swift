@@ -33,8 +33,8 @@ struct DeckOptionsView: View {
                 }
 
                 Section {
-                    LimitField(title: "Cards per session", value: $settings.cardsPerSession, defaultValue: 100)
-                    LimitField(title: "New cards per session", value: $settings.newCardsPerSession, defaultValue: 20)
+                    LimitField(title: "Cards per session", value: $settings.cardsPerSession, defaultValue: 100, step: 10)
+                    LimitField(title: "New cards per session", value: $settings.newCardsPerSession, defaultValue: 20, step: 5)
                     Stepper(value: $settings.learningSteps, in: DeckSettings.learningStepsRange) {
                         LabeledContent("Correct answers to learn a card", value: settings.learningSteps.formatted())
                     }
@@ -90,15 +90,18 @@ private struct LimitField: View {
     var title: LocalizedStringKey
     @Binding var value: Int?
     var defaultValue: Int
+    var step: Int
 
     var body: some View {
         LabeledContent(title) {
             HStack {
                 if let limit = value {
-                    TextField(title, value: Binding(get: { limit }, set: { value = max(1, $0) }), format: .number)
-                        .labelsHidden()
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 64)
+                    // A stepper rather than a text field: a text field only commits on
+                    // Return, so clicking Save right after typing would lose the value.
+                    Stepper(value: Binding(get: { limit }, set: { value = $0 }), in: 1...9999, step: step) {
+                        Text(limit.formatted())
+                            .monospacedDigit()
+                    }
                 }
                 Toggle("Unlimited", isOn: Binding(
                     get: { value == nil },
