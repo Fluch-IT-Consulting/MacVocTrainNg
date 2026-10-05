@@ -109,5 +109,12 @@ Standardwerten ergänzt.
 
 ## Entwicklungshilfen
 
+Das App-Icon wird per Code gezeichnet. Nach Änderungen an `Tools/make-app-icon.swift`
+neu erzeugen:
+
+```bash
+swift Tools/make-app-icon.swift
+```
+
 Im Debug-Build öffnet das Startargument `-debugScreen statistics|study|options` direkt
 die jeweilige Ansicht (praktisch für Screenshots).
