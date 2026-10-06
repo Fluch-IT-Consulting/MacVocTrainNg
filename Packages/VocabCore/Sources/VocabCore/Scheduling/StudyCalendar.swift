@@ -4,7 +4,7 @@ import Foundation
 ///
 /// A study day starts at `rolloverHour` local time instead of midnight, so a late
 /// evening session still belongs to the same day.
-public struct StudyCalendar: Sendable {
+public struct StudyCalendar: Hashable, Sendable {
     public var timeZone: TimeZone
     public var rolloverHour: Int
 
