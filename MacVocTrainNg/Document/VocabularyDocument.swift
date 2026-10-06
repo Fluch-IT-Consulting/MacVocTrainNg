@@ -131,16 +131,32 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
     }
 
+    /// Changes the learning options. New FSRS parameters also replay stability and
+    /// difficulty of every card with a complete review log; due dates stay.
     @MainActor
     func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
+        guard deck.learningOptions != learningOptions else { return }
+        var change = CardChange()
+        if learningOptions.parameters != deck.learningOptions.parameters {
+            let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
+            change.upserts = deck.cards.compactMap { card -> (Card, Int?)? in
+                guard let replayed = scheduler.replayingMemory(of: card), replayed != card else { return nil }
+                return (replayed, nil)
+            }
+        }
+        changeLearningOptions(learningOptions, cards: change, undoManager: undoManager)
+    }
+
+    @MainActor
+    private func changeLearningOptions(_ learningOptions: LearningOptions, cards change: CardChange, undoManager: UndoManager?) {
         let old = deck.learningOptions
-        guard old != learningOptions else { return }
         deck.learningOptions = learningOptions
+        let inverse = change.upserts.isEmpty ? change : apply(change)
         // Undo handlers run on the main thread, where the undo manager lives.
         nonisolated(unsafe) let undoManager = undoManager
         undoManager?.registerUndo(withTarget: self) { document in
             MainActor.assumeIsolated {
-                document.updateLearningOptions(old, undoManager: undoManager)
+                document.changeLearningOptions(old, cards: inverse, undoManager: undoManager)
             }
         }
         undoManager?.setActionName(String(localized: "Change Learning Options"))
