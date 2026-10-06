@@ -1,9 +1,11 @@
+import Combine
 import Foundation
 import Observation
 import VocabCore
 
 /// Drives a session: checks responses, applies grades to the document
-/// and keeps the session's place in sync with undo and redo.
+/// and keeps the session's place in sync with undo and redo and with
+/// every other change to the deck.
 @MainActor @Observable
 final class SessionViewModel {
     enum Stage: Equatable {
@@ -26,11 +28,15 @@ final class SessionViewModel {
     let autoAdvance: Bool
     private(set) var session: Session
     private(set) var stage: Stage
+    /// The card being asked, as the deck holds it now. Undoing an edit of the card
+    /// during the session shows up here.
+    private(set) var currentCard: Card?
     private(set) var previous: PreviousReview?
     /// Counts the questions asked. The view gives each question a response field of
     /// its own, so ⌘Z can't reach the typing for an earlier one (#9).
     private(set) var questionNumber = 0
     var input = ""
+    @ObservationIgnored private var deckObservation: AnyCancellable?
 
     /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
@@ -39,13 +45,13 @@ final class SessionViewModel {
         self.autoAdvance = autoAdvance
         self.session = session
         stage = session.isFinished ? .finished : .asking
+        refreshCurrentCard()
+        deckObservation = document.deckDidChange.sink { [weak self] in
+            self?.deckDidChange()
+        }
     }
 
     var isFinished: Bool { stage == .finished }
-
-    var currentCard: Card? {
-        session.currentCardID.flatMap(document.card(withID:))
-    }
 
     var suggestedGrade: Grade? {
         guard case let .feedback(result, _) = stage else { return nil }
@@ -120,14 +126,23 @@ final class SessionViewModel {
         while let id = session.currentCardID, document.card(withID: id) == nil {
             session.skip()
         }
+        refreshCurrentCard()
         stage = session.isFinished ? .finished : .asking
     }
 
-    /// Re-validates the current card after the document changed from outside the
-    /// session, e.g. undoing "Add Card" removed the card being asked.
-    func documentDidChange() {
-        guard stage != .finished, let id = session.currentCardID, document.card(withID: id) == nil else { return }
-        moveOn()
+    private func refreshCurrentCard() {
+        currentCard = session.currentCardID.flatMap(document.card(withID:))
+    }
+
+    /// Runs after every change to the deck, the session's own reviews included.
+    /// Moves on if the card being asked is gone, e.g. because undoing "Add Card"
+    /// removed it.
+    private func deckDidChange() {
+        if let id = session.currentCardID, document.card(withID: id) == nil {
+            moveOn()
+        } else {
+            refreshCurrentCard()
+        }
     }
 
     private func registerSessionUndo(from before: Session, to after: Session, undoManager: UndoManager?) {
