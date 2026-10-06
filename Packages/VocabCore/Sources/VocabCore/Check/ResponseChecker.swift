@@ -65,20 +65,6 @@ public struct ResponseChecker: Sendable {
 
     /// Damerau–Levenshtein distance (optimal string alignment): swapped neighbours count as one typo.
     static func editDistance(_ a: [Character], _ b: [Character]) -> Int {
-        if a.isEmpty { return b.count }
-        if b.isEmpty { return a.count }
-        var table = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
-        for i in 0...a.count { table[i][0] = i }
-        for j in 0...b.count { table[0][j] = j }
-        for i in 1...a.count {
-            for j in 1...b.count {
-                let cost = a[i - 1] == b[j - 1] ? 0 : 1
-                table[i][j] = min(table[i - 1][j] + 1, table[i][j - 1] + 1, table[i - 1][j - 1] + cost)
-                if i > 1, j > 1, a[i - 1] == b[j - 2], a[i - 2] == b[j - 1] {
-                    table[i][j] = min(table[i][j], table[i - 2][j - 2] + 1)
-                }
-            }
-        }
-        return table[a.count][b.count]
+        Alignment(response: a, expected: b).distance
     }
 }

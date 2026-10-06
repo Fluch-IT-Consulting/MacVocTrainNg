@@ -9,8 +9,9 @@ public enum ResponseDiff {
         public var isMismatch: Bool
     }
 
-    /// Splits `expected` into runs of characters that do or don't appear, in order,
-    /// in `response` (longest common subsequence).
+    /// Splits `expected` into runs of characters that the response got right or not, aligned
+    /// like the typo check (`Alignment`). Both characters of a swapped pair count as wrong;
+    /// extra characters of the response have no place in the answer and mark nothing.
     public static func segments(response: String, expected: String) -> [Segment] {
         let a = Array(ResponseChecker.normalize(response))
         let b = Array(expected.precomposedStringWithCanonicalMapping)
@@ -19,34 +20,10 @@ public enum ResponseDiff {
         // Keep the quadratic table small; skip highlighting for pathological input.
         guard a.count <= 300, b.count <= 300 else { return [Segment(text: String(b), isMismatch: false)] }
 
-        var lengths = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
-        for i in stride(from: a.count - 1, through: 0, by: -1) {
-            for j in stride(from: b.count - 1, through: 0, by: -1) {
-                lengths[i][j] =
-                    a[i] == b[j]
-                    ? lengths[i + 1][j + 1] + 1
-                    : max(lengths[i + 1][j], lengths[i][j + 1])
-            }
-        }
-
-        var matched = [Bool](repeating: false, count: b.count)
-        var i = 0
-        var j = 0
-        while i < a.count, j < b.count {
-            if a[i] == b[j] {
-                matched[j] = true
-                i += 1
-                j += 1
-            } else if lengths[i + 1][j] >= lengths[i][j + 1] {
-                i += 1
-            } else {
-                j += 1
-            }
-        }
-
+        let operations = Alignment(response: a, expected: b).operations
         var segments: [Segment] = []
-        for (character, isMatch) in zip(b, matched) {
-            let mismatch = !isMatch && !character.isWhitespace
+        for (character, operation) in zip(b, operations) {
+            let mismatch = operation != .match && !character.isWhitespace
             if let last = segments.last, last.isMismatch == mismatch {
                 segments[segments.count - 1].text.append(character)
             } else {
