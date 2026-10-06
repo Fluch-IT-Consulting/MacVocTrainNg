@@ -94,6 +94,13 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Add Card"), undoManager: undoManager)
     }
 
+    /// Appends cards from an import as one change.
+    @MainActor
+    func importCards(_ cards: [Card], undoManager: UndoManager?) {
+        guard !cards.isEmpty else { return }
+        perform(CardChange(upserts: cards.map { ($0, nil) }), actionName: String(localized: "Import Cards"), undoManager: undoManager)
+    }
+
     @MainActor
     func update(_ card: Card, actionName: String = String(localized: "Edit Card"), undoManager: UndoManager?) {
         guard deck.card(withID: card.id) != card else { return }

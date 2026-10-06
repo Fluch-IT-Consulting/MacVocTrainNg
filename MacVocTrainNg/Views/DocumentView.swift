@@ -16,6 +16,7 @@ struct DocumentView: View {
     @State private var screen: Screen = .cards
     @State private var session: SessionViewModel?
     @State private var showingOptions = false
+    @State private var importPreview: CardImport.Preview?
 
     var body: some View {
         Group {
@@ -55,12 +56,16 @@ struct DocumentView: View {
         .sheet(isPresented: $showingOptions) {
             DeckOptionsView(document: document)
         }
+        .sheet(item: $importPreview) { preview in
+            ImportPreviewView(document: document, preview: preview)
+        }
         .focusedSceneValue(\.deckActions, DeckActions(
             isInSession: session != nil,
             canStartSession: session == nil && document.dueCount() > 0,
             startSession: startSession,
             show: { screen = $0 },
             showOptions: { showingOptions = true },
+            importCards: importCards,
             exportCards: exportCards
         ))
         #if DEBUG
@@ -86,6 +91,10 @@ struct DocumentView: View {
         }
     }
     #endif
+
+    private func importCards() {
+        importPreview = CardImport.chooseFile(existing: document.deck.cards, created: document.clock.now)
+    }
 
     private func exportCards() {
         CardExport.run(
@@ -132,6 +141,7 @@ struct DeckActions {
     var startSession: () -> Void
     var show: (DocumentView.Screen) -> Void
     var showOptions: () -> Void
+    var importCards: () -> Void
     var exportCards: () -> Void
 }
 
@@ -154,6 +164,8 @@ struct AppCommands: Commands {
             Button("Import MacVocTrain 1 Document…") {
                 LegacyImport.run()
             }
+            Button("Import Cards…") { actions?.importCards() }
+                .disabled(actions == nil || actions?.isInSession == true)
             Button("Export Cards…") { actions?.exportCards() }
                 .disabled(actions == nil)
         }

@@ -60,6 +60,28 @@
         }
       }
     },
+    "%lld cards in “%@”": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karte in „%@“"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karten in „%@“"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld cards selected": {
       "localizations": {
         "de": {
@@ -170,6 +192,28 @@
         }
       }
     },
+    "%lld rows without a question or an answer are left out.": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Zeile ohne Frage oder Antwort wird ausgelassen."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Zeilen ohne Frage oder Antwort werden ausgelassen."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "de": {
@@ -226,6 +270,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fast – achte auf die Schreibweise"
+          }
+        }
+      }
+    },
+    "Already in row %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schon in Zeile %lld"
+          }
+        }
+      }
+    },
+    "Already in this deck": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schon in diesem Stapel"
           }
         }
       }
@@ -376,6 +440,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Prüfen"
+          }
+        }
+      }
+    },
+    "Choose a CSV or TSV file with a question, an answer and an optional hint per row.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle eine CSV- oder TSV-Datei mit Frage, Antwort und optionalem Hinweis je Zeile."
           }
         }
       }
@@ -732,6 +806,48 @@
         }
       }
     },
+    "Import %lld Cards": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karte importieren"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karten importieren"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Import Cards": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten importieren"
+          }
+        }
+      }
+    },
+    "Import Cards…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten importieren …"
+          }
+        }
+      }
+    },
     "Import MacVocTrain 1 Document…": {
       "localizations": {
         "de": {
@@ -998,6 +1114,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Eingabe"
+          }
+        }
+      }
+    },
+    "Note": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmerkung"
           }
         }
       }
@@ -1332,6 +1458,26 @@
         }
       }
     },
+    "Select All": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alle auswählen"
+          }
+        }
+      }
+    },
+    "Select None": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine auswählen"
+          }
+        }
+      }
+    },
     "Select a card to see its details.": {
       "localizations": {
         "de": {
@@ -1658,6 +1804,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "weniger als einen Tag"
+          }
+        }
+      }
+    },
+    "“%@” contains no rows with a question and an answer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ enthält keine Zeilen mit Frage und Antwort."
           }
         }
       }
