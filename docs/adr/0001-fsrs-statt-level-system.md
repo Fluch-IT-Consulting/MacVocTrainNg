@@ -77,7 +77,13 @@ wird, wann MacVocTrain 1 sie abgefragt hätte:
   fällig ist sie diesen Abstand nach ihrer letzten Abfrage. Die Schwierigkeit ist
   unbekannt und startet neutral bei 5. Das Level zählt als Zahl ihrer Abfragen.
 - Die täglichen Zähler je Level werden zum Fortschritt: Jedes Level zählt im Tagesstand
-  mit der Stabilität seines Abstands.
+  mit der Stabilität seines Abstands. Level 0 zählte in MacVocTrain 1 neue Karten und
+  Karten nach einer falschen Eingabe zusammen; der Import teilt den Zähler deshalb
+  geschätzt auf. Als neu zählen höchstens so viele Karten, wie beim Import nie abgefragt
+  sind, der Rest als unsicher. Eine Karte, die beim Import nie abgefragt ist, war es an
+  jedem früheren Tag auch, an dem es sie gab: Am letzten alten Tag stimmt die Aufteilung
+  genau, und der Fortschritt macht am Importtag keinen Sprung. An Tagen, bevor diese
+  Karten angelegt wurden, zählen dafür Karten nach einer falschen Eingabe als neu.
 
 Die Stabilität ist die Zahl der Tage, bis die Abrufwahrscheinlichkeit auf 90 % fällt. Der
 Import nimmt also an, dass der Lernende eine Karte zu ihrem Termin in MacVocTrain 1 noch
