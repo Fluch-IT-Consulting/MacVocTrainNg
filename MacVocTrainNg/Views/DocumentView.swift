@@ -1,7 +1,7 @@
 import SwiftUI
 import VocabCore
 
-/// The content of a document window: the card list or the statistics, or a study
+/// The content of a document window: the card list or the statistics, or a
 /// session that temporarily takes over the whole window.
 struct DocumentView: View {
     enum Screen: Hashable {
@@ -12,13 +12,13 @@ struct DocumentView: View {
     @ObservedObject var document: VocabularyDocument
     @Environment(\.undoManager) private var undoManager
     @State private var screen: Screen = .cards
-    @State private var study: StudyViewModel?
+    @State private var session: SessionViewModel?
     @State private var showingOptions = false
 
     var body: some View {
         Group {
-            if let study {
-                StudyView(model: study) { self.study = nil }
+            if let session {
+                SessionView(model: session) { self.session = nil }
             } else {
                 switch screen {
                 case .cards: CardListView(document: document)
@@ -28,7 +28,7 @@ struct DocumentView: View {
         }
         .frame(minWidth: 720, minHeight: 480)
         .toolbar {
-            if study == nil {
+            if session == nil {
                 ToolbarItem(placement: .principal) {
                     Picker("View", selection: $screen) {
                         Label("Cards", systemImage: "rectangle.stack").tag(Screen.cards)
@@ -54,8 +54,8 @@ struct DocumentView: View {
             DeckOptionsView(document: document)
         }
         .focusedSceneValue(\.deckActions, DeckActions(
-            isStudying: study != nil,
-            canStartSession: study == nil && document.dueCount() > 0,
+            isInSession: session != nil,
+            canStartSession: session == nil && document.dueCount() > 0,
             startSession: startSession,
             show: { screen = $0 },
             showOptions: { showingOptions = true }
@@ -85,10 +85,10 @@ struct DocumentView: View {
     #endif
 
     private func startSession() {
-        guard study == nil else { return }
-        let model = StudyViewModel(document: document)
+        guard session == nil else { return }
+        let model = SessionViewModel(document: document)
         if !model.isFinished {
-            study = model
+            session = model
         }
     }
 }
@@ -116,7 +116,7 @@ private struct StartStudyButton: View {
 
 /// Actions of the focused document window, for the menu bar.
 struct DeckActions {
-    var isStudying: Bool
+    var isInSession: Bool
     var canStartSession: Bool
     var startSession: () -> Void
     var show: (DocumentView.Screen) -> Void
@@ -153,15 +153,15 @@ struct AppCommands: Commands {
 
             Button("Cards") { actions?.show(.cards) }
                 .keyboardShortcut("1", modifiers: .command)
-                .disabled(actions == nil || actions?.isStudying == true)
+                .disabled(actions == nil || actions?.isInSession == true)
             Button("Statistics") { actions?.show(.statistics) }
                 .keyboardShortcut("2", modifiers: .command)
-                .disabled(actions == nil || actions?.isStudying == true)
+                .disabled(actions == nil || actions?.isInSession == true)
 
             Divider()
 
             Button("Learning Options…") { actions?.showOptions() }
-                .disabled(actions == nil || actions?.isStudying == true)
+                .disabled(actions == nil || actions?.isInSession == true)
         }
     }
 }

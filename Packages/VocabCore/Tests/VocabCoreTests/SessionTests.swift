@@ -51,7 +51,7 @@ struct SessionQueueTests {
     }
 }
 
-struct StudySessionTests {
+struct SessionTests {
     let now = Date(timeIntervalSince1970: 1_791_216_000)
 
     func deck(newCards: Int, reviewCards: Int = 0) -> Deck {
@@ -74,7 +74,7 @@ struct StudySessionTests {
     }
 
     /// Plays a session to the end, grading every card with `grading`.
-    func play(_ session: inout StudySession, deck: inout Deck, grading: (Card) -> Grade) -> Int {
+    func play(_ session: inout Session, deck: inout Deck, grading: (Card) -> Grade) -> Int {
         let scheduler = Scheduler(learningOptions: deck.learningOptions)
         var steps = 0
         while let id = session.currentCardID, steps < 10_000 {
@@ -89,7 +89,7 @@ struct StudySessionTests {
 
     @Test func newCardsNeedAllSteps() {
         var deck = deck(newCards: 12)
-        var session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var session = Session(deck: deck, at: now, random: SeededRandom(seed: 1))
         #expect(session.totalCount == 12)
         let reviews = play(&session, deck: &deck) { _ in .good }
         #expect(reviews == 12 * deck.learningOptions.steps)
@@ -100,7 +100,7 @@ struct StudySessionTests {
 
     @Test func cardsInReviewPhaseNeedOneRecall() {
         var deck = deck(newCards: 0, reviewCards: 8)
-        var session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var session = Session(deck: deck, at: now, random: SeededRandom(seed: 1))
         let reviews = play(&session, deck: &deck) { _ in .good }
         #expect(reviews == 8)
         #expect(session.mistakeIDs.isEmpty)
@@ -109,7 +109,7 @@ struct StudySessionTests {
     @Test func mistakesComeBackUntilRelearned() {
         var deck = deck(newCards: 0, reviewCards: 5)
         let mistake = deck.cards[0].id
-        var session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 2))
+        var session = Session(deck: deck, at: now, random: SeededRandom(seed: 2))
         var gotAgain = false
         let reviews = play(&session, deck: &deck) { card in
             if card.id == mistake, !gotAgain {
@@ -128,23 +128,23 @@ struct StudySessionTests {
     @Test func onlyDueCardsAreSelected() {
         var deck = deck(newCards: 2, reviewCards: 2)
         deck.cards[3].learningState?.due = now.addingTimeInterval(86400)
-        let session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 4))
+        let session = Session(deck: deck, at: now, random: SeededRandom(seed: 4))
         #expect(session.totalCount == 3)
     }
 
     @Test func newCardLimitIsRespected() {
         var deck = deck(newCards: 10, reviewCards: 3)
         deck.learningOptions.newCardsPerSession = 4
-        let session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 4))
+        let session = Session(deck: deck, at: now, random: SeededRandom(seed: 4))
         #expect(session.totalCount == 7)
     }
 
     @Test func sessionSizeIsLimited() {
         var deck = deck(newCards: 10, reviewCards: 10)
         deck.learningOptions.cardsPerSession = 5
-        #expect(StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).totalCount == 5)
+        #expect(Session(deck: deck, at: now, random: SeededRandom(seed: 4)).totalCount == 5)
         deck.learningOptions.cardsPerSession = nil
-        #expect(StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).totalCount == 20)
+        #expect(Session(deck: deck, at: now, random: SeededRandom(seed: 4)).totalCount == 20)
     }
 
     @Test func learningCardsAreIntroducedBeforeNewAndReviewCards() {
@@ -153,7 +153,7 @@ struct StudySessionTests {
         relearning.learningState = LearningState(phase: .relearning, stability: 1, difficulty: 5, lastReview: now, due: now)
         deck.cards.append(relearning)
         var random = SeededRandom(seed: 8)
-        let order = StudySession.selectCards(from: deck, at: now, using: &random)
+        let order = Session.selectCards(from: deck, at: now, using: &random)
         #expect(order.first == relearning.id)
         let newIDs = Set(deck.cards.filter(\.isNew).map(\.id))
         #expect(order.dropFirst().prefix(30).allSatisfy(newIDs.contains))
@@ -161,7 +161,7 @@ struct StudySessionTests {
 
     @Test func finishUpEndsAfterStartedCards() {
         var deck = deck(newCards: 40)
-        var session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 6))
+        var session = Session(deck: deck, at: now, random: SeededRandom(seed: 6))
         let scheduler = Scheduler(learningOptions: deck.learningOptions)
         for _ in 0..<3 {
             let index = deck.index(of: session.currentCardID!)!
@@ -181,7 +181,7 @@ struct StudySessionTests {
 
     @Test func practiceRequiresStreakAfterAgain() {
         let ids = [UUID(), UUID()]
-        var session = StudySession(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1))
+        var session = Session(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1))
         let target = session.currentCardID!
         session.record(.again)
         var reviews = 1
@@ -195,7 +195,7 @@ struct StudySessionTests {
     }
 
     @Test func skipDropsCardWithoutCountingIt() {
-        var session = StudySession(deck: deck(newCards: 2), at: now, random: SeededRandom(seed: 1))
+        var session = Session(deck: deck(newCards: 2), at: now, random: SeededRandom(seed: 1))
         let skipped = session.currentCardID
         session.skip()
         #expect(session.totalCount == 1)
@@ -206,7 +206,7 @@ struct StudySessionTests {
     }
 
     @Test func stopEndsImmediately() {
-        var session = StudySession(deck: deck(newCards: 3), at: now, random: SeededRandom(seed: 1))
+        var session = Session(deck: deck(newCards: 3), at: now, random: SeededRandom(seed: 1))
         session.stop()
         #expect(session.isFinished)
     }
