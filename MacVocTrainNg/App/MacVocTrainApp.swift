@@ -4,7 +4,7 @@ import SwiftUI
 struct MacVocTrainApp: App {
     var body: some Scene {
         DocumentGroup(newDocument: { VocabularyDocument() }) { file in
-            DocumentView(document: file.document)
+            DocumentView(document: file.document, fileURL: file.fileURL)
         }
         .commands {
             AppCommands()

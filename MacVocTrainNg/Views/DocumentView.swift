@@ -10,6 +10,8 @@ struct DocumentView: View {
     }
 
     @ObservedObject var document: VocabularyDocument
+    /// Where the document is saved; `nil` until it is saved for the first time.
+    var fileURL: URL?
     @Environment(\.undoManager) private var undoManager
     @State private var screen: Screen = .cards
     @State private var session: SessionViewModel?
@@ -58,7 +60,8 @@ struct DocumentView: View {
             canStartSession: session == nil && document.dueCount() > 0,
             startSession: startSession,
             show: { screen = $0 },
-            showOptions: { showingOptions = true }
+            showOptions: { showingOptions = true },
+            exportCards: exportCards
         ))
         #if DEBUG
         .onAppear(perform: applyDebugLaunchArguments)
@@ -83,6 +86,14 @@ struct DocumentView: View {
         }
     }
     #endif
+
+    private func exportCards() {
+        CardExport.run(
+            cards: document.deck.cards,
+            calendar: document.calendar,
+            suggestedName: fileURL?.deletingPathExtension().lastPathComponent ?? String(localized: "Cards")
+        )
+    }
 
     private func startSession() {
         guard session == nil else { return }
@@ -121,6 +132,7 @@ struct DeckActions {
     var startSession: () -> Void
     var show: (DocumentView.Screen) -> Void
     var showOptions: () -> Void
+    var exportCards: () -> Void
 }
 
 private struct DeckActionsKey: FocusedValueKey {
@@ -142,6 +154,8 @@ struct AppCommands: Commands {
             Button("Import MacVocTrain 1 Document…") {
                 LegacyImport.run()
             }
+            Button("Export Cards…") { actions?.exportCards() }
+                .disabled(actions == nil)
         }
 
         CommandMenu("Study") {

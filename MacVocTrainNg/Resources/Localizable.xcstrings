@@ -190,6 +190,16 @@
         }
       }
     },
+    "Adds the maturity, the day the card is due and the number of reviews.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fügt den Reifegrad, den Tag, an dem die Karte fällig ist, und die Zahl der Abfragen hinzu."
+          }
+        }
+      }
+    },
     "Advanced": {
       "localizations": {
         "de": {
@@ -266,6 +276,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Durchschnittliche Abrufwahrscheinlichkeit aller gelernten Karten im Moment."
+          }
+        }
+      }
+    },
+    "CSV (comma-separated)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV (durch Kommas getrennt)"
           }
         }
       }
@@ -580,12 +600,74 @@
         }
       }
     },
+    "Export": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exportieren"
+          }
+        }
+      }
+    },
+    "Export %lld cards.": {
+      "localizations": {
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karte exportieren."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Karten exportieren."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Export Cards…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten exportieren …"
+          }
+        }
+      }
+    },
+    "Export failed": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export fehlgeschlagen"
+          }
+        }
+      }
+    },
     "Finish Started Cards (%lld)": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Angefangene Karten abschließen (%lld)"
+          }
+        }
+      }
+    },
+    "Format:": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format:"
           }
         }
       }
@@ -666,6 +748,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "Include learning state": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit Lernstand"
           }
         }
       }
@@ -1376,6 +1468,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lernen (%lld)"
+          }
+        }
+      }
+    },
+    "TSV (tab-separated)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TSV (durch Tabulatoren getrennt)"
           }
         }
       }
