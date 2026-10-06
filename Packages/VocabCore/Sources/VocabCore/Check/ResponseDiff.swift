@@ -9,21 +9,67 @@ public enum ResponseDiff {
         public var isMismatch: Bool
     }
 
-    /// Splits `expected` into runs of characters that the response got right or not, aligned
-    /// like the typo check (`Alignment`). Both characters of a swapped pair count as wrong;
-    /// extra characters of the response have no place in the answer and mark nothing.
+    /// Splits `expected` into runs of characters that the response got right or not.
+    ///
+    /// Like `ResponseChecker`, it compares alternative by alternative, in any order: each
+    /// alternative of the answer is paired with the alternative of the response that is close
+    /// to it and aligned like the typo check (`Alignment`). Both characters of a swapped pair
+    /// count as wrong; extra characters of the response mark nothing. Separators, whitespace
+    /// and alternatives the response has nothing for are never marked.
     public static func segments(response: String, expected: String) -> [Segment] {
-        let a = Array(ResponseChecker.normalize(response))
-        let b = Array(expected.precomposedStringWithCanonicalMapping)
-        guard !b.isEmpty else { return [] }
-        guard !a.isEmpty else { return [Segment(text: String(b), isMismatch: true)] }
-        // Keep the quadratic table small; skip highlighting for pathological input.
-        guard a.count <= 300, b.count <= 300 else { return [Segment(text: String(b), isMismatch: false)] }
+        let answer = Array(expected.precomposedStringWithCanonicalMapping)
+        guard !answer.isEmpty else { return [] }
+        let given = ResponseChecker.alternatives(of: response)
+        // Keep the quadratic tables small; skip highlighting for pathological input.
+        guard response.count <= 300, answer.count <= 300 else { return [Segment(text: String(answer), isMismatch: false)] }
 
-        let operations = Alignment(response: a, expected: b).operations
+        // Alternatives without surrounding whitespace; the slices keep their offsets into `answer`.
+        let parts = answer.split(separator: ResponseChecker.separator)
+            .map(trimmed)
+            .filter { !$0.isEmpty }
+        var mismatches = [Bool](repeating: false, count: answer.count)
+        for (partIndex, givenIndex) in pairs(given, parts.map { ResponseChecker.normalize(String($0)) }) {
+            let part = parts[partIndex]
+            let operations = Alignment(response: Array(given[givenIndex]), expected: Array(part)).operations
+            for (offset, operation) in zip(part.indices, operations) {
+                mismatches[offset] = operation != .match && !answer[offset].isWhitespace
+            }
+        }
+        return segments(answer, mismatches: mismatches)
+    }
+
+    /// Pairs alternatives of the answer (keys) with alternatives of the response (values) that
+    /// `ResponseChecker` accepts as close, closest pairs first; each alternative is used once.
+    static func pairs(_ given: [String], _ expected: [String]) -> [Int: Int] {
+        var candidates: [(distance: Int, expected: Int, given: Int)] = []
+        for (g, response) in given.enumerated() {
+            for (e, answer) in expected.enumerated() where ResponseChecker.isClose(response, answer) {
+                candidates.append((Alignment(response: Array(response), expected: Array(answer)).distance, e, g))
+            }
+        }
+        candidates.sort { ($0.distance, $0.expected, $0.given) < ($1.distance, $1.expected, $1.given) }
+
+        var pairs: [Int: Int] = [:]
+        var usedGiven: Set<Int> = []
+        for candidate in candidates where pairs[candidate.expected] == nil && !usedGiven.contains(candidate.given) {
+            pairs[candidate.expected] = candidate.given
+            usedGiven.insert(candidate.given)
+        }
+        return pairs
+    }
+
+    /// The slice without leading and trailing whitespace, keeping its indices.
+    private static func trimmed(_ slice: ArraySlice<Character>) -> ArraySlice<Character> {
+        var slice = slice
+        while slice.first?.isWhitespace == true { slice.removeFirst() }
+        while slice.last?.isWhitespace == true { slice.removeLast() }
+        return slice
+    }
+
+    /// Joins neighbouring characters with the same flag into one segment.
+    private static func segments(_ characters: [Character], mismatches: [Bool]) -> [Segment] {
         var segments: [Segment] = []
-        for (character, operation) in zip(b, operations) {
-            let mismatch = operation != .match && !character.isWhitespace
+        for (character, mismatch) in zip(characters, mismatches) {
             if let last = segments.last, last.isMismatch == mismatch {
                 segments[segments.count - 1].text.append(character)
             } else {
