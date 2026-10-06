@@ -30,7 +30,7 @@ enum LegacyImport {
         guard savePanel.runModal() == .OK, let target = savePanel.url else { return }
 
         do {
-            try DeckFile.encode(deck).write(to: target, options: .atomic)
+            try DeckFile.fileWrapper(for: deck).write(to: target, options: .atomic, originalContentsURL: nil)
         } catch {
             showError(error.localizedDescription)
             return

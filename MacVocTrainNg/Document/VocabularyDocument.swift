@@ -3,8 +3,9 @@ import UniformTypeIdentifiers
 import VocabCore
 
 extension UTType {
-    /// Decks of this app: JSON documents with the extension `.voctrain`.
-    static let vocabularyDeck = UTType(exportedAs: "com.mfluch.voctrain.deck", conformingTo: .json)
+    /// Decks of this app: packages with the extension `.voctrain` (see `DeckFile`).
+    /// Single JSON files of format version 1 carry the same type.
+    static let vocabularyDeck = UTType(exportedAs: "com.mfluch.voctrain.deck", conformingTo: .package)
     /// Documents of MacVocTrain 1 (`.mvt`), which can be imported.
     static let legacyMacVocTrain = UTType(importedAs: "com.mfluch.MacVocTrain", conformingTo: .data)
 }
@@ -31,17 +32,18 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
 
     @Published private(set) var deck: Deck
     let calendar = StudyCalendar()
+    /// Remembers the encoded review log between saves, so autosave stays cheap.
+    private let reviewLog = ReviewLogEncoder()
 
     init(deck: Deck = Deck()) {
         self.deck = deck
     }
 
     required init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
         do {
-            deck = try DeckFile.decode(data)
+            deck = try DeckFile.decode(configuration.file)
+        } catch let DeckFile.Error.damagedReviewLog(line) {
+            throw AppError(String(localized: "The review history of this deck is damaged (line \(line))."))
         } catch DeckFile.Error.unsupportedVersion {
             throw AppError(String(localized: "This deck was created by a newer version of MacVocTrain."))
         } catch {
@@ -54,7 +56,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     }
 
     func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
-        FileWrapper(regularFileWithContents: try DeckFile.encode(snapshot))
+        try DeckFile.fileWrapper(for: snapshot, reviewLog: reviewLog)
     }
 
     // MARK: - Queries

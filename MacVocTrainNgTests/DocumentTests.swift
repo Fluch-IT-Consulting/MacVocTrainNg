@@ -87,7 +87,7 @@ struct DocumentTests {
         let created = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus", created: created)]))
         let snapshot = try document.snapshot(contentType: .vocabularyDeck)
-        #expect(try DeckFile.decode(DeckFile.encode(snapshot)) == document.deck)
+        #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }
 }
 

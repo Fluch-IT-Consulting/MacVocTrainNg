@@ -1360,6 +1360,16 @@
         }
       }
     },
+    "The review history of this deck is damaged (line %lld).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Antwortverlauf dieses Stapels ist beschädigt (Zeile %lld)."
+          }
+        }
+      }
+    },
     "This card has not been studied yet.": {
       "localizations": {
         "de": {
