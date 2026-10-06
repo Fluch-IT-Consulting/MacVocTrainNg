@@ -19,7 +19,8 @@ struct SessionView: View {
     }
 
     @Environment(\.undoManager) private var undoManager
-    @FocusState private var responseFocused: Bool
+    /// The question whose response field has the focus.
+    @FocusState private var focusedQuestion: Int?
     @State private var confirmingEnd = false
 
     var body: some View {
@@ -98,9 +99,12 @@ struct SessionView: View {
                 .font(.title2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 480)
-                .focused($responseFocused)
+                .focused($focusedQuestion, equals: model.questionNumber)
                 .disabled(model.stage != .asking)
                 .onSubmit { model.submit(undoManager: undoManager) }
+                // A new field per question: with automatic continuing the field never
+                // ends editing, and ⌘Z would first take back the previous typing (#9).
+                .id(model.questionNumber)
 
             Group {
                 if case let .feedback(result, response) = model.stage {
@@ -120,9 +124,9 @@ struct SessionView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { responseFocused = true }
-        .onChange(of: model.stage) { _, stage in
-            if stage == .asking { responseFocused = true }
+        .onAppear { focusedQuestion = model.questionNumber }
+        .onChange(of: model.questionNumber) { _, number in
+            focusedQuestion = number
         }
     }
 }
