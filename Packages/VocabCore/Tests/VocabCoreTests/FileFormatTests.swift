@@ -215,6 +215,13 @@ struct LegacyImporterTests {
         return card
     }
 
+    func legacyStatus(_ date: Int, counters: [Int]) -> LegacyDailyStatus {
+        let status = LegacyDailyStatus()
+        status.date = date
+        status.counters = counters.map { LegacyCounter(value: $0) }
+        return status
+    }
+
     @Test func levelDurationsMatchMacVocTrain1() {
         #expect(LegacyImporter.levelDuration(1) == 0.7)
         #expect(LegacyImporter.levelDuration(12) == 22)
@@ -248,18 +255,46 @@ struct LegacyImporterTests {
     }
 
     @Test func importsProgress() throws {
-        let status = LegacyDailyStatus()
-        status.date = 20_141_108
-        status.counters = [LegacyCounter(value: 5), LegacyCounter(value: 2), LegacyCounter(value: 0), LegacyCounter(value: 1)]
-        let data = try legacyArchive(cards: [legacyCard("x", level: 0, lastAnswered: nil)], progress: [status])
+        let data = try legacyArchive(
+            cards: [legacyCard("x", level: 0, lastAnswered: nil)],
+            progress: [legacyStatus(20_141_108, counters: [5, 2, 0, 1])]
+        )
 
         let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
         #expect(deck.progress.count == 2)
         let first = deck.progress[0]
         #expect(CivilDate(dayNumber: first.day).isoString == "2014-11-08")
-        #expect(first.bins[1] == 7)  // level 0 and level 1 (0.7 days)
+        #expect(first.bins[0] == 1)  // level 0, up to the cards never asked
+        #expect(first.bins[1] == 6)  // the rest of level 0 and level 1 (0.7 days)
         #expect(first.bins[2] == 1)  // level 3 (1.8 days)
         #expect(deck.progress[1].day == calendar.dayNumber(for: now))
+    }
+
+    @Test func importedProgressContinuesOnImportDay() throws {
+        let lastAnswered = now.addingTimeInterval(-86400)
+        let data = try legacyArchive(
+            cards: [
+                legacyCard("new", level: 0, lastAnswered: nil),
+                legacyCard("also new", level: 0, lastAnswered: nil),
+                legacyCard("relearning", level: 0, lastAnswered: lastAnswered),
+                legacyCard("known", level: 3, lastAnswered: lastAnswered),
+            ],
+            progress: [
+                legacyStatus(20_141_107, counters: [1]),
+                legacyStatus(20_141_108, counters: [3, 0, 0, 1]),
+            ]
+        )
+
+        let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
+        #expect(deck.progress.count == 3)
+        // Before the other cards were added: fewer cards at level 0 than never asked.
+        #expect(deck.progress[0].bins[0] == 1)
+        #expect(deck.progress[0].bins[1] == 0)
+        // Saved together with the cards, the last old day matches import day.
+        let lastOld = deck.progress[1], importDay = deck.progress[2]
+        #expect(importDay.day == calendar.dayNumber(for: now))
+        #expect(lastOld.bins[0] == 2)
+        #expect(lastOld.bins == importDay.bins)
     }
 
     @Test func rejectsGarbage() {
