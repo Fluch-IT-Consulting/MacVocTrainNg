@@ -83,6 +83,26 @@ public struct Scheduler: Sendable {
         return review(card, grade: grade, at: now, using: &random)
     }
 
+    /// The card with stability and difficulty replayed from its review log with the
+    /// current parameters, or `nil` if its log is incomplete. Phase, due date and
+    /// counters stay as they are.
+    public func replayingMemory(of card: Card) -> Card? {
+        guard card.hasCompleteLog, var learningState = card.learningState else { return nil }
+        var memory: FSRS.Memory?
+        var previous: Date?
+        for entry in card.log {
+            let elapsedDays = previous.map { max(0, calendar.days(from: $0, to: entry.date)) } ?? 0
+            memory = fsrs.review(memory, elapsedDays: elapsedDays, grade: entry.grade)
+            previous = entry.date
+        }
+        guard let memory else { return nil }
+        learningState.stability = memory.stability
+        learningState.difficulty = memory.difficulty
+        var updated = card
+        updated.learningState = learningState
+        return updated
+    }
+
     /// Recall probability at `now`, counting whole study days since the last review
     /// like `review` does; it stays 1 for the rest of the study day of a review.
     public func recallProbability(of learningState: LearningState, at now: Date) -> Double {

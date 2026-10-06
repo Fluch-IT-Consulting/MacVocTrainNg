@@ -113,6 +113,35 @@ struct DocumentTests {
         let snapshot = try document.snapshot(contentType: .vocabularyDeck)
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }
+
+    @Test func newParametersReplayMemoryInOneUndoableChange() throws {
+        let scheduler = Scheduler(learningOptions: LearningOptions())
+        let start = Date(timeIntervalSince1970: 1_791_216_000)
+        let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
+            scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0))
+        }
+        var imported = Card(question: "kot", answer: "Katze")
+        imported.learningState = LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
+        let document = VocabularyDocument(deck: Deck(cards: [studied, imported]))
+        let undoManager = makeUndoManager()
+
+        var options = LearningOptions()
+        var weights = FSRSParameters.default.weights
+        weights[8] = 1.2
+        options.parameters = try #require(FSRSParameters(weights))
+        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
+        let replayed = try #require(document.deck.cards[0].learningState)
+        #expect(replayed.stability < studied.learningState!.stability)
+        #expect(replayed.due == studied.learningState!.due)
+        #expect(document.deck.cards[1] == imported)
+
+        undoManager.undo()
+        #expect(document.deck.learningOptions == LearningOptions())
+        #expect(document.deck.cards == [studied, imported])
+        undoManager.redo()
+        #expect(document.deck.learningOptions.parameters == options.parameters)
+        #expect(document.deck.cards[0].learningState == replayed)
+    }
 }
 
 @MainActor

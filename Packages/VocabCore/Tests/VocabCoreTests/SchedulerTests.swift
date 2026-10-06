@@ -37,6 +37,38 @@ struct SchedulerTests {
         #expect(calendar.dayNumber(for: learningState.due) - calendar.dayNumber(for: now) == expectedDays)
     }
 
+    func reviewed(_ grades: [(hours: Double, grade: Grade)], by scheduler: Scheduler) -> Card {
+        grades.reduce(Card(question: "dom", answer: "Haus")) { card, review in
+            scheduler.review(card, grade: review.grade, at: now.addingTimeInterval(review.hours * 3600))
+        }
+    }
+
+    @Test func replayWithSameParametersKeepsMemory() throws {
+        let card = reviewed([(0, .again), (0.1, .good), (0.2, .good), (30, .hard), (100, .again), (100.1, .good), (300, .easy)], by: scheduler)
+        #expect(scheduler.replayingMemory(of: card) == card)
+    }
+
+    @Test func replayWithOtherParametersChangesOnlyMemory() throws {
+        let card = reviewed([(0, .good), (0.1, .good), (50, .good)], by: scheduler)
+        var other = scheduler
+        other.learningOptions.parameters = SyntheticLearner.unusual
+        let replayed = try #require(other.replayingMemory(of: card))
+        let before = try #require(card.learningState)
+        let after = try #require(replayed.learningState)
+        #expect(after.stability != before.stability)
+        #expect(replayed.log == card.log)
+        #expect(after.due == before.due)
+        #expect(after.phase == before.phase)
+        #expect(after.reviews == before.reviews)
+    }
+
+    @Test func replaySkipsCardsWithIncompleteLog() {
+        var card = reviewed([(0, .good), (0.1, .good)], by: scheduler)
+        card.learningState?.reviews = 7
+        #expect(scheduler.replayingMemory(of: card) == nil)
+        #expect(scheduler.replayingMemory(of: Card(question: "dom", answer: "Haus")) == nil)
+    }
+
     @Test func againRestartsAndHardKeepsLearningStep() {
         var card = Card(question: "dom", answer: "Haus")
         card = scheduler.review(card, grade: .good, at: now)
