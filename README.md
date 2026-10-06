@@ -100,25 +100,46 @@ ist unbekannt und startet neutral bei 5. FSRS passt sie mit den ersten Antworten
 
 ## Dateiformat
 
+Ein Stapel ist ein Paket, also ein Ordner, den der Finder als eine Datei zeigt:
+
+```
+Stapel.voctrain/
+  deck.json       Einstellungen, Karten mit Lernstand, Verlauf der Tage
+  reviews.jsonl   eine Zeile je Antwort
+```
+
+`deck.json`:
+
 ```json
 {
   "format": "com.mfluch.voctrain.deck",
-  "version": 1,
+  "version": 2,
   "settings": { "desiredRetention": 0.9, "learningSteps": 2, "cardsPerSession": 100, "…": "…" },
   "cards": [
     {
       "id": "…", "question": "der Gruß", "answer": "pozdrowienie", "remark": "…",
-      "memory": { "phase": "review", "stability": 12.3, "difficulty": 5.1, "due": "…", "…": "…" },
-      "log": [ { "date": "2026-10-05T18:00:00Z", "grade": 3 } ]
+      "memory": { "phase": "review", "stability": 12.3, "difficulty": 5.1, "due": "…", "…": "…" }
     }
   ],
   "history": [ { "day": "2026-10-05", "bins": [0, 12, 40, "…"] } ]
 }
 ```
 
-`history` speichert pro Tag die Anzahl der Karten je Stabilitätsklasse
-(neu, < 1 Tag, 1–2, 2–4, 4–8 … Tage). Unbekannte Felder älterer Versionen werden mit
+`reviews.jsonl`, nach Karten gruppiert, `date` in Sekunden seit 1970, `grade` 1–4:
+
+```
+{"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3}
+```
+
+Der Verlauf liegt getrennt, weil er mit jeder Antwort wächst: Die App kodiert beim
+Sichern nur die neuen Zeilen, ein Autosave kostet deshalb gleich viel, egal wie lang
+der Verlauf ist. `history` speichert pro Tag die Anzahl der Karten je
+Stabilitätsklasse (neu, < 1 Tag, 1–2, 2–4, 4–8 … Tage). Fehlende Felder werden mit
 Standardwerten ergänzt.
+
+Version 1 war eine einzelne JSON-Datei mit dem Verlauf in jeder Karte. Die App liest
+sie weiter und sichert sie beim nächsten Mal als Paket; ältere App-Versionen können
+Pakete nicht öffnen.
 
 ## Entwicklungshilfen
 
@@ -130,4 +151,5 @@ swift Tools/make-app-icon.swift
 ```
 
 Im Debug-Build öffnet das Startargument `-debugScreen statistics|study|options` direkt
-die jeweilige Ansicht (praktisch für Screenshots).
+die jeweilige Ansicht (praktisch für Screenshots), `-debugSave YES` sichert alle
+geöffneten Dokumente kurz nach dem Öffnen (prüft den echten Speicherweg).

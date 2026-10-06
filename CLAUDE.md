@@ -29,8 +29,10 @@ The active developer dir may be the Command Line Tools; prefix with
   `MacVocTrainNg/Resources/Localizable.xcstrings` (Xcode may not run to sync it).
 - Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
   validated one-hue ordinal ramp, keep it that way.
-- File format changes: bump `DeckFile.currentVersion` only for incompatible changes; new
-  optional fields decode with defaults.
+- A deck is a package (`deck.json` + `reviews.jsonl`, see `DeckFile`); version 1 single
+  files are still read. Bump `DeckFile.currentVersion` only for incompatible changes; new
+  optional fields decode with defaults. The review log is encoded incrementally by
+  `ReviewLogEncoder`: logs may only grow at the end or be replaced as a whole.
 
 ## Workflow
 
