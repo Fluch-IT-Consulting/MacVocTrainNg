@@ -20,6 +20,10 @@ wieder, wenn du sie sonst vergessen würdest.
 - **Statistik**: Fortschritt nach Reifegrad (Tag/Woche/Monat), Prognose der nächsten 30 Tage
 - **Import** von MacVocTrain-1-Dateien (`.mvt`) über *Ablage → MacVocTrain-1-Dokument
   importieren …*, inklusive Fortschritt
+- **CSV und TSV**: *Ablage → Karten importieren …* hängt Karten (Frage, Antwort, optional
+  Hinweis) an den offenen Stapel an; Trennzeichen und Kodierung werden erkannt, eine
+  Vorschau markiert doppelte Fragen. *Ablage → Karten exportieren …* schreibt die Karten,
+  wahlweise mit Reifegrad, Fälligkeit und Zahl der Abfragen
 - Deutsch und Englisch (folgt der Systemsprache)
 
 ## Projektstruktur
@@ -34,6 +38,7 @@ Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Session/                  Sitzung (Lernsitzung oder Üben), Abfragereihenfolge
   Statistics/               Reifegrad-Histogramme, Fortschritt, Prognose
   Import/                   Import von MacVocTrain 1
+  Exchange/                 CSV/TSV lesen und schreiben, Karten aus Tabellenzeilen
 ```
 
 Die App-Schicht ist bewusst dünn; alles Fachliche steckt in `VocabCore` und ist ohne
