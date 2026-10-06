@@ -38,49 +38,56 @@ struct SessionViewTests {
         window.delegate = delegate
         window.contentView = NSHostingView(rootView: SessionView(model: model, onClose: {}))
         window.orderFront(nil)
-        settle()
     }
 
-    /// Lets SwiftUI update the window.
-    private func settle() {
-        for _ in 0..<5 {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
+    /// Lets SwiftUI update the window. Suspends instead of running the run loop
+    /// nested, so work the views hand to the main actor gets its turn as well.
+    private func settle() async throws {
+        try await Task.sleep(for: .milliseconds(250))
     }
 
     private var fieldEditor: NSTextView? {
         window.firstResponder as? NSTextView
     }
 
+    /// The response field being edited, if any.
+    private var editedField: NSTextField? {
+        fieldEditor?.delegate as? NSTextField
+    }
+
     /// Types `text` and presses Return; the Return is one undo group, like an event.
-    private func respond(_ text: String) throws {
+    private func respond(_ text: String) async throws {
         let editor = try #require(fieldEditor)
         for character in text {
             editor.insertText(String(character), replacementRange: editor.selectedRange())
         }
-        settle()
+        try await settle()
         undoManager.beginUndoGrouping()
         editor.insertNewline(nil)
         undoManager.endUndoGrouping()
-        settle()
+        try await settle()
     }
 
     /// ⌘Z, sent along the responder chain like the menu item.
-    private func commandZ() throws {
+    private func commandZ() async throws {
         let responder = try #require(window.firstResponder)
         #expect(responder.tryToPerform(Selector(("undo:")), with: nil))
-        settle()
+        try await settle()
     }
 
-    @Test func undoAfterContinuingAutomaticallyTakesBackTheReview() throws {
+    @Test func undoAfterContinuingAutomaticallyTakesBackTheReview() async throws {
+        try await settle()
         let first = try #require(model.currentCard)
-        try respond(first.answer)
+        let firstField = try #require(editedField, "the first response field has the focus")
+        try await respond(first.answer)
         #expect(document.card(withID: first.id)?.log.count == 1)
         #expect(model.currentCard?.id != first.id)
-        #expect(fieldEditor != nil, "the next response field has the focus")
+        let nextField = try #require(editedField, "the next response field has the focus")
+        #expect(nextField !== firstField)
+        #expect(nextField.window === window)
 
         // Before #9 the first ⌘Z took back the typing of the previous response.
-        try commandZ()
+        try await commandZ()
         #expect(document.card(withID: first.id)?.log.isEmpty == true)
         #expect(model.currentCard?.id == first.id)
         #expect(model.input.isEmpty)
