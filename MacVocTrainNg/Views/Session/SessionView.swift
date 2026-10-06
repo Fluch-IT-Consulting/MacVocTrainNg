@@ -129,7 +129,7 @@ struct SessionView: View {
 
 /// Check result, the answer, and the grade buttons.
 private struct FeedbackView: View {
-    var result: ResponseChecker.Result
+    var result: CheckResult
     var response: String
     var expected: String
     var onGrade: (Grade) -> Void

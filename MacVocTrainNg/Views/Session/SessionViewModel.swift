@@ -10,7 +10,7 @@ final class SessionViewModel {
         /// Waiting for the response to the current card.
         case asking
         /// The response was checked; waiting for the learner to confirm a grade.
-        case feedback(ResponseChecker.Result, response: String)
+        case feedback(CheckResult, response: String)
         case finished
     }
 
