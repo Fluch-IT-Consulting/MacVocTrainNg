@@ -125,8 +125,8 @@ private struct StartStudyButton: View {
     var action: () -> Void
 
     var body: some View {
-        TimelineView(.everyMinute) { context in
-            let due = document.dueCount(at: context.date)
+        TimelineView(.everyMinute) { _ in
+            let due = document.dueCount()
             Button(action: action) {
                 Label(due > 0 ? "Study (\(due))" : "Study", systemImage: "graduationcap")
                     .labelStyle(.titleAndIcon)
