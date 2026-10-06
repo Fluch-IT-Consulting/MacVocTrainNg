@@ -39,7 +39,9 @@ public enum LegacyImporter {
                         stability: fsrs.initialStability(.again),
                         difficulty: fsrs.initialDifficulty(.again),
                         lastReview: lastAnswered,
-                        due: lastAnswered
+                        due: lastAnswered,
+                        // Asked at least once; the log of that review is missing.
+                        reviews: 1
                     )
                 } else {
                     // MacVocTrain 1 used ±10 %; clamp in case the file is damaged.

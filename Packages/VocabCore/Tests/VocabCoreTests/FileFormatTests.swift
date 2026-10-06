@@ -245,6 +245,7 @@ struct LegacyImporterTests {
         let relearning = try #require(deck.cards[1].learningState)
         #expect(relearning.phase == .relearning)
         #expect(deck.cards[1].isDue(at: now))
+        #expect(relearning.reviews == 1)
 
         let known = try #require(deck.cards[2].learningState)
         #expect(known.phase == .review)
@@ -252,6 +253,11 @@ struct LegacyImporterTests {
         #expect(abs(known.due.timeIntervalSince(lastAnswered) - 1.8 * 1.1 * 86400) < 1)
         #expect(deck.cards[2].hint == "hint")
         #expect(deck.cards[2].answer == "answer of known")
+        // Reviews before the import are missing from the log, also after the next one.
+        let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
+        for card in deck.cards.dropFirst() {
+            #expect(!scheduler.review(card, grade: .good, at: now).hasCompleteLog)
+        }
     }
 
     @Test func importsProgress() throws {
