@@ -95,6 +95,16 @@ struct StatisticsTests {
         #expect(summary.averageRecallProbability == 1)
     }
 
+    @Test func summaryCountsRecallProbabilityInStudyDays() {
+        var reviewedThisMorning = reviewCard(stability: 2)
+        reviewedThisMorning.learningState?.lastReview = calendar.start(ofDay: calendar.dayNumber(for: now))
+        var reviewedLastNight = reviewCard(stability: 2)
+        reviewedLastNight.learningState?.lastReview = calendar.start(ofDay: calendar.dayNumber(for: now)).addingTimeInterval(-60)
+        let summary = DeckStatistics.summary(of: Deck(cards: [reviewedThisMorning, reviewedLastNight]), at: now, calendar: calendar)
+        let oneDay = FSRS().retrievability(elapsedDays: 1, stability: 2)
+        #expect(summary.averageRecallProbability == (1 + oneDay) / 2)
+    }
+
     @Test func historyKeepsOneSnapshotPerDay() {
         var deck = Deck(cards: [Card(question: "q", answer: "a")])
         deck.updateProgress(day: 100)
