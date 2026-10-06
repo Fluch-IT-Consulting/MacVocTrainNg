@@ -57,11 +57,6 @@ public struct LearningState: Codable, Hashable, Sendable {
         self.reviews = reviews
         self.lapses = lapses
     }
-
-    private enum CodingKeys: String, CodingKey {
-        case phase, step, stability, difficulty, lastReview, due, lapses
-        case reviews = "reps"
-    }
 }
 
 /// One review in a study session.
@@ -121,11 +116,10 @@ public struct Card: Identifiable, Hashable, Sendable {
     }
 }
 
+/// Encodes a card without its review log, which `ReviewLogEncoder` stores apart.
 extension Card: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, question, answer, created, log
-        case hint = "remark"
-        case learningState = "memory"
+        case id, question, answer, hint, created, learningState
     }
 
     public init(from decoder: Decoder) throws {
@@ -136,7 +130,7 @@ extension Card: Codable {
         hint = try container.decodeIfPresent(String.self, forKey: .hint) ?? ""
         created = try container.decodeIfPresent(Date.self, forKey: .created) ?? Date(timeIntervalSince1970: 0)
         learningState = try container.decodeIfPresent(LearningState.self, forKey: .learningState)
-        log = try container.decodeIfPresent([ReviewLogEntry].self, forKey: .log) ?? []
+        log = []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -147,8 +141,5 @@ extension Card: Codable {
         if !hint.isEmpty { try container.encode(hint, forKey: .hint) }
         try container.encode(created, forKey: .created)
         try container.encodeIfPresent(learningState, forKey: .learningState)
-        if !log.isEmpty, encoder.userInfo[.omitReviewLog] as? Bool != true {
-            try container.encode(log, forKey: .log)
-        }
     }
 }

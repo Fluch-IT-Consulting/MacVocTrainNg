@@ -115,15 +115,15 @@ Stapel.voctrain/
 ```json
 {
   "format": "com.mfluch.voctrain.deck",
-  "version": 2,
-  "settings": { "desiredRetention": 0.9, "learningSteps": 2, "cardsPerSession": 100, "…": "…" },
+  "version": 3,
+  "learningOptions": { "targetRecall": 0.9, "steps": 2, "cardsPerSession": 100, "…": "…" },
   "cards": [
     {
-      "id": "…", "question": "der Gruß", "answer": "pozdrowienie", "remark": "…",
-      "memory": { "phase": "review", "stability": 12.3, "difficulty": 5.1, "due": "…", "…": "…" }
+      "id": "…", "question": "der Gruß", "answer": "pozdrowienie", "hint": "…",
+      "learningState": { "phase": "review", "stability": 12.3, "difficulty": 5.1, "due": "…", "reviews": 4, "…": "…" }
     }
   ],
-  "history": [ { "day": "2026-10-05", "bins": [0, 12, 40, "…"] } ]
+  "progress": [ { "day": "2026-10-05", "bins": [0, 12, 40, "…"] } ]
 }
 ```
 
@@ -135,13 +135,14 @@ Stapel.voctrain/
 
 Der Verlauf liegt getrennt, weil er mit jeder Abfrage wächst: Die App kodiert beim
 Sichern nur die neuen Zeilen, ein Autosave kostet deshalb gleich viel, egal wie lang
-der Verlauf ist. `history` hält den Fortschritt, einen Tagesstand je Lerntag: wie viele
+der Verlauf ist. `progress` hält den Fortschritt, einen Tagesstand je Lerntag: wie viele
 Karten neu waren und wie viele eine Stabilität von unter 1, 1–2, 2–4, 4–8 … Tagen
 hatten. Fehlende Felder werden mit Standardwerten ergänzt.
 
-Version 1 war eine einzelne JSON-Datei mit dem Verlauf in jeder Karte. Die App liest
-sie weiter und sichert sie beim nächsten Mal als Paket; ältere App-Versionen können
-Pakete nicht öffnen.
+Die Schlüssel heißen wie die Begriffe im Glossar (`CONTEXT.md`). Die Versionen 1 (eine
+einzelne JSON-Datei mit dem Verlauf in jeder Karte) und 2 (das Paket mit den Schlüsseln
+von vor dem Glossar) stammen aus der Zeit vor der ersten Veröffentlichung; die App öffnet
+sie nicht mehr.
 
 ## Entwicklungshilfen
 

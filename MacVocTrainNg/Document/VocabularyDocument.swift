@@ -46,6 +46,8 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             throw AppError(String(localized: "The review log of this deck is damaged (line \(line))."))
         } catch DeckFile.Error.unsupportedVersion {
             throw AppError(String(localized: "This deck was created by a newer version of MacVocTrain."))
+        } catch DeckFile.Error.outdatedVersion {
+            throw AppError(String(localized: "This deck was saved by a test version of MacVocTrain from before its first release and can no longer be opened."))
         } catch {
             throw CocoaError(.fileReadCorruptFile)
         }
