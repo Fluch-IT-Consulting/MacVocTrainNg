@@ -5,7 +5,10 @@ import VocabCore
 struct ImportPreviewView: View {
     @ObservedObject var document: VocabularyDocument
     @Bindable var preview: CardImport.Preview
-    @Environment(\.undoManager) private var undoManager
+    /// The document's undo manager. A sheet is a window of its own, and its environment
+    /// holds that window's undo manager: changes registered there could not be undone and
+    /// would not mark the document as edited (#48).
+    let undoManager: UndoManager?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {

@@ -54,10 +54,10 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showingOptions) {
-            DeckOptionsView(document: document)
+            DeckOptionsView(document: document, undoManager: undoManager)
         }
         .sheet(item: $importPreview) { preview in
-            ImportPreviewView(document: document, preview: preview)
+            ImportPreviewView(document: document, preview: preview, undoManager: undoManager)
         }
         .focusedSceneValue(\.deckActions, DeckActions(
             isInSession: session != nil,
