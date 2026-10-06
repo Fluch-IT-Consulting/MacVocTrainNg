@@ -105,13 +105,11 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         return deck.cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
     }
 
-    /// Cards whose question matches `question`, ignoring case and surrounding whitespace.
+    /// Cards with the same question as `question`, see `CardText.key(forQuestion:)`.
     func cards(withQuestion question: String) -> [Card] {
-        let needle = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return [] }
-        return deck.cards.filter {
-            $0.question.trimmingCharacters(in: .whitespacesAndNewlines).compare(needle, options: [.caseInsensitive]) == .orderedSame
-        }
+        let key = CardText.key(forQuestion: question)
+        guard !key.isEmpty else { return [] }
+        return deck.cards.filter { CardText.key(forQuestion: $0.question) == key }
     }
 
     // MARK: - Changes

@@ -20,9 +20,8 @@ struct AddCardForm: View {
     @State private var hint = ""
     @FocusState private var focus: Field?
 
-    private var trimmedQuestion: String { question.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var trimmedAnswer: String { answer.trimmingCharacters(in: .whitespacesAndNewlines) }
-    private var canAdd: Bool { !trimmedQuestion.isEmpty && !trimmedAnswer.isEmpty }
+    /// `nil` until question and answer are filled in.
+    private var text: CardText? { CardText(question: question, answer: answer, hint: hint) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -38,7 +37,7 @@ struct AddCardForm: View {
                     .onSubmit { submit() }
                     .frame(maxWidth: 200)
                 Button("Add") { submit(fromButton: true) }
-                    .disabled(!canAdd)
+                    .disabled(text == nil)
             }
             .textFieldStyle(.roundedBorder)
 
@@ -56,19 +55,11 @@ struct AddCardForm: View {
     }
 
     private func submit(fromButton: Bool = false) {
-        guard canAdd else {
-            if trimmedQuestion.isEmpty {
-                focus = .question
-            } else if trimmedAnswer.isEmpty {
-                focus = .answer
-            }
+        guard let text else {
+            focus = CardText.trimmed(question).isEmpty ? .question : .answer
             return
         }
-        let card = Card(
-            question: trimmedQuestion,
-            answer: trimmedAnswer,
-            hint: hint.trimmingCharacters(in: .whitespacesAndNewlines)
-        )
+        let card = Card(question: text.question, answer: text.answer, hint: text.hint)
         document.add(card, undoManager: undoManager)
         onAdd(card.id)
         question = ""

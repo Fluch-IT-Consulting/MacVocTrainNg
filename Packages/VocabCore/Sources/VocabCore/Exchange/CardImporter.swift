@@ -34,30 +34,23 @@ public enum CardImporter {
     ///   - created: The creation date of the new cards.
     public static func candidates(from rows: [[String]], existing: [Card], isHeader: ([String]) -> Bool, created: Date) -> Result {
         var result = Result(candidates: [], skippedRows: 0)
-        let inDeck = Set(existing.map { key(for: $0.question) })
+        let inDeck = Set(existing.map { CardText.key(forQuestion: $0.question) })
         // The first row of each question in the file.
         var inFile: [String: Int] = [:]
 
         for (index, row) in rows.enumerated() {
             if index == 0, isHeader(row) { continue }
-            let fields = row.prefix(3).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            guard fields.count >= 2, !fields[0].isEmpty, !fields[1].isEmpty else {
+            guard row.count >= 2, let text = CardText(question: row[0], answer: row[1], hint: row.count > 2 ? row[2] : "") else {
                 result.skippedRows += 1
                 continue
             }
-            let card = Card(question: fields[0], answer: fields[1], hint: fields.count > 2 ? fields[2] : "", created: created)
-            let key = key(for: card.question)
+            let card = Card(question: text.question, answer: text.answer, hint: text.hint, created: created)
+            let key = CardText.key(forQuestion: card.question)
             let row = index + 1
             let duplicate: Duplicate? = inDeck.contains(key) ? .inDeck : inFile[key].map { .inFile(row: $0) }
             inFile[key] = inFile[key] ?? row
             result.candidates.append(Candidate(card: card, row: row, duplicate: duplicate))
         }
         return result
-    }
-
-    /// Questions are the same if they only differ in case and surrounding whitespace,
-    /// as when adding a single card.
-    private static func key(for question: String) -> String {
-        question.trimmingCharacters(in: .whitespacesAndNewlines).folding(options: .caseInsensitive, locale: nil)
     }
 }
