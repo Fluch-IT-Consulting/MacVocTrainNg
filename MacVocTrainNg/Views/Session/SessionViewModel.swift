@@ -29,8 +29,9 @@ final class SessionViewModel {
     private(set) var previous: PreviousReview?
     var input = ""
 
+    /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
-        let session = Session(deck: document.deck)
+        let session = Session(deck: document.deck, at: document.clock.now)
         self.document = document
         self.autoAdvance = autoAdvance
         self.session = session
@@ -67,7 +68,7 @@ final class SessionViewModel {
         switch session.mode {
         case .study:
             let scheduler = Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
-            let scheduled = scheduler.review(card, grade: grade, at: Date())
+            let scheduled = scheduler.review(card, grade: grade, at: document.clock.now)
             session.record(grade, scheduledCard: scheduled)
             let after = session
             let hook = UndoHook(
@@ -97,14 +98,14 @@ final class SessionViewModel {
     func practiceMistakes() {
         let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
         guard !ids.isEmpty else { return }
-        session = Session(practicing: ids, steps: document.deck.learningOptions.steps)
+        session = Session(practicing: ids, steps: document.deck.learningOptions.steps, at: document.clock.now)
         previous = nil
         moveOn()
     }
 
     /// Starts a new regular session with the cards that are still due.
     func continueStudying() {
-        session = Session(deck: document.deck)
+        session = Session(deck: document.deck, at: document.clock.now)
         previous = nil
         moveOn()
     }

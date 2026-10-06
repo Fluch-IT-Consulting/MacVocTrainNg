@@ -32,14 +32,18 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
 
     @Published private(set) var deck: Deck
     let calendar = StudyCalendar()
+    /// The time of reviews, of today's snapshot and of which cards are due.
+    let clock: StudyClock
     /// Remembers the encoded review log between saves, so autosave stays cheap.
     private let reviewLog = ReviewLogEncoder()
 
-    init(deck: Deck = Deck()) {
+    init(deck: Deck = Deck(), clock: StudyClock = .system) {
         self.deck = deck
+        self.clock = clock
     }
 
     required init(configuration: ReadConfiguration) throws {
+        clock = .system
         do {
             deck = try DeckFile.decode(configuration.file)
         } catch let DeckFile.Error.damagedReviewLog(line) {
@@ -67,8 +71,10 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         deck.card(withID: id)
     }
 
-    func dueCount(at date: Date = Date()) -> Int {
-        deck.cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
+    /// Cards due at `date`, by default now according to `clock`.
+    func dueCount(at date: Date? = nil) -> Int {
+        let date = date ?? clock.now
+        return deck.cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
     }
 
     /// Cards whose question matches `question`, ignoring case and surrounding whitespace.
@@ -177,7 +183,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             }
         }
 
-        deck.updateProgress(day: calendar.dayNumber(for: Date()))
+        deck.updateProgress(day: calendar.dayNumber(for: clock.now))
         self.deck = deck
         return inverse
     }

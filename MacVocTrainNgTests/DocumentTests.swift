@@ -18,6 +18,17 @@ private func step(_ undoManager: UndoManager, _ action: () -> Void) {
     undoManager.endUndoGrouping()
 }
 
+/// A clock the test moves by hand. Only used on the main actor.
+private final class ManualClock: @unchecked Sendable {
+    var now: Date
+
+    init(_ now: Date) {
+        self.now = now
+    }
+
+    var studyClock: StudyClock { StudyClock { self.now } }
+}
+
 @MainActor
 struct DocumentTests {
     @Test func addingIsUndoable() {
@@ -232,5 +243,44 @@ struct SessionViewModelTests {
         card.learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
         let model = SessionViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
         #expect(model.isFinished)
+    }
+
+    @Test func sessionsAcrossTheStartOfAStudyDay() throws {
+        let calendar = StudyCalendar()
+        let day = CivilDate(year: 2026, month: 10, day: 6).dayNumber
+        // 03:30, still the study day before.
+        let clock = ManualClock(calendar.start(ofDay: day).addingTimeInterval(-30 * 60))
+        var learningOptions = LearningOptions()
+        learningOptions.steps = 1
+        learningOptions.fuzzing = false
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock)
+        let model = SessionViewModel(document: document, autoAdvance: true)
+
+        model.input = "Haus"
+        model.submit(undoManager: nil)
+        let state = try #require(document.card(withID: card.id)?.learningState)
+        #expect(state.phase == .review)
+        #expect(state.lastReview == clock.now)
+        #expect(document.deck.progress.map(\.day) == [day - 1])
+        // The interval counts from the study day before, so the card is due earlier
+        // than it would be after a review at 04:30.
+        var random = SeededRandom(seed: 0) // unused without fuzzing
+        let interval = Scheduler(learningOptions: learningOptions).intervalDays(stability: state.stability, using: &random)
+        #expect(state.due == calendar.start(ofDay: day - 1 + interval))
+
+        clock.now = state.due.addingTimeInterval(-60)
+        #expect(document.dueCount() == 0)
+        model.continueStudying()
+        #expect(model.isFinished)
+
+        clock.now = state.due.addingTimeInterval(60)
+        #expect(document.dueCount() == 1)
+        model.continueStudying()
+        #expect(model.currentCard?.id == card.id)
+        model.input = "Haus"
+        model.submit(undoManager: nil)
+        #expect(document.card(withID: card.id)?.learningState?.lastReview == clock.now)
+        #expect(document.deck.progress.map(\.day) == [day - 1, day - 1 + interval])
     }
 }
