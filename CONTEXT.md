@@ -124,7 +124,8 @@ Die Zahl der Tage, bis die Recall probability einer Card auf 90 % fällt.
 Wie schwer eine Card dem Lernenden fällt, von 1 bis 10.
 
 **Recall probability** (Abrufwahrscheinlichkeit):
-Die geschätzte Chance, eine Card jetzt zu wissen; in FSRS „retrievability“.
+Die geschätzte Chance, eine Card jetzt zu wissen; in FSRS „retrievability“. Die Zeit seit
+der letzten Review zählt in ganzen Study days, am Tag einer Review ist sie also 100 %.
 _Vermeiden_: Retrievability, chance of remembering, Erinnerungswahrscheinlichkeit
 
 **Target recall** (Angestrebte Abrufquote):
