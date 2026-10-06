@@ -103,18 +103,18 @@ public struct FSRS: Sendable {
     public func nextRecallStability(difficulty: Double, stability: Double, retrievability: Double, grade: Grade) -> Double {
         let hardPenalty = grade == .hard ? w[15] : 1
         let easyBonus = grade == .easy ? w[16] : 1
-        return stability * (
-            1 + exp(w[8])
+        return stability
+            * (1 + exp(w[8])
                 * (11 - difficulty)
                 * pow(stability, -w[9])
                 * (exp((1 - retrievability) * w[10]) - 1)
                 * hardPenalty
-                * easyBonus
-        )
+                * easyBonus)
     }
 
     public func nextForgetStability(difficulty: Double, stability: Double, retrievability: Double) -> Double {
-        let longTerm = w[11]
+        let longTerm =
+            w[11]
             * pow(difficulty, -w[12])
             * (pow(stability + 1, w[13]) - 1)
             * exp((1 - retrievability) * w[14])
@@ -123,7 +123,8 @@ public struct FSRS: Sendable {
     }
 
     public func nextStability(difficulty: Double, stability: Double, retrievability: Double, grade: Grade) -> Double {
-        let next = grade.isRecall
+        let next =
+            grade.isRecall
             ? nextRecallStability(difficulty: difficulty, stability: stability, retrievability: retrievability, grade: grade)
             : nextForgetStability(difficulty: difficulty, stability: stability, retrievability: retrievability)
         return clampStability(next)

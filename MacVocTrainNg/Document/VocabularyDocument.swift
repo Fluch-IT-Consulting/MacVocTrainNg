@@ -194,7 +194,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         for index in removalIndices {
             inverse.upserts.append((deck.cards.remove(at: index), index))
         }
-        inverse.upserts.reverse() // re-insert in ascending order
+        inverse.upserts.reverse()  // re-insert in ascending order
 
         for (card, position) in change.upserts {
             if let index = deck.index(of: card.id) {

@@ -111,10 +111,10 @@ final class CardTable {
     }
 }
 
-private extension Array {
+extension Array {
     /// The index of the first element satisfying `belongsAfter`, for an array in
     /// which all elements satisfying it come after those that don't.
-    func partitioningIndex(where belongsAfter: (Element) -> Bool) -> Int {
+    fileprivate func partitioningIndex(where belongsAfter: (Element) -> Bool) -> Int {
         var low = startIndex
         var high = endIndex
         while low < high {

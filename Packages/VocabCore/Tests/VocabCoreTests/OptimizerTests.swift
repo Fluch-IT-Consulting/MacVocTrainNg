@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import VocabCore
 
 struct OptimizerTests {
@@ -72,7 +73,7 @@ struct OptimizerTests {
     @Test func gradientMatchesFiniteDifferences() {
         let items = FSRSOptimizer.recencyWeighted(syntheticItems(cards: 40, seed: 2))[...]
         var weights = SyntheticLearner.unusual.weights
-        weights[7] = 0.05 // away from its lower bound
+        weights[7] = 0.05  // away from its lower bound
         var analytic = [Double](repeating: 0, count: FSRSParameters.count)
         _ = FSRSGradient(weights: weights).lossAndGradient(of: items, into: &analytic)
 
@@ -82,7 +83,8 @@ struct OptimizerTests {
         }
         for i in weights.indices {
             let h = 1e-6 * max(1, abs(weights[i]))
-            var up = weights, down = weights
+            var up = weights
+            var down = weights
             up[i] += h
             down[i] -= h
             let numeric = (loss(up) - loss(down)) / (2 * h)
@@ -101,10 +103,11 @@ struct OptimizerTests {
     }
 
     @Test func initialStabilitiesGrowWithTheGrade() throws {
-        let stabilities = try #require(InitialStability.smoothAndFill(
-            [.again: 3, .hard: 2, .good: 5, .easy: 20],
-            counts: [.again: 50, .hard: 10, .good: 100, .easy: 20]
-        ))
+        let stabilities = try #require(
+            InitialStability.smoothAndFill(
+                [.again: 3, .hard: 2, .good: 5, .easy: 20],
+                counts: [.again: 50, .hard: 10, .good: 100, .easy: 20]
+            ))
         // Again has more data than Hard, so Hard moves up to Again.
         #expect(stabilities == [3, 3, 5, 20])
         #expect(InitialStability.smoothAndFill([:], counts: [:]) == nil)

@@ -51,8 +51,8 @@ public struct CivilDate: Hashable, Comparable, Sendable {
     public init?(isoString: String) {
         let parts = isoString.split(separator: "-")
         guard parts.count == 3,
-              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
-              (1...12).contains(month), (1...31).contains(day)
+            let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
+            (1...12).contains(month), (1...31).contains(day)
         else { return nil }
         self.init(year: year, month: month, day: day)
     }

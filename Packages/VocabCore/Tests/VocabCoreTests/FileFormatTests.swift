@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import VocabCore
 
 struct DeckFileTests {
@@ -42,24 +43,27 @@ struct DeckFileTests {
         #expect(!deckJSON.contains("\"hint\" : \"\""))
 
         let id = deck.cards[0].id.uuidString
-        #expect(file(wrapper, DeckFile.reviewsFileName) == """
-        {"card":"\(id)","date":1791129600,"grade":1}
-        {"card":"\(id)","date":1791216000,"grade":2}
+        #expect(
+            file(wrapper, DeckFile.reviewsFileName) == """
+                {"card":"\(id)","date":1791129600,"grade":1}
+                {"card":"\(id)","date":1791216000,"grade":2}
 
-        """)
+                """)
     }
 
     @Test func rejectsVersionsBeforeTheFirstRelease() {
-        let version1 = Data("""
-        {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {}, "history": [],
-         "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus",
-                    "created": "2026-10-05T16:00:00Z", "log": [{"date": "2026-10-05T16:00:00Z", "grade": 3}]}]}
-        """.utf8)
+        let version1 = Data(
+            """
+            {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {}, "history": [],
+             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus",
+                        "created": "2026-10-05T16:00:00Z", "log": [{"date": "2026-10-05T16:00:00Z", "grade": 3}]}]}
+            """.utf8)
         #expect(throws: DeckFile.Error.outdatedVersion(1)) { try DeckFile.decode(FileWrapper(regularFileWithContents: version1)) }
 
-        let version2 = Data("""
-        {"format": "com.mfluch.voctrain.deck", "version": 2, "settings": {}, "history": [], "cards": []}
-        """.utf8)
+        let version2 = Data(
+            """
+            {"format": "com.mfluch.voctrain.deck", "version": 2, "settings": {}, "history": [], "cards": []}
+            """.utf8)
         let package = FileWrapper(directoryWithFileWrappers: [DeckFile.deckFileName: FileWrapper(regularFileWithContents: version2)])
         #expect(throws: DeckFile.Error.outdatedVersion(2)) { try DeckFile.decode(package) }
     }
@@ -79,7 +83,7 @@ struct DeckFileTests {
     @Test func reviewsOfUnknownCardsAreDropped() throws {
         let deck = sampleDeck()
         let reviews = Data(file(try DeckFile.fileWrapper(for: deck), DeckFile.reviewsFileName).utf8)
-        var remaining = [deck.cards[1]] // the card with reviews was deleted
+        var remaining = [deck.cards[1]]  // the card with reviews was deleted
         try ReviewLogEncoder.attach(reviews, to: &remaining)
         #expect(remaining == [deck.cards[1]])
     }
@@ -100,10 +104,10 @@ struct DeckFileTests {
 
     @Test func optionalFieldsMayBeMissing() throws {
         let json = """
-        {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {},
-         "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus"}],
-         "progress": []}
-        """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {},
+             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus"}],
+             "progress": []}
+            """
         let deck = try DeckFile.decode(Data(json.utf8))
         #expect(deck.cards.first?.hint == "")
         #expect(deck.cards.first?.learningState == nil)
@@ -112,9 +116,9 @@ struct DeckFileTests {
 
     @Test func clampsInvalidLearningOptions() throws {
         let json = """
-        {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
-         "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
-        """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
+             "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
+            """
         let learningOptions = try DeckFile.decode(Data(json.utf8)).learningOptions
         #expect(learningOptions.targetRecall == LearningOptions.targetRecallRange.lowerBound)
         #expect(learningOptions.steps == 1)
@@ -157,14 +161,14 @@ struct ReviewLogEncoderTests {
         deck[7].log.append(ReviewLogEntry(date: date.addingTimeInterval(10 * 86400), grade: .again))
         #expect(encode(deck, with: encoder) == 1)
 
-        deck[7].log.removeLast() // undo
+        deck[7].log.removeLast()  // undo
         #expect(encode(deck, with: encoder) == 1)
 
-        deck[8].log = [] // reset
+        deck[8].log = []  // reset
         #expect(encode(deck, with: encoder) == 0)
 
-        deck.remove(at: 3) // delete
-        deck.append(cards(1)[0]) // add a studied card
+        deck.remove(at: 3)  // delete
+        deck.append(cards(1)[0])  // add a studied card
         #expect(encode(deck, with: encoder) == 1)
     }
 
@@ -297,7 +301,8 @@ struct LegacyImporterTests {
         #expect(deck.progress[0].bins[0] == 1)
         #expect(deck.progress[0].bins[1] == 0)
         // Saved together with the cards, the last old day matches import day.
-        let lastOld = deck.progress[1], importDay = deck.progress[2]
+        let lastOld = deck.progress[1]
+        let importDay = deck.progress[2]
         #expect(importDay.day == calendar.dayNumber(for: now))
         #expect(lastOld.bins[0] == 2)
         #expect(lastOld.bins == importDay.bins)

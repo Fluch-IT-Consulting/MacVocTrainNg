@@ -130,7 +130,8 @@ struct FSRSGradient {
         } else {
             let hardPenalty = grade == .hard ? w[15] : 1
             let easyBonus = grade == .easy ? w[16] : 1
-            let increase = exp(w[8]) * (11 - lastD) * pow(lastS, -w[9]) * (exp((1 - r) * w[10]) - 1)
+            let increase =
+                exp(w[8]) * (11 - lastD) * pow(lastS, -w[9]) * (exp((1 - r) * w[10]) - 1)
                 * hardPenalty * easyBonus
             newS = lastS * (increase + 1)
         }

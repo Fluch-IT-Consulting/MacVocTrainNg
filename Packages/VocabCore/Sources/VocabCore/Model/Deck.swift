@@ -35,7 +35,8 @@ extension LearningOptions {
         targetRecall = try container.decodeIfPresent(Double.self, forKey: .targetRecall) ?? defaults.targetRecall
         maximumInterval = try container.decodeIfPresent(Int.self, forKey: .maximumInterval) ?? defaults.maximumInterval
         steps = try container.decodeIfPresent(Int.self, forKey: .steps) ?? defaults.steps
-        cardsPerSession = container.contains(.cardsPerSession)
+        cardsPerSession =
+            container.contains(.cardsPerSession)
             ? try container.decodeIfPresent(Int.self, forKey: .cardsPerSession)
             : defaults.cardsPerSession
         newCardsPerSession = try container.decodeIfPresent(Int.self, forKey: .newCardsPerSession)

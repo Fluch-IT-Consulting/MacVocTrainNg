@@ -59,15 +59,18 @@ struct DocumentView: View {
         .sheet(item: $importPreview) { preview in
             ImportPreviewView(document: document, preview: preview, undoManager: undoManager)
         }
-        .focusedSceneValue(\.deckActions, DeckActions(
-            isInSession: session != nil,
-            canStartSession: session == nil && document.dueCount() > 0,
-            startSession: startSession,
-            show: { screen = $0 },
-            showOptions: { showingOptions = true },
-            importCards: importCards,
-            exportCards: exportCards
-        ))
+        .focusedSceneValue(
+            \.deckActions,
+            DeckActions(
+                isInSession: session != nil,
+                canStartSession: session == nil && document.dueCount() > 0,
+                startSession: startSession,
+                show: { screen = $0 },
+                showOptions: { showingOptions = true },
+                importCards: importCards,
+                exportCards: exportCards
+            )
+        )
         #if DEBUG
         .onAppear(perform: applyDebugLaunchArguments)
         #endif

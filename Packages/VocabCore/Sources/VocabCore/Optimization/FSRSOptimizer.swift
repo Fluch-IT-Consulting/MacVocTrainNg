@@ -135,7 +135,8 @@ public struct FSRSOptimizer: Sendable {
     private func clip(_ w: inout [Double]) {
         // With several relearning steps, a lapse followed by that many same-day reviews
         // must not end above the stability before the lapse.
-        let sameDayCeiling = relearningSteps > 1
+        let sameDayCeiling =
+            relearningSteps > 1
             ? min(2, sqrt(max(0.01, -(log(w[11]) + log(pow(2, w[13]) - 1) + w[14] * 0.3) / Double(relearningSteps))))
             : 2
         let s = FSRS.minimumStability...InitialStability.maximum

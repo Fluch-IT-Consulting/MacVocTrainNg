@@ -140,7 +140,7 @@ final class SessionViewModel {
 
     /// Called by undo/redo of a review.
     private func restore(_ snapshot: Session) {
-        guard snapshot.id == session.id else { return } // a different session by now
+        guard snapshot.id == session.id else { return }  // a different session by now
         session = snapshot
         previous = nil
         moveOn()

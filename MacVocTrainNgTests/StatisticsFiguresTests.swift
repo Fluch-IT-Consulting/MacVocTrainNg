@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import VocabCore
+
 @testable import MacVocTrain
 
 @MainActor
@@ -78,14 +79,15 @@ struct StatisticsFiguresTests {
 
     @Test func progressSeriesIsReadyToDraw() {
         let today = CivilDate(year: 2026, month: 10, day: 6).dayNumber
-        let series = ProgressSeries(points: DeckStatistics.progress(
-            snapshots: [
-                DailySnapshot(day: today - 1, bins: [2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-                DailySnapshot(day: today, bins: [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 1]),
-            ],
-            today: today,
-            granularity: .day
-        ))
+        let series = ProgressSeries(
+            points: DeckStatistics.progress(
+                snapshots: [
+                    DailySnapshot(day: today - 1, bins: [2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                    DailySnapshot(day: today, bins: [0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 1]),
+                ],
+                today: today,
+                granularity: .day
+            ))
         #expect(series.dates == [chartDate(forDay: today - 1), chartDate(forDay: today)])
         #expect(series.bars.count == 2 * MaturityCategory.allCases.count)
         #expect(series.bars.prefix(MaturityCategory.allCases.count).map(\.category) == MaturityCategory.allCases.reversed())

@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import VocabCore
+
 @testable import MacVocTrain
 
 @MainActor
@@ -16,11 +17,12 @@ struct CardExportTests {
 
     @Test func exportsQuestionAnswerAndHint() {
         let rows = CardExport.rows(of: [Card(question: "dom", answer: "Haus"), studied], includingLearningState: false, calendar: calendar)
-        #expect(rows == [
-            [String(localized: "Question"), String(localized: "Answer"), String(localized: "Hint")],
-            ["dom", "Haus", ""],
-            ["kot", "Katze", "Tier"],
-        ])
+        #expect(
+            rows == [
+                [String(localized: "Question"), String(localized: "Answer"), String(localized: "Hint")],
+                ["dom", "Haus", ""],
+                ["kot", "Katze", "Tier"],
+            ])
     }
 
     @Test func learningStateAddsReadableColumns() {

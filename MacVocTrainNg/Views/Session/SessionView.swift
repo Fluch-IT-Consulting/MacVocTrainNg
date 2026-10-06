@@ -159,11 +159,15 @@ private struct FeedbackView: View {
             }
 
             // Return accepts the suggestion.
-            Button { onGrade(result.suggestedGrade) } label: { Text(verbatim: "") }
-                .keyboardShortcut(.defaultAction)
-                .opacity(0)
-                .frame(width: 0, height: 0)
-                .accessibilityHidden(true)
+            Button {
+                onGrade(result.suggestedGrade)
+            } label: {
+                Text(verbatim: "")
+            }
+            .keyboardShortcut(.defaultAction)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
         }
     }
 
@@ -172,9 +176,10 @@ private struct FeedbackView: View {
         case .correct: String(localized: "Correct")
         case .incomplete: String(localized: "Incomplete")
         case .almostCorrect: String(localized: "Almost – check the spelling")
-        case .wrong: response.trimmingCharacters(in: .whitespaces).isEmpty
-            ? String(localized: "No response")
-            : String(localized: "Wrong")
+        case .wrong:
+            response.trimmingCharacters(in: .whitespaces).isEmpty
+                ? String(localized: "No response")
+                : String(localized: "Wrong")
         }
     }
 
