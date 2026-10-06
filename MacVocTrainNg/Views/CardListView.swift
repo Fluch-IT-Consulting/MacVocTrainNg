@@ -11,10 +11,33 @@ struct CardListView: View {
     @State private var table = CardTable()
 
     var body: some View {
-        let now = document.clock.now
+        // Re-evaluated every minute because cards become due as time passes. The rows
+        // stay in `table`, so a tick only counts the due cards and formats the visible
+        // due dates again.
+        TimelineView(.everyMinute) { _ in
+            list(at: document.clock.now)
+        }
+        .searchable(text: $searchText, prompt: "Search cards")
+        .inspector(isPresented: $showingInspector) {
+            CardInspector(document: document, selection: selection)
+                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+        }
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    showingInspector.toggle()
+                } label: {
+                    Label("Details", systemImage: "sidebar.trailing")
+                }
+                .help("Show or hide card details")
+            }
+        }
+    }
+
+    private func list(at now: Date) -> some View {
         let rows = rows()
 
-        VStack(spacing: 0) {
+        return VStack(spacing: 0) {
             AddCardForm(document: document) { id in
                 selection = [id]
             }
@@ -66,21 +89,6 @@ struct CardListView: View {
             Divider()
 
             StatusBar(document: document, shownCount: rows.count, isFiltered: !searchText.isEmpty, now: now)
-        }
-        .searchable(text: $searchText, prompt: "Search cards")
-        .inspector(isPresented: $showingInspector) {
-            CardInspector(document: document, selection: selection)
-                .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
-        }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    showingInspector.toggle()
-                } label: {
-                    Label("Details", systemImage: "sidebar.trailing")
-                }
-                .help("Show or hide card details")
-            }
         }
     }
 
