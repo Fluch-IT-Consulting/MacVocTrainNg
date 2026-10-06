@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import Testing
 import VocabCore
 
@@ -17,6 +18,11 @@ private func step(_ undoManager: UndoManager, _ action: () -> Void) {
     undoManager.beginUndoGrouping()
     action()
     undoManager.endUndoGrouping()
+}
+
+/// Counts calls of a sendable closure. Only used on the main actor.
+private final class ChangeCount: @unchecked Sendable {
+    var value = 0
 }
 
 @MainActor
@@ -363,5 +369,49 @@ struct SessionViewModelTests {
         model.submit(undoManager: nil)
         #expect(document.card(withID: card.id)?.learningState?.lastReview == clock.now)
         #expect(document.deck.progress.map(\.day) == [day - 1, day - 1 + interval])
+    }
+
+    @Test func dueCardsAreCountedAsTimePasses() {
+        let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
+        var card = Card(question: "dom", answer: "Haus")
+        card.learningState = LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: clock.now, due: clock.now.addingTimeInterval(3600))
+        let document = VocabularyDocument(deck: Deck(cards: [card, Card(question: "kot", answer: "Katze")]), clock: clock.studyClock)
+        let dueCards = document.dueCards
+        #expect(dueCards.count == 1)
+
+        clock.now = card.learningState!.due.addingTimeInterval(60)
+        #expect(dueCards.count == 1)
+        dueCards.refresh()
+        #expect(dueCards.count == 2)
+    }
+
+    @Test func dueCardsAreCountedAfterEveryChange() {
+        let document = VocabularyDocument()
+        let undoManager = makeUndoManager()
+        #expect(document.dueCards.count == 0)
+
+        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        #expect(document.dueCards.count == 1)
+        undoManager.undo()
+        #expect(document.dueCards.count == 0)
+    }
+
+    @Test func dueCardsTellObserversOnlyWhenTheNumberChanges() {
+        let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
+        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]), clock: clock.studyClock)
+        let dueCards = document.dueCards
+        let changes = ChangeCount()
+        withObservationTracking {
+            _ = dueCards.count
+        } onChange: {
+            changes.value += 1
+        }
+
+        clock.now.addTimeInterval(60)
+        dueCards.refresh()
+        #expect(changes.value == 0)
+
+        document.add(Card(question: "kot", answer: "Katze"), undoManager: nil)
+        #expect(changes.value == 1)
     }
 }

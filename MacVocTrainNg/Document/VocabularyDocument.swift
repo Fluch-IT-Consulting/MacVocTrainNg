@@ -62,6 +62,8 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     let calendar = StudyCalendar()
     /// The time of reviews, of today's snapshot and of which cards are due.
     let clock: StudyClock
+    /// The number of cards due now, kept up to date as time passes.
+    @MainActor private(set) lazy var dueCards = DueCardCounter(document: self)
     /// Remembers the encoded review log between saves, so autosave stays cheap.
     private let reviewLog = ReviewLogEncoder()
 

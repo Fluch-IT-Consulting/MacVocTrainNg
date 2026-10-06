@@ -41,7 +41,7 @@ struct DocumentView: View {
                     .labelStyle(.titleOnly)
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    StartStudyButton(document: document, action: startSession)
+                    StartStudyButton(dueCards: document.dueCards, action: startSession)
                 }
                 ToolbarItem {
                     Button {
@@ -63,7 +63,7 @@ struct DocumentView: View {
             \.deckActions,
             DeckActions(
                 isInSession: session != nil,
-                canStartSession: session == nil && document.dueCount() > 0,
+                canStartSession: session == nil && document.dueCards.count > 0,
                 startSession: startSession,
                 show: { screen = $0 },
                 showOptions: { showingOptions = true },
@@ -118,22 +118,19 @@ struct DocumentView: View {
     }
 }
 
-/// "Study" button showing how many cards are due. Re-evaluated every minute
-/// because cards become due as time passes.
+/// "Study" button showing how many cards are due.
 private struct StartStudyButton: View {
-    @ObservedObject var document: VocabularyDocument
+    var dueCards: DueCardCounter
     var action: () -> Void
 
     var body: some View {
-        TimelineView(.everyMinute) { _ in
-            let due = document.dueCount()
-            Button(action: action) {
-                Label(due > 0 ? "Study (\(due))" : "Study", systemImage: "graduationcap")
-                    .labelStyle(.titleAndIcon)
-            }
-            .disabled(due == 0)
-            .help(due > 0 ? "Start a study session" : "No cards are due")
+        let due = dueCards.count
+        Button(action: action) {
+            Label(due > 0 ? "Study (\(due))" : "Study", systemImage: "graduationcap")
+                .labelStyle(.titleAndIcon)
         }
+        .disabled(due == 0)
+        .help(due > 0 ? "Start a study session" : "No cards are due")
     }
 }
 

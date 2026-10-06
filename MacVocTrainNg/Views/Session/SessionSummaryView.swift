@@ -8,7 +8,7 @@ struct SessionSummaryView: View {
 
     var body: some View {
         let session = model.session
-        let dueCount = model.document.dueCount()
+        let dueCount = model.document.dueCards.count
 
         VStack(spacing: 24) {
             Spacer()
