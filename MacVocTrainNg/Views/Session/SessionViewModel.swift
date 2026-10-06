@@ -27,6 +27,9 @@ final class SessionViewModel {
     private(set) var session: Session
     private(set) var stage: Stage
     private(set) var previous: PreviousReview?
+    /// Counts the questions asked. The view gives each question a response field of
+    /// its own, so ⌘Z can't reach the typing for an earlier one (#9).
+    private(set) var questionNumber = 0
     var input = ""
 
     /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
@@ -112,6 +115,7 @@ final class SessionViewModel {
 
     private func moveOn() {
         input = ""
+        questionNumber += 1
         // Cards deleted meanwhile can't be asked.
         while let id = session.currentCardID, document.card(withID: id) == nil {
             session.skip()
