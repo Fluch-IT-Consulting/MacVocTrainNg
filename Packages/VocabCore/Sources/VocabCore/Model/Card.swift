@@ -139,6 +139,8 @@ extension Card: Codable {
         if !remark.isEmpty { try container.encode(remark, forKey: .remark) }
         try container.encode(created, forKey: .created)
         try container.encodeIfPresent(memory, forKey: .memory)
-        if !log.isEmpty { try container.encode(log, forKey: .log) }
+        if !log.isEmpty, encoder.userInfo[.omitReviewLog] as? Bool != true {
+            try container.encode(log, forKey: .log)
+        }
     }
 }

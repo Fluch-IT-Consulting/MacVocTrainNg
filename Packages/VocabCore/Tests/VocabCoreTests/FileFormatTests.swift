@@ -5,27 +5,102 @@ import Testing
 struct DeckFileTests {
     let date = Date(timeIntervalSince1970: 1_791_216_000)
 
-    @Test func roundTripPreservesEverything() throws {
+    func sampleDeck() -> Deck {
         var settings = DeckSettings()
         settings.desiredRetention = 0.85
         settings.newCardsPerSession = 15
         settings.cardsPerSession = nil
         var card = Card(question: "dom", answer: "Haus / Gebäude", remark: "Substantiv", created: date)
         card.memory = MemoryState(phase: .review, step: 0, stability: 12.5, difficulty: 4.2, lastReview: date, due: date.addingTimeInterval(86400), reps: 3, lapses: 1)
-        card.log = [ReviewLogEntry(date: date, grade: .hard)]
-        let deck = Deck(settings: settings, cards: [card, Card(question: "kot", answer: "Katze", created: date)], history: [DailySnapshot(day: 20_000, bins: [1, 1])])
-
-        let decoded = try DeckFile.decode(DeckFile.encode(deck))
-        #expect(decoded == deck)
+        card.log = [ReviewLogEntry(date: date.addingTimeInterval(-86400), grade: .again), ReviewLogEntry(date: date, grade: .hard)]
+        return Deck(settings: settings, cards: [card, Card(question: "kot", answer: "Katze", created: date)], history: [DailySnapshot(day: 20_000, bins: [1, 1])])
     }
 
-    @Test func fileIsReadableJSON() throws {
-        let data = try DeckFile.encode(Deck(cards: [Card(question: "dom", answer: "Haus", created: date)]))
-        let text = String(decoding: data, as: UTF8.self)
-        #expect(text.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
-        #expect(text.contains("\"question\" : \"dom\""))
-        #expect(!text.contains("\"remark\""))
-        #expect(!text.contains("\"log\""))
+    func file(_ wrapper: FileWrapper, _ name: String) -> String {
+        String(decoding: wrapper.fileWrappers![name]!.regularFileContents!, as: UTF8.self)
+    }
+
+    @Test func packageRoundTripPreservesEverything() throws {
+        let deck = sampleDeck()
+        #expect(try DeckFile.decode(DeckFile.fileWrapper(for: deck)) == deck)
+    }
+
+    @Test func packageHoldsDeckAndReviewLogSeparately() throws {
+        let deck = sampleDeck()
+        let wrapper = try DeckFile.fileWrapper(for: deck)
+        #expect(wrapper.isDirectory)
+        #expect(Set(wrapper.fileWrappers!.keys) == [DeckFile.deckFileName, DeckFile.reviewsFileName])
+
+        let deckJSON = file(wrapper, DeckFile.deckFileName)
+        #expect(deckJSON.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
+        #expect(deckJSON.contains("\"version\" : 2"))
+        #expect(deckJSON.contains("\"question\" : \"dom\""))
+        #expect(!deckJSON.contains("\"log\""))
+        #expect(!deckJSON.contains("\"remark\" : \"\""))
+
+        let id = deck.cards[0].id.uuidString
+        #expect(file(wrapper, DeckFile.reviewsFileName) == """
+        {"card":"\(id)","date":1791129600,"grade":1}
+        {"card":"\(id)","date":1791216000,"grade":2}
+
+        """)
+    }
+
+    @Test func readsSingleFileOfVersion1() throws {
+        let json = """
+        {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {}, "history": [],
+         "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus",
+                    "created": "2026-10-05T16:00:00Z", "log": [{"date": "2026-10-05T16:00:00Z", "grade": 3}]}]}
+        """
+        let deck = try DeckFile.decode(FileWrapper(regularFileWithContents: Data(json.utf8)))
+        #expect(deck.cards.first?.log == [ReviewLogEntry(date: date, grade: .good)])
+
+        // The next save writes it as a package with the log apart.
+        let package = try DeckFile.fileWrapper(for: deck)
+        #expect(try DeckFile.decode(package) == deck)
+        #expect(!file(package, DeckFile.deckFileName).contains("\"log\""))
+    }
+
+    @Test func packageWithoutReviewLogHasEmptyLogs() throws {
+        let deck = sampleDeck()
+        let wrapper = try DeckFile.fileWrapper(for: deck)
+        wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
+        #expect(try DeckFile.decode(wrapper).cards.allSatisfy(\.log.isEmpty))
+    }
+
+    @Test func reviewsOfUnknownCardsAreDropped() throws {
+        let deck = sampleDeck()
+        let reviews = Data(file(try DeckFile.fileWrapper(for: deck), DeckFile.reviewsFileName).utf8)
+        var remaining = [deck.cards[1]] // the card with answers was deleted
+        try ReviewLogEncoder.attach(reviews, to: &remaining)
+        #expect(remaining == [deck.cards[1]])
+    }
+
+    @Test func damagedReviewLineIsReported() throws {
+        let wrapper = try DeckFile.fileWrapper(for: sampleDeck())
+        var lines = file(wrapper, DeckFile.reviewsFileName)
+        lines += "{\"card\":\"nonsense\"}\n"
+        wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
+        wrapper.addRegularFile(withContents: Data(lines.utf8), preferredFilename: DeckFile.reviewsFileName)
+        #expect(throws: DeckFile.Error.damagedReviewLog(line: 3)) { try DeckFile.decode(wrapper) }
+    }
+
+    @Test func packageWithoutDeckIsRejected() {
+        let wrapper = FileWrapper(directoryWithFileWrappers: [:])
+        #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(wrapper) }
+    }
+
+    @Test func packageReplacesSingleFileOnDisk() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("Stapel.voctrain")
+        try Data("{}".utf8).write(to: url)
+
+        let deck = sampleDeck()
+        try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
+        try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
+        #expect(try DeckFile.decode(FileWrapper(url: url)) == deck)
     }
 
     @Test func optionalFieldsMayBeMissing() throws {
@@ -57,6 +132,57 @@ struct DeckFileTests {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("not json".utf8)) }
         let future = Data("{\"format\": \"com.mfluch.voctrain.deck\", \"version\": 99}".utf8)
         #expect(throws: DeckFile.Error.unsupportedVersion(99)) { try DeckFile.decode(future) }
+    }
+}
+
+struct ReviewLogEncoderTests {
+    let date = Date(timeIntervalSince1970: 1_791_216_000)
+
+    func cards(_ count: Int) -> [Card] {
+        (0..<count).map { index in
+            var card = Card(question: "q\(index)", answer: "a\(index)")
+            card.log = (0..<3).map { ReviewLogEntry(date: date.addingTimeInterval(Double($0 * 86400 + index)), grade: .good) }
+            return card
+        }
+    }
+
+    /// Encodes with the cached encoder and checks it matches a fresh one.
+    func encode(_ cards: [Card], with encoder: ReviewLogEncoder) -> Int {
+        let data = encoder.encode(cards)
+        #expect(data == ReviewLogEncoder().encode(cards))
+        return encoder.lastEncodedCardCount
+    }
+
+    @Test func onlyChangedCardsAreEncodedAgain() {
+        let encoder = ReviewLogEncoder()
+        var deck = cards(50)
+        #expect(encode(deck, with: encoder) == 50)
+        #expect(encode(deck, with: encoder) == 0)
+
+        deck[7].log.append(ReviewLogEntry(date: date.addingTimeInterval(10 * 86400), grade: .again))
+        #expect(encode(deck, with: encoder) == 1)
+
+        deck[7].log.removeLast() // undo
+        #expect(encode(deck, with: encoder) == 1)
+
+        deck[8].log = [] // reset
+        #expect(encode(deck, with: encoder) == 0)
+
+        deck.remove(at: 3) // delete
+        deck.append(cards(1)[0]) // add a studied card
+        #expect(encode(deck, with: encoder) == 1)
+    }
+
+    @Test func replacedLogOfSameLengthIsNoticed() {
+        let encoder = ReviewLogEncoder()
+        var deck = cards(2)
+        _ = encode(deck, with: encoder)
+        deck[0].log[2].grade = .easy
+        #expect(encode(deck, with: encoder) == 1)
+    }
+
+    @Test func cardsWithoutAnswersWriteNothing() {
+        #expect(ReviewLogEncoder().encode([Card(question: "q", answer: "a")]).isEmpty)
     }
 }
 
