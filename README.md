@@ -2,36 +2,37 @@
 
 Vokabeltrainer für macOS, Neuentwicklung von MacVocTrain (2013–2016) in Swift und SwiftUI.
 
-Du tippst die Antwort, die App prüft sie und plant die nächste Abfrage mit
+Du tippst deine Eingabe, die App prüft sie und schlägt eine Bewertung vor. Danach plant
 [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm),
-einem modernen Spaced-Repetition-Algorithmus: Karten kommen genau dann wieder, wenn
-du sie sonst vergessen würdest.
+ein moderner Spaced-Repetition-Algorithmus, die nächste Abfrage: Karten kommen genau dann
+wieder, wenn du sie sonst vergessen würdest.
 
 ## Funktionen
 
-- **Dokumente**: ein Stapel pro Datei (`.voctrain`), lesbares JSON, Autosave, Versionen
+- **Stapel**: einer pro Datei (`.voctrain`), lesbares JSON, Autosave, Versionen
 - **Kartenliste**: schnelles Erfassen (Frage ↩ Antwort ↩ Hinweis ↩), Suche (ignoriert
   Akzente: „dzien“ findet „dzień“), Inspektor mit Lernstand und Verlauf, Undo für alles
-- **Lernen**: Antwort tippen, ↩. Mehrere richtige Antworten mit `/` trennen
-  (`Haus / Gebäude`); teilweise Antworten zählen als „unvollständig“, Tippfehler werden
-  erkannt und markiert. Bewertung mit 1–4 (Nochmal/Schwer/Gut/Leicht), ⌘Z nimmt die
-  letzte Antwort zurück. Falsche Karten kommen in der Sitzung wieder, bis sie sitzen.
-- **Statistik**: Verlauf nach Reifegrad (Tag/Woche/Monat), Prognose der nächsten 30 Tage
+- **Lernen**: Eingabe tippen, ↩. Alternativen einer Antwort mit `/` trennen
+  (`Haus / Gebäude`); wer nur einen Teil nennt, ist „unvollständig“, ein Tippfehler ergibt
+  „fast richtig“ und wird markiert. Bewertung mit 1–4 (Nochmal/Schwer/Gut/Leicht), ⌘Z
+  nimmt die letzte Abfrage zurück. Karten mit „Nochmal“ kommen in der Sitzung wieder, bis
+  sie in der Wiederholungsphase sind; danach lassen sich die Fehler üben.
+- **Statistik**: Fortschritt nach Reifegrad (Tag/Woche/Monat), Prognose der nächsten 30 Tage
 - **Import** von MacVocTrain-1-Dateien (`.mvt`) über *Ablage → MacVocTrain-1-Dokument
-  importieren …*, inklusive Statistikverlauf
+  importieren …*, inklusive Fortschritt
 - Deutsch und Englisch (folgt der Systemsprache)
 
 ## Projektstruktur
 
 ```
-MacVocTrainNg/              App (SwiftUI): Dokument, Ansichten, Lokalisierung
+MacVocTrainNg/              App (SwiftUI): `VocabularyDocument`, Ansichten, Lokalisierung
 MacVocTrainNgTests/         Tests der App-Schicht (Undo, Lernablauf)
 Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Model/                    Card, Deck, Dateiformat
   Scheduling/               FSRS-6, Scheduler (Lernschritte, Fälligkeit), Lerntage
-  Answer/                   Antwortprüfung, Zeichen-Diff
+  Answer/                   Prüfung der Eingabe, Zeichen-Diff
   Session/                  Lernsitzung und Abfragereihenfolge
-  Statistics/               Reifegrad-Histogramme, Verlauf, Prognose
+  Statistics/               Reifegrad-Histogramme, Fortschritt, Prognose
   Import/                   Import von MacVocTrain 1
 ```
 
@@ -84,19 +85,20 @@ Die Variablen dafür stehen im Kopf des Skripts.
 
 - **FSRS-6** mit den Standardparametern von open-spaced-repetition; das Speichermodell ist
   gegen die Referenzwerte von py-fsrs getestet.
-- Neue und vergessene Karten müssen in der Sitzung *n*-mal richtig beantwortet werden
-  (einstellbar, Standard 2), bevor sie einen Abstand in Tagen bekommen.
-- Ein Lerntag beginnt um 4 Uhr; fällige Karten stehen den ganzen Tag zur Verfügung.
-- Jede Antwort wird im Kartenverlauf gespeichert, damit die FSRS-Parameter später an das
-  eigene Gedächtnis angepasst werden können.
+- Neue Karten und Karten nach einem Vergessen brauchen in der Sitzung *n* Lernschritte,
+  also *n*-mal „Gut“ (einstellbar, Standard 2), bevor sie in die Wiederholungsphase kommen
+  und einen Abstand in Lerntagen bekommen.
+- Ein Lerntag beginnt um 4 Uhr; fällige Karten stehen den ganzen Lerntag zur Verfügung.
+- Jede Abfrage wird mit Zeitpunkt und Bewertung im Verlauf der Karte gespeichert, damit
+  die FSRS-Parameter später an das eigene Gedächtnis angepasst werden können.
 
 ### Import aus MacVocTrain 1
 
 Das alte Level-System wird so übersetzt, dass jede Karte genau dann fällig wird, wann
 MacVocTrain 1 sie abgefragt hätte: Die FSRS-Stabilität entspricht dem alten Abstand des
 Levels (0,7 Tage bei Level 1 bis 22 Tage bei Level 12, danach +3,52 Tage je Level).
-Level 0 wird zu „neu lernen“, nie beantwortete Karten zu neuen Karten. Die Schwierigkeit
-ist unbekannt und startet neutral bei 5. FSRS passt sie mit den ersten Antworten an.
+Level 0 wird zu „Erneut lernen“, nie abgefragte Karten zu neuen Karten. Die Schwierigkeit
+ist unbekannt und startet neutral bei 5. FSRS passt sie mit den ersten Abfragen an.
 
 ## Dateiformat
 
@@ -104,8 +106,8 @@ Ein Stapel ist ein Paket, also ein Ordner, den der Finder als eine Datei zeigt:
 
 ```
 Stapel.voctrain/
-  deck.json       Einstellungen, Karten mit Lernstand, Verlauf der Tage
-  reviews.jsonl   eine Zeile je Antwort
+  deck.json       Lernoptionen, Karten mit Lernstand, Fortschritt
+  reviews.jsonl   Verlauf, eine Zeile je Abfrage
 ```
 
 `deck.json`:
@@ -131,11 +133,11 @@ Stapel.voctrain/
 {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3}
 ```
 
-Der Verlauf liegt getrennt, weil er mit jeder Antwort wächst: Die App kodiert beim
+Der Verlauf liegt getrennt, weil er mit jeder Abfrage wächst: Die App kodiert beim
 Sichern nur die neuen Zeilen, ein Autosave kostet deshalb gleich viel, egal wie lang
-der Verlauf ist. `history` speichert pro Tag die Anzahl der Karten je
-Stabilitätsklasse (neu, < 1 Tag, 1–2, 2–4, 4–8 … Tage). Fehlende Felder werden mit
-Standardwerten ergänzt.
+der Verlauf ist. `history` hält den Fortschritt, einen Tagesstand je Lerntag: wie viele
+Karten neu waren und wie viele eine Stabilität von unter 1, 1–2, 2–4, 4–8 … Tagen
+hatten. Fehlende Felder werden mit Standardwerten ergänzt.
 
 Version 1 war eine einzelne JSON-Datei mit dem Verlauf in jeder Karte. Die App liest
 sie weiter und sichert sie beim nächsten Mal als Paket; ältere App-Versionen können
@@ -152,4 +154,4 @@ swift Tools/make-app-icon.swift
 
 Im Debug-Build öffnet das Startargument `-debugScreen statistics|study|options` direkt
 die jeweilige Ansicht (praktisch für Screenshots), `-debugSave YES` sichert alle
-geöffneten Dokumente kurz nach dem Öffnen (prüft den echten Speicherweg).
+geöffneten Stapel kurz nach dem Öffnen (prüft den echten Speicherweg).
