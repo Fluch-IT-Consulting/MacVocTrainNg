@@ -159,7 +159,7 @@ private struct FeedbackView: View {
             }
 
             // Return accepts the suggestion.
-            Button("") { onGrade(result.suggestedGrade) }
+            Button { onGrade(result.suggestedGrade) } label: { Text(verbatim: "") }
                 .keyboardShortcut(.defaultAction)
                 .opacity(0)
                 .frame(width: 0, height: 0)
@@ -190,7 +190,7 @@ private struct FeedbackView: View {
     /// The answer; for almost correct responses with the differences highlighted.
     private var answerText: Text {
         guard result == .almostCorrect else { return Text(expected) }
-        return ResponseDiff.segments(response: response, expected: expected).reduce(Text("")) { text, segment in
+        return ResponseDiff.segments(response: response, expected: expected).reduce(Text(verbatim: "")) { text, segment in
             if segment.isMismatch {
                 return text + Text(segment.text).bold().underline().foregroundColor(Grade.again.color)
             }
