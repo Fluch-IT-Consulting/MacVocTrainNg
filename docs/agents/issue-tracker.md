@@ -89,6 +89,10 @@ das, was tatsächlich getan wurde, meist `refactor` oder `docs`.
 Gehört ein Commit zu keinem Issue, entfällt der Geltungsbereich:
 `docs: Das README nennt den Release-Befehl`.
 
+Formatiert ein `style`-Commit viele Dateien um, kommt er nach dem Merge in
+`.git-blame-ignore-revs`, damit `git blame` die inhaltlichen Änderungen zeigt. Erst
+dann steht sein Hash fest: Der Merge per Rebase schreibt die Commits neu.
+
 Bricht eine Änderung bestehende **Stapeldateien** (`.voctrain`), trägt der Typ ein
 Ausrufezeichen, dazu eine Fußzeile `BREAKING CHANGE: <was bricht>`. Das gilt auch,
 wenn `DeckFile.currentVersion` steigt, die App ältere Dateien aber weiter liest:

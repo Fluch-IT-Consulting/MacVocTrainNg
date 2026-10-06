@@ -80,6 +80,13 @@ Formatierung mit swift-format (liegt Xcode bei, Einstellungen in `.swift-format`
 xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
 
+Commits, die nur umformatieren, stehen in `.git-blame-ignore-revs`. GitHub blendet sie in
+der Blame-Ansicht aus; damit `git blame` sie lokal auch überspringt, einmalig:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 Neue Swift-Dateien einfach in `MacVocTrainNg/` anlegen: Der Ordner ist mit dem Target
 synchronisiert, die Projektdatei muss nicht angepasst werden.
 
