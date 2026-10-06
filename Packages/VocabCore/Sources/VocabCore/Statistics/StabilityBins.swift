@@ -1,12 +1,12 @@
 import Foundation
 
-/// Histogram of cards by memory stability, with bins doubling in width.
+/// Histogram of cards by stability, with bins doubling in width.
 ///
 /// - Bin 0: new cards
 /// - Bin 1: cards in (re)learning or with stability below one day
 /// - Bin 2…11: stability in [1, 2), [2, 4), [4, 8), … days; bin 11 is open-ended
 ///
-/// The fine, fixed bins are what gets stored in the history. How they are grouped
+/// The fine, fixed bins are what gets stored in the progress. How they are grouped
 /// for display (`MaturityCategory`) can change without touching stored data.
 public enum StabilityBins {
     public static let count = 12
@@ -18,9 +18,9 @@ public enum StabilityBins {
     }
 
     public static func bin(for card: Card) -> Int {
-        guard let memory = card.memory else { return 0 }
-        guard memory.phase == .review else { return 1 }
-        return bin(forStability: memory.stability)
+        guard let learningState = card.learningState else { return 0 }
+        guard learningState.phase == .review else { return 1 }
+        return bin(forStability: learningState.stability)
     }
 
     public static func histogram(of cards: [Card]) -> [Int] {
@@ -36,7 +36,7 @@ public enum StabilityBins {
 public enum MaturityCategory: Int, CaseIterable, Comparable, Sendable {
     case new
     /// Stability below 4 days.
-    case learning
+    case shaky
     /// 4 to 16 days.
     case young
     /// 16 to 64 days.
@@ -49,7 +49,7 @@ public enum MaturityCategory: Int, CaseIterable, Comparable, Sendable {
     public init(bin: Int) {
         switch bin {
         case ...0: self = .new
-        case 1...3: self = .learning
+        case 1...3: self = .shaky
         case 4...5: self = .young
         case 6...7: self = .maturing
         case 8...9: self = .mature

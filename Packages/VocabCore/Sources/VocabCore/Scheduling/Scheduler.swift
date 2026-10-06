@@ -1,28 +1,29 @@
 import Foundation
 
-/// Applies answers to cards: updates the FSRS memory state, moves cards between
-/// learning phases and computes the next due date.
+/// Applies grades to cards: updates stability and difficulty with FSRS, moves cards
+/// between phases and computes the next due date.
 ///
 /// Policy:
-/// - New and forgotten cards stay in (re)learning until they were answered with
-///   `.good` `settings.learningSteps` times (`.hard` keeps the step, `.again`
-///   restarts, `.easy` graduates at once). While (re)learning they remain due.
-/// - Graduated cards get an interval in whole study days from FSRS.
+/// - New cards and cards after a lapse stay in (re)learning until they have
+///   `learningOptions.steps` steps, one per `.good` (`.hard` keeps the step, `.again`
+///   resets it, `.easy` moves the card to the review phase at once). While
+///   (re)learning they remain due.
+/// - Cards in the review phase get an interval in whole study days from FSRS.
 public struct Scheduler: Sendable {
-    public var settings: DeckSettings
+    public var learningOptions: LearningOptions
     public var calendar: StudyCalendar
 
-    public init(settings: DeckSettings, calendar: StudyCalendar = StudyCalendar()) {
-        self.settings = settings
+    public init(learningOptions: LearningOptions, calendar: StudyCalendar = StudyCalendar()) {
+        self.learningOptions = learningOptions
         self.calendar = calendar
     }
 
-    public var fsrs: FSRS { FSRS(parameters: settings.parameters) }
+    public var fsrs: FSRS { FSRS(parameters: learningOptions.parameters) }
 
-    private var requiredSteps: Int { max(1, settings.learningSteps) }
+    private var requiredSteps: Int { max(1, learningOptions.steps) }
 
     public func review<R: RandomNumberGenerator>(_ card: Card, grade: Grade, at now: Date, using random: inout R) -> Card {
-        let previous = card.memory
+        let previous = card.learningState
         let elapsedDays = previous.map { max(0, calendar.days(from: $0.lastReview, to: now)) } ?? 0
         let memory = fsrs.review(
             previous.map { FSRS.Memory(stability: $0.stability, difficulty: $0.difficulty) },
@@ -63,14 +64,14 @@ public struct Scheduler: Sendable {
         }
 
         var updated = card
-        updated.memory = MemoryState(
+        updated.learningState = LearningState(
             phase: phase,
             step: step,
             stability: memory.stability,
             difficulty: memory.difficulty,
             lastReview: now,
             due: due,
-            reps: (previous?.reps ?? 0) + 1,
+            reviews: (previous?.reviews ?? 0) + 1,
             lapses: lapses
         )
         updated.log.append(ReviewLogEntry(date: now, grade: grade))
@@ -82,13 +83,13 @@ public struct Scheduler: Sendable {
         return review(card, grade: grade, at: now, using: &random)
     }
 
-    /// Interval in whole days for a graduated card, fuzzed if enabled.
+    /// Interval in whole study days for a card in the review phase, fuzzed if enabled.
     public func intervalDays<R: RandomNumberGenerator>(stability: Double, using random: inout R) -> Int {
-        let maximum = max(1, settings.maximumInterval)
-        let raw = fsrs.interval(stability: stability, desiredRetention: settings.desiredRetention)
+        let maximum = max(1, learningOptions.maximumInterval)
+        let raw = fsrs.interval(stability: stability, targetRecall: learningOptions.targetRecall)
         guard raw.isFinite else { return raw > 0 ? maximum : 1 }
         let interval = min(max(Int(raw.rounded()), 1), maximum)
-        guard settings.fuzzing else { return interval }
+        guard learningOptions.fuzzing else { return interval }
         return Self.fuzzed(interval: interval, maximum: maximum, using: &random)
     }
 

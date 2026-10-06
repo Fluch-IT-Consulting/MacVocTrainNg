@@ -30,7 +30,7 @@ MacVocTrainNgTests/         Tests der App-Schicht (Undo, Lernablauf)
 Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Model/                    Card, Deck, Dateiformat
   Scheduling/               FSRS-6, Scheduler (Lernschritte, Fälligkeit), Lerntage
-  Answer/                   Prüfung der Eingabe, Zeichen-Diff
+  Check/                    Prüfung der Eingabe, Zeichen-Diff
   Session/                  Lernsitzung und Abfragereihenfolge
   Statistics/               Reifegrad-Histogramme, Fortschritt, Prognose
   Import/                   Import von MacVocTrain 1

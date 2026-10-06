@@ -7,7 +7,7 @@ extension MaturityCategory {
     var title: String {
         switch self {
         case .new: String(localized: "New")
-        case .learning: String(localized: "Shaky")
+        case .shaky: String(localized: "Shaky")
         case .young: String(localized: "Young")
         case .maturing: String(localized: "Maturing")
         case .mature: String(localized: "Mature")
@@ -18,7 +18,7 @@ extension MaturityCategory {
     var explanation: String {
         switch self {
         case .new: String(localized: "Never studied")
-        case .learning: String(localized: "Remembered for less than 4 days")
+        case .shaky: String(localized: "Remembered for less than 4 days")
         case .young: String(localized: "Remembered for 4 to 16 days")
         case .maturing: String(localized: "Remembered for 16 to 64 days")
         case .mature: String(localized: "Remembered for 64 to 256 days")
@@ -27,12 +27,12 @@ extension MaturityCategory {
     }
 
     /// An ordinal one-hue ramp (validated for colour-vision deficiencies in light
-    /// and dark mode): the more solid the memory, the more prominent the blue.
+    /// and dark mode): the higher the maturity, the more prominent the blue.
     /// New cards are neutral grey, outside the ramp.
     var color: Color {
         switch self {
         case .new: Color(light: 0xB4B2AC, dark: 0x5E5D59)
-        case .learning: Color(light: 0x86B6EF, dark: 0x1C5CAB)
+        case .shaky: Color(light: 0x86B6EF, dark: 0x1C5CAB)
         case .young: Color(light: 0x5598E7, dark: 0x2A78D6)
         case .maturing: Color(light: 0x2A78D6, dark: 0x5598E7)
         case .mature: Color(light: 0x1C5CAB, dark: 0x86B6EF)
@@ -90,9 +90,9 @@ enum Format {
 
     /// When a card is due, relative to now.
     static func due(_ card: Card, now: Date = Date()) -> String {
-        guard let memory = card.memory else { return String(localized: "New") }
-        if memory.due <= now { return String(localized: "Now") }
-        return memory.due.formatted(.relative(presentation: .named))
+        guard let learningState = card.learningState else { return String(localized: "New") }
+        if learningState.due <= now { return String(localized: "Now") }
+        return learningState.due.formatted(.relative(presentation: .named))
     }
 }
 

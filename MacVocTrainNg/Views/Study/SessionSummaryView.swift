@@ -29,19 +29,19 @@ struct SessionSummaryView: View {
                 GridRow {
                     Text("Reviews")
                         .foregroundStyle(.secondary)
-                    Text(session.answerCount.formatted())
+                    Text(session.reviewCount.formatted())
                 }
-                if session.answerCount > 0 {
+                if session.reviewCount > 0 {
                     GridRow {
                         Text("Recalled")
                             .foregroundStyle(.secondary)
-                        Text(Format.percent(Double(session.correctCount) / Double(session.answerCount)))
+                        Text(Format.percent(Double(session.recalledCount) / Double(session.reviewCount)))
                     }
                 }
                 GridRow {
                     Text("Mistakes")
                         .foregroundStyle(.secondary)
-                    Text(session.failedCardIDs.count.formatted())
+                    Text(session.mistakeIDs.count.formatted())
                 }
                 GridRow {
                     Text("Time")
@@ -53,8 +53,8 @@ struct SessionSummaryView: View {
             .monospacedDigit()
 
             HStack(spacing: 12) {
-                if !session.failedCardIDs.isEmpty {
-                    Button("Practice Mistakes (\(session.failedCardIDs.count))") {
+                if !session.mistakeIDs.isEmpty {
+                    Button("Practice Mistakes (\(session.mistakeIDs.count))") {
                         model.practiceMistakes()
                     }
                 }

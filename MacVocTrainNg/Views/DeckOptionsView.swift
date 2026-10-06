@@ -6,11 +6,11 @@ struct DeckOptionsView: View {
     @ObservedObject var document: VocabularyDocument
     @Environment(\.undoManager) private var undoManager
     @Environment(\.dismiss) private var dismiss
-    @State private var settings: DeckSettings
+    @State private var options: LearningOptions
 
     init(document: VocabularyDocument) {
         self.document = document
-        _settings = State(initialValue: document.deck.settings)
+        _options = State(initialValue: document.deck.learningOptions)
     }
 
     var body: some View {
@@ -19,8 +19,8 @@ struct DeckOptionsView: View {
                 Section {
                     LabeledContent("Target recall") {
                         HStack {
-                            Slider(value: $settings.desiredRetention, in: DeckSettings.retentionRange, step: 0.01)
-                            Text(Format.percent(settings.desiredRetention))
+                            Slider(value: $options.targetRecall, in: LearningOptions.targetRecallRange, step: 0.01)
+                            Text(Format.percent(options.targetRecall))
                                 .monospacedDigit()
                                 .frame(width: 44, alignment: .trailing)
                         }
@@ -33,10 +33,10 @@ struct DeckOptionsView: View {
                 }
 
                 Section {
-                    LimitField(title: "Cards per session", value: $settings.cardsPerSession, defaultValue: 100, step: 10)
-                    LimitField(title: "New cards per session", value: $settings.newCardsPerSession, defaultValue: 20, step: 5)
-                    Stepper(value: $settings.learningSteps, in: DeckSettings.learningStepsRange) {
-                        LabeledContent("Steps per card", value: settings.learningSteps.formatted())
+                    LimitField(title: "Cards per session", value: $options.cardsPerSession, defaultValue: 100, step: 10)
+                    LimitField(title: "New cards per session", value: $options.newCardsPerSession, defaultValue: 20, step: 5)
+                    Stepper(value: $options.steps, in: LearningOptions.stepsRange) {
+                        LabeledContent("Steps per card", value: options.steps.formatted())
                     }
                 } header: {
                     Text("Sessions")
@@ -46,18 +46,18 @@ struct DeckOptionsView: View {
                 }
 
                 Section("Checking") {
-                    Toggle("Case-sensitive", isOn: $settings.caseSensitive)
+                    Toggle("Case-sensitive", isOn: $options.caseSensitive)
                 }
 
                 Section("Advanced") {
-                    Toggle("Spread out intervals", isOn: $settings.fuzzing)
+                    Toggle("Spread out intervals", isOn: $options.fuzzing)
                         .help("Varies intervals slightly so cards learned together don't always come back together.")
-                    Stepper(value: $settings.maximumInterval, in: 30...36500, step: 30) {
-                        LabeledContent("Longest interval", value: Format.days(Double(settings.maximumInterval)))
+                    Stepper(value: $options.maximumInterval, in: 30...36500, step: 30) {
+                        LabeledContent("Longest interval", value: Format.days(Double(options.maximumInterval)))
                     }
-                    if settings.parameters != .default {
+                    if options.parameters != .default {
                         Button("Reset Algorithm Parameters") {
-                            settings.parameters = .default
+                            options.parameters = .default
                         }
                     }
                 }
@@ -68,13 +68,13 @@ struct DeckOptionsView: View {
 
             HStack {
                 Button("Restore Defaults") {
-                    settings = DeckSettings()
+                    options = LearningOptions()
                 }
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Save") {
-                    document.updateSettings(settings, undoManager: undoManager)
+                    document.updateLearningOptions(options, undoManager: undoManager)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

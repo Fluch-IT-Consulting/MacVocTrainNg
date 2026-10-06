@@ -1,18 +1,18 @@
 import Foundation
 
-/// Character-level comparison of a typed answer with the expected one, used to
+/// Character-level comparison of a response with the answer, used to
 /// highlight exactly what was wrong.
-public enum AnswerDiff {
+public enum ResponseDiff {
     public struct Segment: Hashable, Sendable {
         public var text: String
-        /// `true` if this part of the expected answer was missing or mistyped.
+        /// `true` if this part of the answer was missing or mistyped.
         public var isMismatch: Bool
     }
 
     /// Splits `expected` into runs of characters that do or don't appear, in order,
-    /// in `given` (longest common subsequence).
-    public static func segments(given: String, expected: String) -> [Segment] {
-        let a = Array(AnswerChecker.normalize(given))
+    /// in `response` (longest common subsequence).
+    public static func segments(response: String, expected: String) -> [Segment] {
+        let a = Array(ResponseChecker.normalize(response))
         let b = Array(expected.precomposedStringWithCanonicalMapping)
         guard !b.isEmpty else { return [] }
         guard !a.isEmpty else { return [Segment(text: String(b), isMismatch: true)] }

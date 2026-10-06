@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import VocabCore
 
-struct AnswerCheckerTests {
-    let checker = AnswerChecker()
+struct ResponseCheckerTests {
+    let checker = ResponseChecker()
 
-    @Test func exactAnswerIsCorrect() {
+    @Test func exactResponseIsCorrect() {
         #expect(checker.check("Haus", against: "Haus") == .correct)
     }
 
@@ -22,14 +22,14 @@ struct AnswerCheckerTests {
         #expect(checker.check("  \(decomposed) ", against: "dzień dobry") == .correct)
     }
 
-    @Test func emptyOrSeparatorOnlyAnswerIsWrong() {
+    @Test func emptyOrSeparatorOnlyResponseIsWrong() {
         #expect(checker.check("", against: "Haus") == .wrong)
         #expect(checker.check(" / ", against: "Haus") == .wrong)
     }
 
     @Test func caseMattersOnlyWhenRequested() {
         #expect(checker.check("haus", against: "Haus") == .almostCorrect)
-        #expect(AnswerChecker(caseSensitive: false).check("haus", against: "Haus") == .correct)
+        #expect(ResponseChecker(caseSensitive: false).check("haus", against: "Haus") == .correct)
     }
 
     @Test func smallTyposAreAlmostCorrect() {
@@ -40,36 +40,36 @@ struct AnswerCheckerTests {
         #expect(checker.check("tak", against: "tam") == .wrong)
     }
 
-    @Test func wrongAlternativeMakesAnswerWrong() {
+    @Test func wrongAlternativeMakesResponseWrong() {
         #expect(checker.check("Haus / Auto", against: "Haus / Gebäude") == .wrong)
     }
 
     @Test func suggestedGrades() {
-        #expect(AnswerChecker.Result.correct.suggestedGrade == .good)
-        #expect(AnswerChecker.Result.incomplete(missing: []).suggestedGrade == .hard)
-        #expect(AnswerChecker.Result.almostCorrect.suggestedGrade == .again)
-        #expect(AnswerChecker.Result.wrong.suggestedGrade == .again)
+        #expect(ResponseChecker.Result.correct.suggestedGrade == .good)
+        #expect(ResponseChecker.Result.incomplete(missing: []).suggestedGrade == .hard)
+        #expect(ResponseChecker.Result.almostCorrect.suggestedGrade == .again)
+        #expect(ResponseChecker.Result.wrong.suggestedGrade == .again)
     }
 
     @Test func editDistanceCountsTranspositionAsOne() {
-        #expect(AnswerChecker.editDistance(Array("abcd"), Array("abdc")) == 1)
-        #expect(AnswerChecker.editDistance(Array(""), Array("abc")) == 3)
-        #expect(AnswerChecker.editDistance(Array("kitten"), Array("sitting")) == 3)
+        #expect(ResponseChecker.editDistance(Array("abcd"), Array("abdc")) == 1)
+        #expect(ResponseChecker.editDistance(Array(""), Array("abc")) == 3)
+        #expect(ResponseChecker.editDistance(Array("kitten"), Array("sitting")) == 3)
     }
 }
 
-struct AnswerDiffTests {
+struct ResponseDiffTests {
     @Test func marksMissingCharacters() {
-        let segments = AnswerDiff.segments(given: "dzien", expected: "dzień")
+        let segments = ResponseDiff.segments(response: "dzien", expected: "dzień")
         #expect(segments.map(\.text) == ["dzie", "ń"])
         #expect(segments.map(\.isMismatch) == [false, true])
     }
 
-    @Test func emptyAnswerMarksEverything() {
-        #expect(AnswerDiff.segments(given: "", expected: "Haus") == [.init(text: "Haus", isMismatch: true)])
+    @Test func emptyResponseMarksEverything() {
+        #expect(ResponseDiff.segments(response: "", expected: "Haus") == [.init(text: "Haus", isMismatch: true)])
     }
 
-    @Test func identicalAnswerHasNoMismatch() {
-        #expect(AnswerDiff.segments(given: "Haus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
+    @Test func identicalResponseHasNoMismatch() {
+        #expect(ResponseDiff.segments(response: "Haus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
     }
 }

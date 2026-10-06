@@ -2,7 +2,7 @@ import Foundation
 
 /// Writes and reads `reviews.jsonl`, the review log of a deck package.
 ///
-/// Each line is one answer, grouped by card in deck order:
+/// Each line is one review, grouped by card in deck order:
 ///
 /// ```
 /// {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3}
@@ -10,7 +10,7 @@ import Foundation
 ///
 /// `date` is in whole seconds since 1970. The encoder keeps the encoded lines of
 /// every card and on the next call only encodes what changed, so saving costs the
-/// same however long the history gets. A card's lines are reused while its log has
+/// same however long the log gets. A card's lines are reused while its log has
 /// the same length and last entry, and extended when entries were appended.
 /// Logs only ever grow at the end or are replaced as a whole (reset, undo,
 /// deletion), so this is enough to notice every change.

@@ -3,16 +3,16 @@ import Foundation
 /// Imports documents of MacVocTrain 1 (`.mvt`, an NSKeyedArchiver archive).
 ///
 /// The old app used a fixed level system: a card at level *n* became due a fixed
-/// time after its last correct answer (0.7 days at level 1 up to 22 days at level
+/// time after it was last asked and known (0.7 days at level 1 up to 22 days at level
 /// 12, then 3.52 days more per level), spread by ±10 %. Level 0 meant "not known".
 ///
 /// Conversion to FSRS:
-/// - never answered → new card
+/// - never asked → new card
 /// - level 0 → relearning, due immediately
-/// - level n ≥ 1 → review card whose stability equals its old interval, so it falls
+/// - level n ≥ 1 → card in the review phase whose stability equals its old interval, so it falls
 ///   due exactly when MacVocTrain 1 would have asked it. Difficulty is unknown and
-///   set to a neutral 5; FSRS adapts it with the first answers.
-/// The daily level statistics are converted into stability histograms.
+///   set to a neutral 5; FSRS adapts it with the first reviews.
+/// The daily level statistics become the progress of the deck.
 public enum LegacyImporter {
     public enum Error: Swift.Error, Equatable {
         case unreadableArchive
@@ -28,12 +28,12 @@ public enum LegacyImporter {
             var card = Card(
                 question: legacy.question ?? "",
                 answer: legacy.answer ?? "",
-                remark: legacy.remarkQuestion ?? "",
+                hint: legacy.remarkQuestion ?? "",
                 created: now
             )
             if let lastAnswered = legacy.lastAnswered {
                 if legacy.level <= 0 {
-                    card.memory = MemoryState(
+                    card.learningState = LearningState(
                         phase: .relearning,
                         stability: fsrs.initialStability(.again),
                         difficulty: fsrs.initialDifficulty(.again),
@@ -44,21 +44,21 @@ public enum LegacyImporter {
                     // MacVocTrain 1 used ±10 %; clamp in case the file is damaged.
                     let adjustment = Double(legacy.levelDurationAdjustment)
                     let days = levelDuration(legacy.level) * (1 + (adjustment.isFinite ? min(max(adjustment, -0.5), 0.5) : 0))
-                    card.memory = MemoryState(
+                    card.learningState = LearningState(
                         phase: .review,
                         stability: days,
                         difficulty: neutralDifficulty,
                         lastReview: lastAnswered,
                         due: lastAnswered.addingTimeInterval(days * 86400),
-                        reps: legacy.level
+                        reviews: legacy.level
                     )
                 }
             }
             return card
         }
 
-        var deck = Deck(cards: cards, history: history(from: box.progressMonitor?.progressData ?? []))
-        deck.updateHistory(day: calendar.dayNumber(for: now))
+        var deck = Deck(cards: cards, progress: progress(from: box.progressMonitor?.progressData ?? []))
+        deck.updateProgress(day: calendar.dayNumber(for: now))
         return deck
     }
 
@@ -71,7 +71,7 @@ public enum LegacyImporter {
         return levels[levels.count - 1] + Double(level - levels.count) * increment
     }
 
-    static func history(from statuses: [LegacyDailyStatus]) -> [DailySnapshot] {
+    static func progress(from statuses: [LegacyDailyStatus]) -> [DailySnapshot] {
         var snapshots: [Int: DailySnapshot] = [:]
         for status in statuses {
             let date = CivilDate(year: status.date / 10000, month: (status.date / 100) % 100, day: status.date % 100)

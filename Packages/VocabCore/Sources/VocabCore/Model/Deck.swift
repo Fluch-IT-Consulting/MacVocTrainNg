@@ -1,13 +1,13 @@
 import Foundation
 
 /// Per-deck learning options.
-public struct DeckSettings: Codable, Hashable, Sendable {
-    /// Probability of recall at which a card becomes due (FSRS "desired retention").
-    public var desiredRetention: Double = 0.9
+public struct LearningOptions: Codable, Hashable, Sendable {
+    /// Recall probability at which a card becomes due again (FSRS "desired retention").
+    public var targetRecall: Double = 0.9
     /// Upper bound for review intervals in days.
     public var maximumInterval: Int = 36500
-    /// Correct answers required before a new or forgotten card leaves the session.
-    public var learningSteps: Int = 2
+    /// Steps (`.good` grades) a card in (re)learning needs to reach the review phase.
+    public var steps: Int = 2
     /// Maximum number of cards per session; `nil` means unlimited.
     public var cardsPerSession: Int? = 100
     /// Maximum number of never-studied cards per session; `nil` means unlimited.
@@ -19,22 +19,24 @@ public struct DeckSettings: Codable, Hashable, Sendable {
 
     public init() {}
 
-    public static let retentionRange: ClosedRange<Double> = 0.7...0.97
-    public static let learningStepsRange: ClosedRange<Int> = 1...5
+    public static let targetRecallRange: ClosedRange<Double> = 0.7...0.97
+    public static let stepsRange: ClosedRange<Int> = 1...5
 }
 
-extension DeckSettings {
+extension LearningOptions {
     private enum CodingKeys: String, CodingKey {
-        case desiredRetention, maximumInterval, learningSteps, cardsPerSession, newCardsPerSession
+        case maximumInterval, cardsPerSession, newCardsPerSession
+        case targetRecall = "desiredRetention"
+        case steps = "learningSteps"
         case caseSensitive, fuzzing, parameters
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let defaults = DeckSettings()
-        desiredRetention = try container.decodeIfPresent(Double.self, forKey: .desiredRetention) ?? defaults.desiredRetention
+        let defaults = LearningOptions()
+        targetRecall = try container.decodeIfPresent(Double.self, forKey: .targetRecall) ?? defaults.targetRecall
         maximumInterval = try container.decodeIfPresent(Int.self, forKey: .maximumInterval) ?? defaults.maximumInterval
-        learningSteps = try container.decodeIfPresent(Int.self, forKey: .learningSteps) ?? defaults.learningSteps
+        steps = try container.decodeIfPresent(Int.self, forKey: .steps) ?? defaults.steps
         cardsPerSession = container.contains(.cardsPerSession)
             ? try container.decodeIfPresent(Int.self, forKey: .cardsPerSession)
             : defaults.cardsPerSession
@@ -47,19 +49,19 @@ extension DeckSettings {
 
     /// Clamps values from hand-edited or corrupt files into usable ranges.
     mutating func sanitize() {
-        if !desiredRetention.isFinite { desiredRetention = DeckSettings().desiredRetention }
-        desiredRetention = min(max(desiredRetention, Self.retentionRange.lowerBound), Self.retentionRange.upperBound)
+        if !targetRecall.isFinite { targetRecall = LearningOptions().targetRecall }
+        targetRecall = min(max(targetRecall, Self.targetRecallRange.lowerBound), Self.targetRecallRange.upperBound)
         maximumInterval = max(1, maximumInterval)
-        learningSteps = min(max(learningSteps, Self.learningStepsRange.lowerBound), Self.learningStepsRange.upperBound)
+        steps = min(max(steps, Self.stepsRange.lowerBound), Self.stepsRange.upperBound)
         cardsPerSession = cardsPerSession.map { max(1, $0) }
         newCardsPerSession = newCardsPerSession.map { max(0, $0) }
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(desiredRetention, forKey: .desiredRetention)
+        try container.encode(targetRecall, forKey: .targetRecall)
         try container.encode(maximumInterval, forKey: .maximumInterval)
-        try container.encode(learningSteps, forKey: .learningSteps)
+        try container.encode(steps, forKey: .steps)
         // Written as null when unlimited, so a missing key can mean "default".
         try container.encode(cardsPerSession, forKey: .cardsPerSession)
         try container.encode(newCardsPerSession, forKey: .newCardsPerSession)
@@ -69,18 +71,18 @@ extension DeckSettings {
     }
 }
 
-/// A collection of cards together with its settings and learning history.
-/// This is the content of one document.
+/// A collection of cards together with its learning options and progress, stored
+/// as one package (see `DeckFile`).
 public struct Deck: Codable, Hashable, Sendable {
-    public var settings: DeckSettings
+    public var learningOptions: LearningOptions
     public var cards: [Card]
-    /// One entry per study day on which the deck changed, oldest first.
-    public var history: [DailySnapshot]
+    /// One daily snapshot per study day on which the deck changed, oldest first.
+    public var progress: [DailySnapshot]
 
-    public init(settings: DeckSettings = DeckSettings(), cards: [Card] = [], history: [DailySnapshot] = []) {
-        self.settings = settings
+    public init(learningOptions: LearningOptions = LearningOptions(), cards: [Card] = [], progress: [DailySnapshot] = []) {
+        self.learningOptions = learningOptions
         self.cards = cards
-        self.history = history
+        self.progress = progress
     }
 
     public func index(of id: Card.ID) -> Int? {
@@ -92,15 +94,15 @@ public struct Deck: Codable, Hashable, Sendable {
     }
 
     /// Records the current distribution of cards as the snapshot for `day`.
-    public mutating func updateHistory(day: Int) {
+    public mutating func updateProgress(day: Int) {
         let snapshot = DailySnapshot(day: day, bins: StabilityBins.histogram(of: cards))
-        if let last = history.last, last.day == day {
-            history[history.count - 1] = snapshot
-        } else if let last = history.last, last.day > day {
-            // Clock moved backwards; never reorder existing history.
+        if let last = progress.last, last.day == day {
+            progress[progress.count - 1] = snapshot
+        } else if let last = progress.last, last.day > day {
+            // Clock moved backwards; never reorder existing snapshots.
             return
         } else {
-            history.append(snapshot)
+            progress.append(snapshot)
         }
     }
 }

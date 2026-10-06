@@ -11,7 +11,7 @@ public struct CardSearchIndex: Sendable {
 
     public init(cards: [Card]) {
         // The separator keeps a query from matching across two fields.
-        texts = cards.map { Self.fold($0.question + "\u{1F}" + $0.answer + "\u{1F}" + $0.remark) }
+        texts = cards.map { Self.fold($0.question + "\u{1F}" + $0.answer + "\u{1F}" + $0.hint) }
     }
 
     /// The positions among `positions` whose cards match `query`, in the given order.

@@ -8,7 +8,7 @@ struct StatisticsTests {
 
     func reviewCard(stability: Double, due: Date? = nil) -> Card {
         var card = Card(question: "q", answer: "a")
-        card.memory = MemoryState(phase: .review, stability: stability, difficulty: 5, lastReview: now, due: due ?? now)
+        card.learningState = LearningState(phase: .review, stability: stability, difficulty: 5, lastReview: now, due: due ?? now)
         return card
     }
 
@@ -23,7 +23,7 @@ struct StatisticsTests {
 
     @Test func newAndLearningCardsHaveTheirOwnBins() {
         var learning = Card(question: "q", answer: "a")
-        learning.memory = MemoryState(phase: .relearning, stability: 50, difficulty: 5, lastReview: now, due: now)
+        learning.learningState = LearningState(phase: .relearning, stability: 50, difficulty: 5, lastReview: now, due: now)
         #expect(StabilityBins.bin(for: Card(question: "q", answer: "a")) == 0)
         #expect(StabilityBins.bin(for: learning) == 1)
         #expect(StabilityBins.histogram(of: [learning, reviewCard(stability: 3)]) == [0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0])
@@ -31,23 +31,23 @@ struct StatisticsTests {
 
     @Test func categoriesGroupBins() {
         #expect(MaturityCategory(bin: 0) == .new)
-        #expect(MaturityCategory(card: reviewCard(stability: 3)) == .learning)
+        #expect(MaturityCategory(card: reviewCard(stability: 3)) == .shaky)
         #expect(MaturityCategory(card: reviewCard(stability: 10)) == .young)
         #expect(MaturityCategory(card: reviewCard(stability: 30)) == .maturing)
         #expect(MaturityCategory(card: reviewCard(stability: 100)) == .mature)
         #expect(MaturityCategory(card: reviewCard(stability: 1000)) == .mastered)
         let counts = MaturityCategory.counts(fromBins: [1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0])
-        #expect(counts[.learning] == 9)
+        #expect(counts[.shaky] == 9)
         #expect(counts[.young] == 5)
     }
 
     @Test func dailyProgressRepeatsLastKnownState() {
         let day = CivilDate(year: 2026, month: 10, day: 1).dayNumber
-        let history = [
+        let snapshots = [
             DailySnapshot(day: day, bins: [1]),
             DailySnapshot(day: day + 3, bins: [4]),
         ]
-        let points = DeckStatistics.progress(history: history, today: day + 4, granularity: .day)
+        let points = DeckStatistics.progress(snapshots: snapshots, today: day + 4, granularity: .day)
         #expect(points.map(\.day) == Array(day...(day + 4)))
         #expect(points.map { $0.bins[0] } == [1, 1, 1, 4, 4])
     }
@@ -56,14 +56,14 @@ struct StatisticsTests {
         // 2026-10-07 is a Wednesday; weeks start on Monday.
         let today = CivilDate(year: 2026, month: 10, day: 7).dayNumber
         let start = CivilDate(year: 2026, month: 9, day: 20).dayNumber
-        let points = DeckStatistics.progress(history: [DailySnapshot(day: start, bins: [1])], today: today, granularity: .week)
+        let points = DeckStatistics.progress(snapshots: [DailySnapshot(day: start, bins: [1])], today: today, granularity: .week)
         #expect(points.map { CivilDate(dayNumber: $0.day).isoString } == ["2026-09-20", "2026-09-27", "2026-10-04", "2026-10-07"])
     }
 
     @Test func monthlyProgressUsesMonthEnds() {
         let today = CivilDate(year: 2026, month: 3, day: 15).dayNumber
         let start = CivilDate(year: 2025, month: 12, day: 24).dayNumber
-        let points = DeckStatistics.progress(history: [DailySnapshot(day: start, bins: [1])], today: today, granularity: .month)
+        let points = DeckStatistics.progress(snapshots: [DailySnapshot(day: start, bins: [1])], today: today, granularity: .month)
         #expect(points.map { CivilDate(dayNumber: $0.day).isoString } == ["2025-12-31", "2026-01-31", "2026-02-28", "2026-03-15"])
     }
 
@@ -91,19 +91,19 @@ struct StatisticsTests {
         #expect(summary.new == 1)
         #expect(summary.dueNow == 1)
         #expect(summary.reviewsToday == 2)
-        #expect(summary.correctToday == 1)
-        #expect(summary.averageRetrievability == 1)
+        #expect(summary.recalledToday == 1)
+        #expect(summary.averageRecallProbability == 1)
     }
 
     @Test func historyKeepsOneSnapshotPerDay() {
         var deck = Deck(cards: [Card(question: "q", answer: "a")])
-        deck.updateHistory(day: 100)
+        deck.updateProgress(day: 100)
         deck.cards.append(Card(question: "q2", answer: "a2"))
-        deck.updateHistory(day: 100)
-        deck.updateHistory(day: 101)
-        deck.updateHistory(day: 99)
-        #expect(deck.history.map(\.day) == [100, 101])
-        #expect(deck.history.map(\.total) == [2, 2])
+        deck.updateProgress(day: 100)
+        deck.updateProgress(day: 101)
+        deck.updateProgress(day: 99)
+        #expect(deck.progress.map(\.day) == [100, 101])
+        #expect(deck.progress.map(\.total) == [2, 2])
     }
 }
 

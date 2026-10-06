@@ -3,13 +3,13 @@ import Foundation
 /// The state of one study session: which cards remain, which one is asked, and
 /// how it went so far.
 ///
-/// The session only tracks card IDs. Applying an answer to the card itself is the
+/// The session only tracks card IDs. Applying a grade to the card itself is the
 /// job of `Scheduler`; the caller passes the rescheduled card back via `record`.
 public struct StudySession: Sendable {
     public enum Mode: Sendable {
-        /// Due cards; answers are scheduled with FSRS.
+        /// Due cards; reviews change their learning state.
         case regular
-        /// Extra drill of cards failed earlier; answers don't affect scheduling.
+        /// The mistakes of an earlier session; reviews change no learning state.
         case practice
     }
 
@@ -18,13 +18,13 @@ public struct StudySession: Sendable {
     public let startedAt: Date
     public private(set) var currentCardID: Card.ID?
     public private(set) var totalCount: Int
-    public private(set) var answerCount = 0
-    public private(set) var correctCount = 0
-    /// Cards answered with `.again` at least once, in order of their first failure.
-    public private(set) var failedCardIDs: [Card.ID] = []
+    public private(set) var reviewCount = 0
+    public private(set) var recalledCount = 0
+    /// Cards graded `.again` at least once, in order of their first `.again`.
+    public private(set) var mistakeIDs: [Card.ID] = []
 
     private var queue: SessionQueue
-    private let learningSteps: Int
+    private let steps: Int
     private var practiceStreaks: [Card.ID: Int] = [:]
     private var random: SeededRandom
 
@@ -32,19 +32,19 @@ public struct StudySession: Sendable {
     public init(deck: Deck, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
         var random = random
         let ids = Self.selectCards(from: deck, at: now, using: &random)
-        self.init(mode: .regular, cardIDs: ids, learningSteps: deck.settings.learningSteps, startedAt: now, random: random)
+        self.init(mode: .regular, cardIDs: ids, steps: deck.learningOptions.steps, startedAt: now, random: random)
     }
 
     /// A practice session over the given cards.
-    public init(practicing cardIDs: [Card.ID], learningSteps: Int, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
+    public init(practicing cardIDs: [Card.ID], steps: Int, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
         var random = random
-        self.init(mode: .practice, cardIDs: cardIDs.shuffled(using: &random), learningSteps: learningSteps, startedAt: now, random: random)
+        self.init(mode: .practice, cardIDs: cardIDs.shuffled(using: &random), steps: steps, startedAt: now, random: random)
     }
 
-    private init(mode: Mode, cardIDs: [Card.ID], learningSteps: Int, startedAt: Date, random: SeededRandom) {
+    private init(mode: Mode, cardIDs: [Card.ID], steps: Int, startedAt: Date, random: SeededRandom) {
         self.mode = mode
         self.startedAt = startedAt
-        self.learningSteps = max(1, learningSteps)
+        self.steps = max(1, steps)
         self.random = random
         queue = SessionQueue(cardIDs: cardIDs)
         totalCount = cardIDs.count
@@ -57,28 +57,28 @@ public struct StudySession: Sendable {
     /// Cards already asked that would still be finished by `finishUp()`.
     public var startedCount: Int { queue.startedCount }
 
-    /// Records the answer to the current card and moves on to the next one.
+    /// Records the review of the current card and moves on to the next one.
     ///
     /// - Parameter scheduledCard: In a regular session, the current card after the
-    ///   scheduler applied `grade`. It leaves the session once it has graduated.
+    ///   scheduler applied `grade`. It leaves the session once it is in the review phase.
     public mutating func record(_ grade: Grade, scheduledCard: Card? = nil) {
         guard let id = currentCardID else { return }
-        answerCount += 1
+        reviewCount += 1
         if grade.isRecall {
-            correctCount += 1
-        } else if !failedCardIDs.contains(id) {
-            failedCardIDs.append(id)
+            recalledCount += 1
+        } else if !mistakeIDs.contains(id) {
+            mistakeIDs.append(id)
         }
 
         let isDone: Bool
         switch mode {
         case .regular:
-            isDone = scheduledCard?.memory?.phase == .review
+            isDone = scheduledCard?.learningState?.phase == .review
         case .practice:
             if grade.isRecall {
                 let streak = practiceStreaks[id, default: 0] + 1
                 practiceStreaks[id] = streak
-                isDone = !failedCardIDs.contains(id) || streak >= learningSteps
+                isDone = !mistakeIDs.contains(id) || streak >= steps
             } else {
                 practiceStreaks[id] = 0
                 isDone = false
@@ -100,7 +100,7 @@ public struct StudySession: Sendable {
         }
     }
 
-    /// Drops the current card without recording an answer, e.g. because it was deleted.
+    /// Drops the current card without recording a review, e.g. because it was deleted.
     public mutating func skip() {
         guard let id = currentCardID else { return }
         queue.remove(id)
@@ -121,16 +121,16 @@ public struct StudySession: Sendable {
     /// first, then new cards, then reviews with the lowest probability of recall.
     /// At most `cardsPerSession` cards are selected.
     static func selectCards(from deck: Deck, at now: Date, using random: inout SeededRandom) -> [Card.ID] {
-        let fsrs = FSRS(parameters: deck.settings.parameters)
-        var newCardsLeft = deck.settings.newCardsPerSession ?? Int.max
+        let fsrs = FSRS(parameters: deck.learningOptions.parameters)
+        var newCardsLeft = deck.learningOptions.newCardsPerSession ?? Int.max
         var candidates: [(id: Card.ID, priority: Double, tieBreak: UInt64)] = []
 
         for card in deck.cards where card.isDue(at: now) {
             let priority: Double
-            if let memory = card.memory {
-                if memory.phase == .review {
-                    let elapsed = now.timeIntervalSince(memory.lastReview) / 86400
-                    let r = fsrs.retrievability(elapsedDays: elapsed, stability: memory.stability)
+            if let learningState = card.learningState {
+                if learningState.phase == .review {
+                    let elapsed = now.timeIntervalSince(learningState.lastReview) / 86400
+                    let r = fsrs.retrievability(elapsedDays: elapsed, stability: learningState.stability)
                     // Coarse buckets so cards of similar urgency get mixed.
                     priority = (r * 50).rounded(.down) / 50
                 } else {
@@ -147,6 +147,6 @@ public struct StudySession: Sendable {
         let ordered = candidates
             .sorted { ($0.priority, $0.tieBreak) < ($1.priority, $1.tieBreak) }
             .map(\.id)
-        return Array(ordered.prefix(max(1, deck.settings.cardsPerSession ?? Int.max)))
+        return Array(ordered.prefix(max(1, deck.learningOptions.cardsPerSession ?? Int.max)))
     }
 }

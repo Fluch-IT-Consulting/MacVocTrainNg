@@ -1,6 +1,6 @@
 import Foundation
 
-/// How well a card was remembered. Raw values match the FSRS rating scale.
+/// How well the learner knew a card. Raw values match FSRS ratings 1–4.
 public enum Grade: Int, Codable, Sendable, CaseIterable, Comparable {
     case again = 1
     case hard = 2
@@ -15,18 +15,19 @@ public enum Grade: Int, Codable, Sendable, CaseIterable, Comparable {
 
 /// Where a card currently is in its learning life cycle.
 public enum LearningPhase: String, Codable, Sendable {
-    /// Seen for the first time; must be answered correctly a few times before it graduates.
+    /// After the first review, until the card has collected enough steps.
     case learning
-    /// Graduated; scheduled by FSRS in whole days.
+    /// Learned; scheduled by FSRS in whole study days.
     case review
-    /// Forgotten after graduating; must be re-learned before it is scheduled again.
+    /// After a lapse, until the card has collected enough steps again.
     case relearning
 }
 
-/// The FSRS memory model of a card plus its scheduling information.
-public struct MemoryState: Codable, Hashable, Sendable {
+/// What the app knows about the learner's recall of a card: FSRS stability and
+/// difficulty plus its phase and schedule.
+public struct LearningState: Codable, Hashable, Sendable {
     public var phase: LearningPhase
-    /// Number of successful answers since entering (re)learning. Unused in `.review`.
+    /// Steps collected since entering (re)learning. Unused in `.review`.
     public var step: Int
     /// Days until the probability of recall drops to 90 %.
     public var stability: Double
@@ -34,7 +35,7 @@ public struct MemoryState: Codable, Hashable, Sendable {
     public var difficulty: Double
     public var lastReview: Date
     public var due: Date
-    public var reps: Int
+    public var reviews: Int
     public var lapses: Int
 
     public init(
@@ -44,7 +45,7 @@ public struct MemoryState: Codable, Hashable, Sendable {
         difficulty: Double,
         lastReview: Date,
         due: Date,
-        reps: Int = 0,
+        reviews: Int = 0,
         lapses: Int = 0
     ) {
         self.phase = phase
@@ -53,12 +54,17 @@ public struct MemoryState: Codable, Hashable, Sendable {
         self.difficulty = difficulty
         self.lastReview = lastReview
         self.due = due
-        self.reps = reps
+        self.reviews = reviews
         self.lapses = lapses
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case phase, step, stability, difficulty, lastReview, due, lapses
+        case reviews = "reps"
     }
 }
 
-/// One answer given during a study session.
+/// One review in a study session.
 public struct ReviewLogEntry: Codable, Hashable, Sendable {
     public var date: Date
     public var grade: Grade
@@ -69,55 +75,57 @@ public struct ReviewLogEntry: Codable, Hashable, Sendable {
     }
 }
 
-/// A vocabulary index card.
+/// A question with its answer and an optional hint, asked from question to answer.
 public struct Card: Identifiable, Hashable, Sendable {
     public var id: UUID
     public var question: String
     public var answer: String
     /// Optional hint shown together with the question.
-    public var remark: String
+    public var hint: String
     public var created: Date
     /// `nil` while the card has never been studied.
-    public var memory: MemoryState?
-    /// Complete review history, oldest first. Kept so FSRS parameters can be optimised later.
+    public var learningState: LearningState?
+    /// The review log, oldest first. Kept so FSRS parameters can be optimised later.
     public var log: [ReviewLogEntry]
 
     public init(
         id: UUID = UUID(),
         question: String,
         answer: String,
-        remark: String = "",
+        hint: String = "",
         created: Date = Date(),
-        memory: MemoryState? = nil,
+        learningState: LearningState? = nil,
         log: [ReviewLogEntry] = []
     ) {
         self.id = id
         self.question = question
         self.answer = answer
-        self.remark = remark
+        self.hint = hint
         self.created = created
-        self.memory = memory
+        self.learningState = learningState
         self.log = log
     }
 
-    public var isNew: Bool { memory == nil }
+    public var isNew: Bool { learningState == nil }
 
     /// New cards are always due.
     public func isDue(at date: Date) -> Bool {
-        guard let memory else { return true }
-        return memory.due <= date
+        guard let learningState else { return true }
+        return learningState.due <= date
     }
 
-    /// Forgets all learning progress but keeps the content.
-    public mutating func resetProgress() {
-        memory = nil
+    /// Makes the card a new card again but keeps its content.
+    public mutating func resetLearningState() {
+        learningState = nil
         log = []
     }
 }
 
 extension Card: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, question, answer, remark, created, memory, log
+        case id, question, answer, created, log
+        case hint = "remark"
+        case learningState = "memory"
     }
 
     public init(from decoder: Decoder) throws {
@@ -125,9 +133,9 @@ extension Card: Codable {
         id = try container.decode(UUID.self, forKey: .id)
         question = try container.decode(String.self, forKey: .question)
         answer = try container.decode(String.self, forKey: .answer)
-        remark = try container.decodeIfPresent(String.self, forKey: .remark) ?? ""
+        hint = try container.decodeIfPresent(String.self, forKey: .hint) ?? ""
         created = try container.decodeIfPresent(Date.self, forKey: .created) ?? Date(timeIntervalSince1970: 0)
-        memory = try container.decodeIfPresent(MemoryState.self, forKey: .memory)
+        learningState = try container.decodeIfPresent(LearningState.self, forKey: .learningState)
         log = try container.decodeIfPresent([ReviewLogEntry].self, forKey: .log) ?? []
     }
 
@@ -136,9 +144,9 @@ extension Card: Codable {
         try container.encode(id, forKey: .id)
         try container.encode(question, forKey: .question)
         try container.encode(answer, forKey: .answer)
-        if !remark.isEmpty { try container.encode(remark, forKey: .remark) }
+        if !hint.isEmpty { try container.encode(hint, forKey: .hint) }
         try container.encode(created, forKey: .created)
-        try container.encodeIfPresent(memory, forKey: .memory)
+        try container.encodeIfPresent(learningState, forKey: .learningState)
         if !log.isEmpty, encoder.userInfo[.omitReviewLog] as? Bool != true {
             try container.encode(log, forKey: .log)
         }

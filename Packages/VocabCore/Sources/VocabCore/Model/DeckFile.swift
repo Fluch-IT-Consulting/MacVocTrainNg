@@ -6,13 +6,13 @@ import Foundation
 ///
 /// ```
 /// Stapel.voctrain/
-///   deck.json       settings, cards with their memory state, daily history
-///   reviews.jsonl   one line per answer: {"card":"…","date":1791216000,"grade":3}
+///   deck.json       learning options, cards with their learning state, progress
+///   reviews.jsonl   one line per review: {"card":"…","date":1791216000,"grade":3}
 /// ```
 ///
 /// `deck.json` is pretty-printed JSON with sorted keys, so it stays readable and
-/// diffs well. The review log lives apart because it grows with every answer: kept
-/// in `deck.json` it made every autosave re-encode the whole history (#4).
+/// diffs well. The review log lives apart because it grows with every review: kept
+/// in `deck.json` it made every autosave re-encode the whole log (#4).
 ///
 /// Version 1 was a single JSON file with the log inside each card. It is still read
 /// and becomes a package on the next save.
@@ -34,7 +34,7 @@ public enum DeckFile {
     /// The package for `deck`.
     ///
     /// - Parameter reviewLog: Pass the same encoder for every save of a document,
-    ///   so only answers added since the last save are encoded.
+    ///   so only reviews added since the last save are encoded.
     public static func fileWrapper(for deck: Deck, reviewLog: ReviewLogEncoder = ReviewLogEncoder()) throws -> FileWrapper {
         let deckFile = FileWrapper(regularFileWithContents: try encodeDeck(deck))
         deckFile.preferredFilename = deckFileName
@@ -48,9 +48,9 @@ public enum DeckFile {
         let envelope = Envelope(
             format: format,
             version: currentVersion,
-            settings: deck.settings,
+            learningOptions: deck.learningOptions,
             cards: deck.cards,
-            history: deck.history
+            progress: deck.progress
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -92,15 +92,21 @@ public enum DeckFile {
         }
 
         let envelope = try decoder.decode(Envelope.self, from: data)
-        return Deck(settings: envelope.settings, cards: envelope.cards, history: envelope.history)
+        return Deck(learningOptions: envelope.learningOptions, cards: envelope.cards, progress: envelope.progress)
     }
 
     private struct Envelope: Codable {
         var format: String
         var version: Int
-        var settings: DeckSettings
+        var learningOptions: LearningOptions
         var cards: [Card]
-        var history: [DailySnapshot]
+        var progress: [DailySnapshot]
+
+        private enum CodingKeys: String, CodingKey {
+            case format, version, cards
+            case learningOptions = "settings"
+            case progress = "history"
+        }
     }
 
     private struct Header: Decodable {
