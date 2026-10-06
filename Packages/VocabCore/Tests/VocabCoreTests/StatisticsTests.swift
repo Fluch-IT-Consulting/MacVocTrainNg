@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import VocabCore
 
 struct StatisticsTests {
@@ -127,7 +128,7 @@ struct CalendarTests {
         #expect(CivilDate(dayNumber: 0).isoString == "1970-01-01")
         #expect(CivilDate(isoString: "2024-02-29")?.dayNumber == CivilDate(year: 2024, month: 2, day: 29).dayNumber)
         #expect(CivilDate(isoString: "2024-13-01") == nil)
-        #expect(CivilDate.weekday(ofDayNumber: 0) == 5) // Thursday
+        #expect(CivilDate.weekday(ofDayNumber: 0) == 5)  // Thursday
     }
 
     @Test func studyDayStartsAtRolloverHour() {

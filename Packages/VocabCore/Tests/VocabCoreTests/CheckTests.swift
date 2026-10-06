@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import VocabCore
 
 struct ResponseCheckerTests {
@@ -18,7 +19,7 @@ struct ResponseCheckerTests {
     }
 
     @Test func whitespaceAndUnicodeCompositionAreIgnored() {
-        let decomposed = "dzien\u{0301}  dobry" // n + combining acute accent
+        let decomposed = "dzien\u{0301}  dobry"  // n + combining acute accent
         #expect(checker.check("  \(decomposed) ", against: "dzień dobry") == .correct)
     }
 

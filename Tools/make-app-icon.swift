@@ -78,10 +78,12 @@ func drawIcon(in context: CGContext) {
     context.rotate(by: -5 * .pi / 180)
     let font = NSFont.systemFont(ofSize: 250, weight: .heavy)
     let roundedFont = font.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: 250) } ?? font
-    let text = NSAttributedString(string: "Aa", attributes: [
-        .font: roundedFont,
-        .foregroundColor: NSColor(cgColor: color(0x104281))!,
-    ])
+    let text = NSAttributedString(
+        string: "Aa",
+        attributes: [
+            .font: roundedFont,
+            .foregroundColor: NSColor(cgColor: color(0x104281))!,
+        ])
     let line = CTLineCreateWithAttributedString(text)
     let bounds = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
     context.textPosition = CGPoint(x: -bounds.midX, y: -bounds.midY)

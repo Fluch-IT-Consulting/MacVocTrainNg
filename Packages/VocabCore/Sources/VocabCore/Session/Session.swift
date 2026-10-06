@@ -151,7 +151,8 @@ public struct Session: Sendable {
             candidates.append((card.id, priority, random.next()))
         }
 
-        let ordered = candidates
+        let ordered =
+            candidates
             .sorted { ($0.priority, $0.tieBreak) < ($1.priority, $1.tieBreak) }
             .map(\.id)
         return Array(ordered.prefix(max(1, deck.learningOptions.cardsPerSession ?? Int.max)))

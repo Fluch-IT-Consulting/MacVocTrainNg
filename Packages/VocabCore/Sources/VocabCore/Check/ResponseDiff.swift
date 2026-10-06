@@ -22,7 +22,8 @@ public enum ResponseDiff {
         var lengths = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
         for i in stride(from: a.count - 1, through: 0, by: -1) {
             for j in stride(from: b.count - 1, through: 0, by: -1) {
-                lengths[i][j] = a[i] == b[j]
+                lengths[i][j] =
+                    a[i] == b[j]
                     ? lengths[i + 1][j + 1] + 1
                     : max(lengths[i + 1][j], lengths[i][j + 1])
             }

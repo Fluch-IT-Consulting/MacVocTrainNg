@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import VocabCore
 
 /// A made-up learner whose memory follows FSRS with known parameters, for testing the
@@ -23,8 +24,16 @@ struct SyntheticLearner {
     /// Learner parameters that differ clearly from the defaults.
     static let unusual: FSRSParameters = {
         var w = FSRSParameters.default.weights
-        w[0] = 0.5; w[1] = 2.5; w[2] = 5; w[3] = 15
-        w[8] = 1.4; w[9] = 0.3; w[10] = 1.2; w[11] = 1.0; w[16] = 2.5; w[20] = 0.3
+        w[0] = 0.5
+        w[1] = 2.5
+        w[2] = 5
+        w[3] = 15
+        w[8] = 1.4
+        w[9] = 0.3
+        w[10] = 1.2
+        w[11] = 1.0
+        w[16] = 2.5
+        w[20] = 0.3
         return FSRSParameters(w)!
     }()
 

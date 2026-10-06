@@ -104,10 +104,13 @@ private struct LimitField: View {
                             .monospacedDigit()
                     }
                 }
-                Toggle("Unlimited", isOn: Binding(
-                    get: { value == nil },
-                    set: { value = $0 ? nil : defaultValue }
-                ))
+                Toggle(
+                    "Unlimited",
+                    isOn: Binding(
+                        get: { value == nil },
+                        set: { value = $0 ? nil : defaultValue }
+                    )
+                )
                 .toggleStyle(.checkbox)
             }
         }

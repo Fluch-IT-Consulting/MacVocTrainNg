@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import VocabCore
+
 @testable import MacVocTrain
 
 /// An undo manager that groups explicitly, as there is no event loop in tests.
@@ -94,7 +95,7 @@ struct DocumentTests {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager()
-        document.update(card, undoManager: undoManager) // would throw without an open group if it registered anything
+        document.update(card, undoManager: undoManager)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
     }
 
@@ -187,7 +188,7 @@ struct SessionViewModelTests {
         model.submit(undoManager: undoManager)
         #expect(model.stage == .feedback(.wrong, response: "nonsense"))
         #expect(model.suggestedGrade == .again)
-        #expect(document.card(withID: card.id)?.isNew == true) // nothing applied yet
+        #expect(document.card(withID: card.id)?.isNew == true)  // nothing applied yet
 
         step(undoManager) { model.grade(.again, undoManager: undoManager) }
         #expect(document.card(withID: card.id)?.learningState?.phase == .learning)
@@ -307,7 +308,7 @@ struct SessionViewModelTests {
         #expect(document.deck.progress.map(\.day) == [day - 1])
         // The interval counts from the study day before, so the card is due earlier
         // than it would be after a review at 04:30.
-        var random = SeededRandom(seed: 0) // unused without fuzzing
+        var random = SeededRandom(seed: 0)  // unused without fuzzing
         let interval = Scheduler(learningOptions: learningOptions).intervalDays(stability: state.stability, using: &random)
         #expect(state.due == calendar.start(ofDay: day - 1 + interval))
 

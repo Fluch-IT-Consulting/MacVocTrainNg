@@ -41,14 +41,15 @@ enum CardExport {
         if includingLearningState {
             header += [String(localized: "Maturity"), String(localized: "Due"), String(localized: "Reviews")]
         }
-        return [header] + cards.map { card in
-            var row = [card.question, card.answer, card.hint]
-            if includingLearningState {
-                let due = card.learningState.map { CivilDate(dayNumber: calendar.dayNumber(for: $0.due)).isoString }
-                row += [MaturityCategory(card: card).title, due ?? "", String(card.learningState?.reviews ?? 0)]
+        return [header]
+            + cards.map { card in
+                var row = [card.question, card.answer, card.hint]
+                if includingLearningState {
+                    let due = card.learningState.map { CivilDate(dayNumber: calendar.dayNumber(for: $0.due)).isoString }
+                    row += [MaturityCategory(card: card).title, due ?? "", String(card.learningState?.reviews ?? 0)]
+                }
+                return row
             }
-            return row
-        }
     }
 
     /// The file contents: UTF-8 with a byte order mark, which spreadsheets such as
@@ -65,9 +66,10 @@ enum CardExport {
         savePanel.nameFieldStringValue = suggestedName
         savePanel.message = String(localized: "Export \(cards.count) cards.")
         savePanel.prompt = String(localized: "Export")
-        let accessory = NSHostingView(rootView: OptionsView(options: options) { format in
-            savePanel.allowedContentTypes = [format.contentType]
-        })
+        let accessory = NSHostingView(
+            rootView: OptionsView(options: options) { format in
+                savePanel.allowedContentTypes = [format.contentType]
+            })
         accessory.frame.size = accessory.fittingSize
         savePanel.accessoryView = accessory
         guard savePanel.runModal() == .OK, let target = savePanel.url else { return }

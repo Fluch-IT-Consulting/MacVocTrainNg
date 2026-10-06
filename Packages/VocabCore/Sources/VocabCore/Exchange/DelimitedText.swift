@@ -35,7 +35,8 @@ public enum DelimitedText {
     /// characters, plus € and typographic quotes where Latin-1 has control characters.
     private static func text(of data: Data) -> String {
         if data.starts(with: [0xFF, 0xFE]) || data.starts(with: [0xFE, 0xFF]),
-           let text = String(data: data, encoding: .utf16) {
+            let text = String(data: data, encoding: .utf16)
+        {
             return text
         }
         let utf8 = data.starts(with: [0xEF, 0xBB, 0xBF]) ? data.dropFirst(3) : data

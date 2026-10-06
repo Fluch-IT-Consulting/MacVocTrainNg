@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import VocabCore
 
 struct CardSearchIndexTests {
@@ -20,7 +21,7 @@ struct CardSearchIndexTests {
         let index = CardSearchIndex(cards: cards)
         #expect(index.positions(matching: "DZIEN") == [0])
         #expect(index.positions(matching: "gebaude") == [1])
-        #expect(index.positions(matching: "dzien\u{0301}") == [0]) // n + combining acute accent
+        #expect(index.positions(matching: "dzien\u{0301}") == [0])  // n + combining acute accent
     }
 
     @Test func findsDecomposedText() {

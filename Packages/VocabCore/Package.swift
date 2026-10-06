@@ -9,7 +9,7 @@ let package = Package(
         .iOS(.v17),
     ],
     products: [
-        .library(name: "VocabCore", targets: ["VocabCore"]),
+        .library(name: "VocabCore", targets: ["VocabCore"])
     ],
     targets: [
         .target(name: "VocabCore"),

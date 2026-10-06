@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import VocabCore
+
 @testable import MacVocTrain
 
 @MainActor

@@ -118,7 +118,7 @@ private struct CardDetail: View {
     /// Writes edited text back to the document as one undoable change.
     private func commit() {
         guard question != card.question || answer != card.answer || hint != card.hint,
-              var current = document.card(withID: card.id)
+            var current = document.card(withID: card.id)
         else { return }
         let newQuestion = question.trimmingCharacters(in: .whitespacesAndNewlines)
         let newAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
