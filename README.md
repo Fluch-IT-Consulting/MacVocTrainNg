@@ -18,6 +18,8 @@ wieder, wenn du sie sonst vergessen würdest.
   nimmt die letzte Abfrage zurück. Karten mit „Nochmal“ kommen in der Sitzung wieder, bis
   sie in der Wiederholungsphase sind; danach lassen sich die Fehler üben.
 - **Statistik**: Fortschritt nach Reifegrad (Tag/Woche/Monat), Prognose der nächsten 30 Tage
+- **Eigene FSRS-Parameter**: Ab 400 verwertbaren Abfragen berechnen die Lernoptionen die
+  Parameter aus dem Verlauf des Stapels und vergleichen ihre Vorhersage mit den aktuellen
 - **Import** von MacVocTrain-1-Dateien (`.mvt`) über *Ablage → MacVocTrain-1-Dokument
   importieren …*, inklusive Fortschritt
 - **CSV und TSV**: *Ablage → Karten importieren …* hängt Karten (Frage, Antwort, optional
@@ -34,6 +36,7 @@ MacVocTrainNgTests/         Tests der App-Schicht (Undo, Lernablauf)
 Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Model/                    Card, Deck, Dateiformat
   Scheduling/               FSRS-6, Scheduler (Lernschritte, Fälligkeit), Lerntage
+  Optimization/             FSRS-Parameter aus dem Verlauf (Port von fsrs-rs)
   Check/                    Prüfung der Eingabe, Zeichen-Diff
   Session/                  Sitzung (Lernsitzung oder Üben), Abfragereihenfolge
   Statistics/               Reifegrad-Histogramme, Fortschritt, Prognose
@@ -94,8 +97,11 @@ Die Variablen dafür stehen im Kopf des Skripts.
   also *n*-mal „Gut“ (einstellbar, Standard 2), bevor sie in die Wiederholungsphase kommen
   und einen Abstand in Lerntagen bekommen.
 - Ein Lerntag beginnt um 4 Uhr; fällige Karten stehen den ganzen Lerntag zur Verfügung.
-- Jede Abfrage wird mit Zeitpunkt und Bewertung im Verlauf der Karte gespeichert, damit
-  die FSRS-Parameter später an das eigene Gedächtnis angepasst werden können.
+- Jede Abfrage wird mit Zeitpunkt und Bewertung im Verlauf der Karte gespeichert. Daraus
+  berechnet ein Swift-Port des Optimierers von fsrs-rs 6.6.2 eigene FSRS-Parameter
+  (ADR 0002); Tests vergleichen ihn mit fsrs-rs, die Vergleichswerte erzeugt
+  `Tools/fsrs-reference`. Neue Parameter berechnen Stabilität und Schwierigkeit jeder
+  Karte mit vollständigem Verlauf neu, Fälligkeiten bleiben.
 
 ### Import aus MacVocTrain 1
 
