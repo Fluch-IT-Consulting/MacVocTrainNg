@@ -10,6 +10,9 @@ The active developer dir may be the Command Line Tools; prefix with
 
 - Core tests: `cd Packages/VocabCore && swift test`
 - App build + all tests: `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg test`
+- Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
+  (config in `.swift-format`); `format -i` instead of `lint --strict` fixes the layout.
+  Name the paths: `build/` and `.build/` contain generated Swift files.
 
 ## Architecture
 
