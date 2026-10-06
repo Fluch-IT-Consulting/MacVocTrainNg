@@ -1,18 +1,18 @@
 import SwiftUI
 import VocabCore
 
-/// The study screen: asks one card after another.
+/// The session screen: asks one card after another.
 ///
 /// Keyboard flow: type the response and press Return. A correct response moves on
 /// directly (unless disabled in the preferences). Otherwise the answer is shown
 /// and Return accepts the suggested grade; 1–4 choose a grade explicitly, e.g. 3
 /// when the response was right after all. ⌘Z takes back the last review.
-struct StudyView: View {
-    @Bindable var model: StudyViewModel
+struct SessionView: View {
+    @Bindable var model: SessionViewModel
     var onClose: () -> Void
     @ObservedObject private var document: VocabularyDocument
 
-    init(model: StudyViewModel, onClose: @escaping () -> Void) {
+    init(model: SessionViewModel, onClose: @escaping () -> Void) {
         self.model = model
         self.onClose = onClose
         document = model.document
@@ -253,7 +253,7 @@ private struct CardStateLine: View {
 }
 
 private struct PreviousReviewBar: View {
-    var previous: StudyViewModel.PreviousReview
+    var previous: SessionViewModel.PreviousReview
 
     var body: some View {
         HStack(spacing: 8) {

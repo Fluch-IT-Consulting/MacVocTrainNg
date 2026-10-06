@@ -3,7 +3,7 @@ import VocabCore
 
 /// Shown when a session is over.
 struct SessionSummaryView: View {
-    var model: StudyViewModel
+    var model: SessionViewModel
     var onClose: () -> Void
 
     var body: some View {

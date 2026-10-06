@@ -2,10 +2,10 @@ import Foundation
 import Observation
 import VocabCore
 
-/// Drives a study session: checks responses, applies grades to the document
+/// Drives a session: checks responses, applies grades to the document
 /// and keeps the session's place in sync with undo and redo.
 @MainActor @Observable
-final class StudyViewModel {
+final class SessionViewModel {
     enum Stage: Equatable {
         /// Waiting for the response to the current card.
         case asking
@@ -24,13 +24,13 @@ final class StudyViewModel {
     let document: VocabularyDocument
     /// Move on right after a correct response instead of asking for a grade.
     let autoAdvance: Bool
-    private(set) var session: StudySession
+    private(set) var session: Session
     private(set) var stage: Stage
     private(set) var previous: PreviousReview?
     var input = ""
 
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
-        let session = StudySession(deck: document.deck)
+        let session = Session(deck: document.deck)
         self.document = document
         self.autoAdvance = autoAdvance
         self.session = session
@@ -65,7 +65,7 @@ final class StudyViewModel {
         let before = session
 
         switch session.mode {
-        case .regular:
+        case .study:
             let scheduler = Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
             let scheduled = scheduler.review(card, grade: grade, at: Date())
             session.record(grade, scheduledCard: scheduled)
@@ -97,14 +97,14 @@ final class StudyViewModel {
     func practiceMistakes() {
         let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
         guard !ids.isEmpty else { return }
-        session = StudySession(practicing: ids, steps: document.deck.learningOptions.steps)
+        session = Session(practicing: ids, steps: document.deck.learningOptions.steps)
         previous = nil
         moveOn()
     }
 
     /// Starts a new regular session with the cards that are still due.
     func continueStudying() {
-        session = StudySession(deck: document.deck)
+        session = Session(deck: document.deck)
         previous = nil
         moveOn()
     }
@@ -125,7 +125,7 @@ final class StudyViewModel {
         moveOn()
     }
 
-    private func registerSessionUndo(from before: StudySession, to after: StudySession, undoManager: UndoManager?) {
+    private func registerSessionUndo(from before: Session, to after: Session, undoManager: UndoManager?) {
         // Undo handlers run on the main thread, where the undo manager lives.
         nonisolated(unsafe) let undoManager = undoManager
         undoManager?.registerUndo(withTarget: self) { model in
@@ -138,7 +138,7 @@ final class StudyViewModel {
     }
 
     /// Called by undo/redo of a review.
-    private func restore(_ snapshot: StudySession) {
+    private func restore(_ snapshot: Session) {
         guard snapshot.id == session.id else { return } // a different session by now
         session = snapshot
         previous = nil

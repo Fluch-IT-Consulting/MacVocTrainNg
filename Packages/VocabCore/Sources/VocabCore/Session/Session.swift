@@ -1,14 +1,14 @@
 import Foundation
 
-/// The state of one study session: which cards remain, which one is asked, and
-/// how it went so far.
+/// The state of one session, a study session or practice: which cards remain,
+/// which one is asked, and how it went so far.
 ///
 /// The session only tracks card IDs. Applying a grade to the card itself is the
 /// job of `Scheduler`; the caller passes the rescheduled card back via `record`.
-public struct StudySession: Sendable {
+public struct Session: Sendable {
     public enum Mode: Sendable {
         /// Due cards; reviews change their learning state.
-        case regular
+        case study
         /// The mistakes of an earlier session; reviews change no learning state.
         case practice
     }
@@ -32,7 +32,7 @@ public struct StudySession: Sendable {
     public init(deck: Deck, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
         var random = random
         let ids = Self.selectCards(from: deck, at: now, using: &random)
-        self.init(mode: .regular, cardIDs: ids, steps: deck.learningOptions.steps, startedAt: now, random: random)
+        self.init(mode: .study, cardIDs: ids, steps: deck.learningOptions.steps, startedAt: now, random: random)
     }
 
     /// A practice session over the given cards.
@@ -72,7 +72,7 @@ public struct StudySession: Sendable {
 
         let isDone: Bool
         switch mode {
-        case .regular:
+        case .study:
             isDone = scheduledCard?.learningState?.phase == .review
         case .practice:
             if grade.isRecall {

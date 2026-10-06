@@ -92,7 +92,7 @@ struct DocumentTests {
 }
 
 @MainActor
-struct StudyViewModelTests {
+struct SessionViewModelTests {
     private func makeDocument(cards: Int, steps: Int = 1) -> VocabularyDocument {
         var learningOptions = LearningOptions()
         learningOptions.steps = steps
@@ -103,7 +103,7 @@ struct StudyViewModelTests {
     @Test func correctResponseMovesOnAndCanBeUndone() throws {
         let document = makeDocument(cards: 2)
         let undoManager = makeUndoManager()
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
 
         model.input = first.answer
@@ -127,7 +127,7 @@ struct StudyViewModelTests {
     @Test func wrongResponseAsksForGrade() throws {
         let document = makeDocument(cards: 2, steps: 2)
         let undoManager = makeUndoManager()
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
 
         model.input = "nonsense"
@@ -145,7 +145,7 @@ struct StudyViewModelTests {
     @Test func typoCanBeAcceptedAsCorrect() throws {
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "Tag", answer: "dzień")]))
         let undoManager = makeUndoManager()
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
 
         model.input = "dzien"
         model.submit(undoManager: undoManager)
@@ -156,7 +156,7 @@ struct StudyViewModelTests {
 
     @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() {
         let document = makeDocument(cards: 1)
-        let model = StudyViewModel(document: document, autoAdvance: false)
+        let model = SessionViewModel(document: document, autoAdvance: false)
         model.input = "a0"
         model.submit(undoManager: nil)
         #expect(model.suggestedGrade == .good)
@@ -167,7 +167,7 @@ struct StudyViewModelTests {
 
     @Test func practicingMistakesLeavesScheduleAlone() throws {
         let document = makeDocument(cards: 1)
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
         model.submit(undoManager: nil)
         model.grade(.again, undoManager: nil)
@@ -188,7 +188,7 @@ struct StudyViewModelTests {
     @Test func undoingPracticeReviewKeepsEarlierSessionIntact() throws {
         let document = makeDocument(cards: 1)
         let undoManager = makeUndoManager()
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
         step(undoManager) { model.submit(undoManager: undoManager) }
         step(undoManager) { model.grade(.again, undoManager: undoManager) }
@@ -211,7 +211,7 @@ struct StudyViewModelTests {
     @Test func removingTheCurrentCardMovesOn() throws {
         let document = makeDocument(cards: 2)
         let undoManager = makeUndoManager()
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
         step(undoManager) { document.delete([current.id], undoManager: undoManager) }
         model.documentDidChange()
@@ -222,7 +222,7 @@ struct StudyViewModelTests {
 
     @Test func emptyResponseRevealsTheAnswer() {
         let document = makeDocument(cards: 1)
-        let model = StudyViewModel(document: document, autoAdvance: true)
+        let model = SessionViewModel(document: document, autoAdvance: true)
         model.submit(undoManager: nil)
         #expect(model.stage == .feedback(.wrong, response: ""))
     }
@@ -230,7 +230,7 @@ struct StudyViewModelTests {
     @Test func nothingDueMeansFinished() {
         var card = Card(question: "q", answer: "a")
         card.learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
-        let model = StudyViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
+        let model = SessionViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
         #expect(model.isFinished)
     }
 }

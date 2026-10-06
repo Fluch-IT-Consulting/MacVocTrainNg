@@ -11,7 +11,7 @@ extension UTType {
 }
 
 /// Callbacks run when an undoable change is undone or redone, so views can restore
-/// state that lives outside the document (e.g. the position in a study session).
+/// state that lives outside the document (e.g. the position in a session).
 struct UndoHook {
     var forward: @MainActor () -> Void
     var backward: @MainActor () -> Void
