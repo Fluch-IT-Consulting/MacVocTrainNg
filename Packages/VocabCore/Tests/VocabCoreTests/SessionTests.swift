@@ -179,7 +179,7 @@ struct SessionTests {
         #expect(session.isFinished)
     }
 
-    @Test func practiceRequiresStreakAfterAgain() {
+    @Test func practiceRequiresStepsAfterAgain() {
         let ids = [UUID(), UUID()]
         var session = Session(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1))
         let target = session.currentCardID!
@@ -192,6 +192,44 @@ struct SessionTests {
         // target needs 2 steps after its again, the other card one.
         #expect(reviews == 1 + 2 + 1)
         #expect(session.mistakeIDs == [target])
+    }
+
+    @Test func practiceHardKeepsStepAfterAgain() {
+        var session = Session(practicing: [UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
+        session.record(.again)
+        session.record(.hard)
+        session.record(.hard)
+        #expect(!session.isFinished)
+        session.record(.good)
+        session.record(.hard)
+        #expect(!session.isFinished)
+        session.record(.good)
+        #expect(session.isFinished)
+    }
+
+    @Test func practiceAgainResetsSteps() {
+        var session = Session(practicing: [UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
+        session.record(.again)
+        session.record(.good)
+        session.record(.again)
+        session.record(.good)
+        #expect(!session.isFinished)
+        session.record(.good)
+        #expect(session.isFinished)
+    }
+
+    @Test func practiceEasyEndsCardAfterAgain() {
+        var session = Session(practicing: [UUID()], steps: 3, at: now, random: SeededRandom(seed: 1))
+        session.record(.again)
+        session.record(.easy)
+        #expect(session.isFinished)
+    }
+
+    @Test func practiceEndsCardWithoutAgainAfterAnyRecall() {
+        var session = Session(practicing: [UUID(), UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
+        session.record(.hard)
+        session.record(.hard)
+        #expect(session.isFinished)
     }
 
     @Test func skipDropsCardWithoutCountingIt() {

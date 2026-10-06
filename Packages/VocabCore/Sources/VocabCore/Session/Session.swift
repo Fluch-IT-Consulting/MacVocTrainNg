@@ -25,7 +25,8 @@ public struct Session: Sendable {
 
     private var queue: SessionQueue
     private let steps: Int
-    private var practiceStreaks: [Card.ID: Int] = [:]
+    /// Steps of practice mistakes, counted like steps in a study session.
+    private var practiceSteps: [Card.ID: Int] = [:]
     private var random: SeededRandom
 
     /// A regular session over all cards of `deck` that are due at `now`.
@@ -75,14 +76,21 @@ public struct Session: Sendable {
         case .study:
             isDone = scheduledCard?.learningState?.phase == .review
         case .practice:
-            if grade.isRecall {
-                let streak = practiceStreaks[id, default: 0] + 1
-                practiceStreaks[id] = streak
-                isDone = !mistakeIDs.contains(id) || streak >= steps
-            } else {
-                practiceStreaks[id] = 0
-                isDone = false
+            // Mistakes need steps like (re)learning cards in a study session;
+            // other cards leave after one recall like cards in the review phase.
+            guard mistakeIDs.contains(id) else {
+                isDone = true
+                break
             }
+            var step = practiceSteps[id, default: 0]
+            switch grade {
+            case .again: step = 0
+            case .hard: break
+            case .good: step += 1
+            case .easy: step = steps
+            }
+            practiceSteps[id] = step
+            isDone = step >= steps
         }
         if isDone {
             queue.remove(id)
