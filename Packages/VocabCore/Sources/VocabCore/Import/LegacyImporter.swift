@@ -12,7 +12,8 @@ import Foundation
 /// - level n ≥ 1 → card in the review phase whose stability equals its old interval, so it falls
 ///   due exactly when MacVocTrain 1 would have asked it. Difficulty is unknown and
 ///   set to a neutral 5; FSRS adapts it with the first reviews.
-/// The daily level statistics become the progress of the deck.
+/// The daily level statistics become the progress of the deck. Their counter for level 0
+/// holds both cards never asked and cards answered wrong; see `progress(from:neverAsked:)`.
 public enum LegacyImporter {
     public enum Error: Swift.Error, Equatable {
         case unreadableArchive
@@ -57,7 +58,8 @@ public enum LegacyImporter {
             return card
         }
 
-        var deck = Deck(cards: cards, progress: progress(from: box.progressMonitor?.progressData ?? []))
+        let statuses = box.progressMonitor?.progressData ?? []
+        var deck = Deck(cards: cards, progress: progress(from: statuses, neverAsked: cards.filter(\.isNew).count))
         deck.updateProgress(day: calendar.dayNumber(for: now))
         return deck
     }
@@ -71,15 +73,28 @@ public enum LegacyImporter {
         return levels[levels.count - 1] + Double(level - levels.count) * increment
     }
 
-    static func progress(from statuses: [LegacyDailyStatus]) -> [DailySnapshot] {
+    /// Converts the daily level statistics into snapshots.
+    ///
+    /// MacVocTrain 1 counted new cards and cards answered wrong together as level 0, so the
+    /// split into new and shaky is estimated: up to `neverAsked` (the cards never asked at
+    /// import) count as new, the rest as shaky. A card never asked at import was never asked
+    /// on any earlier day it existed, so the split is exact on the last old day and the
+    /// progress continues without a jump on import day. On days before some of those cards
+    /// were added, cards answered wrong count as new in their place.
+    static func progress(from statuses: [LegacyDailyStatus], neverAsked: Int) -> [DailySnapshot] {
         var snapshots: [Int: DailySnapshot] = [:]
         for status in statuses {
             let date = CivilDate(year: status.date / 10000, month: (status.date / 100) % 100, day: status.date % 100)
             guard (1...12).contains(date.month), (1...31).contains(date.day) else { continue }
             var bins = [Int](repeating: 0, count: StabilityBins.count)
             for (level, counter) in status.counters.enumerated() {
-                let bin = level == 0 ? 1 : StabilityBins.bin(forStability: levelDuration(level))
-                bins[bin] += counter.value
+                if level == 0 {
+                    let new = min(counter.value, neverAsked)
+                    bins[0] += new
+                    bins[1] += counter.value - new
+                } else {
+                    bins[StabilityBins.bin(forStability: levelDuration(level))] += counter.value
+                }
             }
             snapshots[date.dayNumber] = DailySnapshot(day: date.dayNumber, bins: bins.map { max(0, $0) })
         }
