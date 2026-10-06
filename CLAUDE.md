@@ -18,7 +18,8 @@ The active developer dir may be the Command Line Tools; prefix with
 
 - `Packages/VocabCore`: all domain logic, no UI imports. Value types, `Sendable`.
   `Scheduler` applies a `Grade` to a `Card` (FSRS-6 in `FSRS.swift`, ported from py-fsrs);
-  `Session` only tracks card IDs and order.
+  `StudySession` and `Practice` record reviews, each over a shared `Session` that
+  only tracks card IDs and order.
 - `MacVocTrainNg/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
   marks the document dirty. Don't mutate `deck` elsewhere.

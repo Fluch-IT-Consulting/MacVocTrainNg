@@ -17,7 +17,7 @@ struct SessionSummaryView: View {
                 .font(.system(size: 56))
                 .foregroundStyle(.tint)
 
-            Text(session.mode == .practice ? "Practice complete" : "Session complete")
+            Text(model.isPracticing ? "Practice complete" : "Session complete")
                 .font(.largeTitle.weight(.semibold))
 
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {

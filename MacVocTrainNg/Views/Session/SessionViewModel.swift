@@ -16,6 +16,31 @@ final class SessionViewModel {
         case finished
     }
 
+    /// The running session; its type decides how a review is recorded.
+    enum Mode {
+        case study(StudySession)
+        case practice(Practice)
+
+        var session: Session {
+            get {
+                switch self {
+                case let .study(study): study.session
+                case let .practice(practice): practice.session
+                }
+            }
+            set {
+                switch self {
+                case var .study(study):
+                    study.session = newValue
+                    self = .study(study)
+                case var .practice(practice):
+                    practice.session = newValue
+                    self = .practice(practice)
+                }
+            }
+        }
+    }
+
     /// The card reviewed last, shown below the current one.
     struct PreviousReview: Equatable {
         var question: String
@@ -26,7 +51,7 @@ final class SessionViewModel {
     let document: VocabularyDocument
     /// Move on right after a correct response instead of asking for a grade.
     let autoAdvance: Bool
-    private(set) var session: Session
+    private(set) var mode: Mode
     private(set) var stage: Stage
     /// The card being asked, as the deck holds it now. Undoing an edit of the card
     /// during the session shows up here.
@@ -40,15 +65,22 @@ final class SessionViewModel {
 
     /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
-        let session = Session(deck: document.deck, at: document.clock.now, calendar: document.calendar)
+        let study = StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar)
         self.document = document
         self.autoAdvance = autoAdvance
-        self.session = session
-        stage = session.isFinished ? .finished : .asking
+        mode = .study(study)
+        stage = study.session.isFinished ? .finished : .asking
         refreshCurrentCard()
         deckObservation = document.deckDidChange.sink { [weak self] in
             self?.deckDidChange()
         }
+    }
+
+    /// The part of the session that study sessions and practice share.
+    var session: Session { mode.session }
+
+    var isPracticing: Bool {
+        if case .practice = mode { true } else { false }
     }
 
     var isFinished: Bool { stage == .finished }
@@ -72,24 +104,26 @@ final class SessionViewModel {
 
     func grade(_ grade: Grade, undoManager: UndoManager?) {
         guard stage != .finished, let card = currentCard else { return }
-        let before = session
+        let before = mode
 
-        switch session.mode {
-        case .study:
+        switch mode {
+        case var .study(study):
             let scheduler = Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
             let scheduled = scheduler.review(card, grade: grade, at: document.clock.now)
-            session.record(grade, scheduledCard: scheduled)
-            let after = session
+            study.record(grade, scheduledCard: scheduled)
+            mode = .study(study)
+            let after = mode
             let hook = UndoHook(
                 forward: { [weak self] in self?.restore(after) },
                 backward: { [weak self] in self?.restore(before) }
             )
             document.applyReview(scheduled, undoManager: undoManager, hook: hook)
-        case .practice:
+        case var .practice(practice):
             // Practice doesn't touch the cards, but ⌘Z should still take back the
             // last review instead of reaching a review of the earlier session.
-            session.recordPractice(grade)
-            registerSessionUndo(from: before, to: session, undoManager: undoManager)
+            practice.record(grade)
+            mode = .practice(practice)
+            registerSessionUndo(from: before, to: mode, undoManager: undoManager)
         }
 
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
@@ -98,7 +132,7 @@ final class SessionViewModel {
 
     /// Only finishes the cards already asked.
     func finishUp() {
-        session.finishUp()
+        mode.session.finishUp()
         moveOn()
     }
 
@@ -107,14 +141,14 @@ final class SessionViewModel {
     func practiceMistakes() {
         let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
         guard !ids.isEmpty else { return }
-        session = Session(practicing: ids, steps: document.deck.learningOptions.steps, at: document.clock.now)
+        mode = .practice(Practice(practicing: ids, steps: document.deck.learningOptions.steps, at: document.clock.now))
         previous = nil
         moveOn()
     }
 
     /// Starts a new regular session with the cards that are still due.
     func continueStudying() {
-        session = Session(deck: document.deck, at: document.clock.now, calendar: document.calendar)
+        mode = .study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
         previous = nil
         moveOn()
     }
@@ -124,7 +158,7 @@ final class SessionViewModel {
         questionNumber += 1
         // Cards deleted meanwhile can't be asked.
         while let id = session.currentCardID, document.card(withID: id) == nil {
-            session.skip()
+            mode.session.skip()
         }
         refreshCurrentCard()
         stage = session.isFinished ? .finished : .asking
@@ -145,7 +179,7 @@ final class SessionViewModel {
         }
     }
 
-    private func registerSessionUndo(from before: Session, to after: Session, undoManager: UndoManager?) {
+    private func registerSessionUndo(from before: Mode, to after: Mode, undoManager: UndoManager?) {
         undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
             model.restore(before)
             model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
@@ -153,9 +187,9 @@ final class SessionViewModel {
     }
 
     /// Called by undo/redo of a review.
-    private func restore(_ snapshot: Session) {
-        guard snapshot.id == session.id else { return }  // a different session by now
-        session = snapshot
+    private func restore(_ snapshot: Mode) {
+        guard snapshot.session.id == session.id else { return }  // a different session by now
+        mode = snapshot
         previous = nil
         moveOn()
     }
