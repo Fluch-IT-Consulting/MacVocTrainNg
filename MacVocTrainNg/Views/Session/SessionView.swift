@@ -46,7 +46,7 @@ struct SessionView: View {
     private var header: some View {
         HStack(spacing: 16) {
             let session = model.session
-            if session.mode == .practice {
+            if model.isPracticing {
                 Text("Practice")
                     .font(.headline)
             }

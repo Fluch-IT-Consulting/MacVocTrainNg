@@ -246,7 +246,7 @@ struct SessionViewModelTests {
 
         let before = document.deck
         model.practiceMistakes()
-        #expect(model.session.mode == .practice)
+        #expect(model.isPracticing)
         #expect(!model.isFinished)
         model.input = "a0"
         model.submit(undoManager: nil)
@@ -271,7 +271,7 @@ struct SessionViewModelTests {
         #expect(model.isFinished)
         undoManager.undo()
         #expect(!model.isFinished)
-        #expect(model.session.mode == .practice)
+        #expect(model.isPracticing)
         #expect(document.deck == scheduled)
         undoManager.redo()
         #expect(model.isFinished)
