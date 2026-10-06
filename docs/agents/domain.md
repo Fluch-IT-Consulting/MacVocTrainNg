@@ -27,8 +27,7 @@ Ein Kontext, also ein Glossar und ein ADR-Ordner in der Wurzel:
 ## Das Vokabular des Glossars benutzen
 
 Wo ein Ergebnis einen Fachbegriff nennt (Issue-Titel, Umbauvorschlag, Testname),
-gilt der Begriff aus `CONTEXT.md`. Bis es das Glossar gibt, gelten die Namen im Code:
-`Card`, `Deck`, `Grade`, `MemoryState`, `StudySession`, `MaturityCategory`.
+gilt der Begriff aus `CONTEXT.md`.
 
 Keine Synonyme benutzen, die das Glossar ausdrücklich meidet. Fehlt ein Begriff im
 Glossar, ist das ein Zeichen: Entweder wird gerade Sprache erfunden, die das Projekt
