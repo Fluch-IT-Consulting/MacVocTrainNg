@@ -66,14 +66,20 @@ struct DocumentView: View {
     }
 
     #if DEBUG
-    /// Development aid for looking at screens without clicking through the app:
-    /// `-debugScreen statistics|study|options`.
+    /// Development aids for checking the app without clicking through it:
+    /// `-debugScreen statistics|study|options` opens a screen,
+    /// `-debugSave YES` saves all open documents shortly after opening.
     private func applyDebugLaunchArguments() {
         switch UserDefaults.standard.string(forKey: "debugScreen") {
         case "statistics": screen = .statistics
         case "study": startSession()
         case "options": showingOptions = true
         default: break
+        }
+        if UserDefaults.standard.bool(forKey: "debugSave") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                NSDocumentController.shared.documents.forEach { $0.save(nil) }
+            }
         }
     }
     #endif
