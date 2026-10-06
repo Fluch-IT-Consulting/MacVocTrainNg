@@ -66,8 +66,8 @@ struct ResponseDiffTests {
         #expect(segments.map(\.isMismatch) == [false, true])
     }
 
-    @Test func emptyResponseMarksEverything() {
-        #expect(ResponseDiff.segments(response: "", expected: "Haus") == [.init(text: "Haus", isMismatch: true)])
+    @Test func emptyResponseMarksNothing() {
+        #expect(ResponseDiff.segments(response: "", expected: "Haus / Gebäude") == [.init(text: "Haus / Gebäude", isMismatch: false)])
     }
 
     @Test func identicalResponseHasNoMismatch() {
@@ -93,5 +93,23 @@ struct ResponseDiffTests {
         let segments = ResponseDiff.segments(response: "haus", expected: "Haus")
         #expect(segments.map(\.text) == ["H", "aus"])
         #expect(segments.map(\.isMismatch) == [true, false])
+    }
+
+    @Test func alternativesInAnyOrderMarkOnlyTheTypo() {
+        let segments = ResponseDiff.segments(response: "Gebäude / Hasu", expected: "Haus / Gebäude")
+        #expect(segments.map(\.text) == ["Ha", "us", " / Gebäude"])
+        #expect(segments.map(\.isMismatch) == [false, true, false])
+    }
+
+    @Test func alternativeWithoutResponseIsNotMarked() {
+        let segments = ResponseDiff.segments(response: "Hasu", expected: "Haus / Gebäude")
+        #expect(segments.map(\.text) == ["Ha", "us", " / Gebäude"])
+        #expect(segments.map(\.isMismatch) == [false, true, false])
+    }
+
+    @Test func eachAlternativeIsPairedOnce() {
+        // "Hause" is close to both; the exact "Haus" claims "Haus", leaving "Hause" for "Hausen".
+        #expect(ResponseDiff.pairs(["Hause", "Haus"], ["Haus", "Hausen"]) == [0: 1, 1: 0])
+        #expect(ResponseDiff.pairs(["Auto"], ["Haus", "Gebäude"]) == [:])
     }
 }
