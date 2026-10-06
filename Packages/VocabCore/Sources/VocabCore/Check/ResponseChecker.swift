@@ -7,25 +7,6 @@ import Foundation
 /// differences and Unicode composition (e.g. a precomposed "ą" versus "a" plus
 /// a combining ogonek) are ignored; diacritics themselves are not.
 public struct ResponseChecker: Sendable {
-    public enum Result: Hashable, Sendable {
-        /// All alternatives given, nothing wrong.
-        case correct
-        /// Only some of the alternatives given, but none wrong.
-        case incomplete(missing: [String])
-        /// Close to the answer: one typo or a capitalisation slip.
-        case almostCorrect
-        case wrong
-
-        /// The grade suggested to the learner for this result.
-        public var suggestedGrade: Grade {
-            switch self {
-            case .correct: .good
-            case .incomplete: .hard
-            case .almostCorrect, .wrong: .again
-            }
-        }
-    }
-
     public static let separator: Character = "/"
 
     public var caseSensitive: Bool
@@ -34,7 +15,7 @@ public struct ResponseChecker: Sendable {
         self.caseSensitive = caseSensitive
     }
 
-    public func check(_ response: String, against expected: String) -> Result {
+    public func check(_ response: String, against expected: String) -> CheckResult {
         let givenParts = Self.alternatives(of: response)
         let expectedParts = Self.alternatives(of: expected)
         guard !givenParts.isEmpty, !expectedParts.isEmpty else { return .wrong }

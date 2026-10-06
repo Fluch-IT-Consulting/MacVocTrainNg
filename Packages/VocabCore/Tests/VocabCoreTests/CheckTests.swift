@@ -45,10 +45,10 @@ struct ResponseCheckerTests {
     }
 
     @Test func suggestedGrades() {
-        #expect(ResponseChecker.Result.correct.suggestedGrade == .good)
-        #expect(ResponseChecker.Result.incomplete(missing: []).suggestedGrade == .hard)
-        #expect(ResponseChecker.Result.almostCorrect.suggestedGrade == .again)
-        #expect(ResponseChecker.Result.wrong.suggestedGrade == .again)
+        #expect(CheckResult.correct.suggestedGrade == .good)
+        #expect(CheckResult.incomplete(missing: []).suggestedGrade == .hard)
+        #expect(CheckResult.almostCorrect.suggestedGrade == .again)
+        #expect(CheckResult.wrong.suggestedGrade == .again)
     }
 
     @Test func editDistanceCountsTranspositionAsOne() {
