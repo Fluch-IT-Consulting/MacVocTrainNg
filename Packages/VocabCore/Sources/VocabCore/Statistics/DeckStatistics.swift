@@ -83,7 +83,7 @@ public enum DeckStatistics {
     }
 
     public static func summary(of deck: Deck, at now: Date, calendar: StudyCalendar) -> Summary {
-        let fsrs = FSRS(parameters: deck.learningOptions.parameters)
+        let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
         let today = calendar.dayNumber(for: now)
         var summary = Summary()
         var recallProbabilitySum = 0.0
@@ -94,8 +94,7 @@ public enum DeckStatistics {
             if card.isNew { summary.new += 1 }
             if card.isDue(at: now) { summary.dueNow += 1 }
             if let learningState = card.learningState, learningState.phase == .review {
-                let elapsed = now.timeIntervalSince(learningState.lastReview) / 86400
-                recallProbabilitySum += fsrs.retrievability(elapsedDays: elapsed, stability: learningState.stability)
+                recallProbabilitySum += scheduler.recallProbability(of: learningState, at: now)
                 reviewCards += 1
             }
             for entry in card.log.reversed() {

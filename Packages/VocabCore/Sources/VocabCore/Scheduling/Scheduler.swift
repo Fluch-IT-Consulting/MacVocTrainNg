@@ -24,7 +24,7 @@ public struct Scheduler: Sendable {
 
     public func review<R: RandomNumberGenerator>(_ card: Card, grade: Grade, at now: Date, using random: inout R) -> Card {
         let previous = card.learningState
-        let elapsedDays = previous.map { max(0, calendar.days(from: $0.lastReview, to: now)) } ?? 0
+        let elapsedDays = previous.map { self.elapsedDays(since: $0, at: now) } ?? 0
         let memory = fsrs.review(
             previous.map { FSRS.Memory(stability: $0.stability, difficulty: $0.difficulty) },
             elapsedDays: elapsedDays,
@@ -81,6 +81,16 @@ public struct Scheduler: Sendable {
     public func review(_ card: Card, grade: Grade, at now: Date) -> Card {
         var random = SystemRandomNumberGenerator()
         return review(card, grade: grade, at: now, using: &random)
+    }
+
+    /// Recall probability at `now`, counting whole study days since the last review
+    /// like `review` does; it stays 1 for the rest of the study day of a review.
+    public func recallProbability(of learningState: LearningState, at now: Date) -> Double {
+        fsrs.retrievability(elapsedDays: Double(elapsedDays(since: learningState, at: now)), stability: learningState.stability)
+    }
+
+    private func elapsedDays(since learningState: LearningState, at now: Date) -> Int {
+        max(0, calendar.days(from: learningState.lastReview, to: now))
     }
 
     /// Interval in whole study days for a card in the review phase, fuzzed if enabled.

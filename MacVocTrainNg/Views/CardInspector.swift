@@ -111,9 +111,8 @@ private struct CardDetail: View {
     }
 
     private func recallProbability(_ learningState: LearningState) -> Double {
-        let fsrs = FSRS(parameters: document.deck.learningOptions.parameters)
-        let elapsed = Date().timeIntervalSince(learningState.lastReview) / 86400
-        return fsrs.retrievability(elapsedDays: elapsed, stability: learningState.stability)
+        Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
+            .recallProbability(of: learningState, at: document.clock.now)
     }
 
     /// Writes edited text back to the document as one undoable change.

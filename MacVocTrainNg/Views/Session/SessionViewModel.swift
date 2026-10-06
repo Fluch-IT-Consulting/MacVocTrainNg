@@ -31,7 +31,7 @@ final class SessionViewModel {
 
     /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
-        let session = Session(deck: document.deck, at: document.clock.now)
+        let session = Session(deck: document.deck, at: document.clock.now, calendar: document.calendar)
         self.document = document
         self.autoAdvance = autoAdvance
         self.session = session
@@ -105,7 +105,7 @@ final class SessionViewModel {
 
     /// Starts a new regular session with the cards that are still due.
     func continueStudying() {
-        session = Session(deck: document.deck, at: document.clock.now)
+        session = Session(deck: document.deck, at: document.clock.now, calendar: document.calendar)
         previous = nil
         moveOn()
     }

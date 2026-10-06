@@ -67,6 +67,22 @@ struct SchedulerTests {
         #expect(card.learningState!.due > now)
     }
 
+    @Test func recallProbabilityCountsWholeStudyDays() {
+        let today = calendar.start(ofDay: calendar.dayNumber(for: now))
+        func recallProbability(lastReview: Date) -> Double {
+            let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: lastReview, due: now)
+            return scheduler.recallProbability(of: learningState, at: now)
+        }
+        // 04:00 today: the same study day, although 14 hours have passed.
+        #expect(recallProbability(lastReview: today) == 1)
+        // 03:59 today still belongs to yesterday's study day.
+        let oneDay = scheduler.fsrs.retrievability(elapsedDays: 1, stability: 5)
+        #expect(recallProbability(lastReview: today.addingTimeInterval(-60)) == oneDay)
+        #expect(recallProbability(lastReview: now.addingTimeInterval(-3 * 86400)) == scheduler.fsrs.retrievability(elapsedDays: 3, stability: 5))
+        // A last review after `now`, e.g. after changing the clock, counts as just reviewed.
+        #expect(recallProbability(lastReview: now.addingTimeInterval(2 * 86400)) == 1)
+    }
+
     @Test func intervalRespectsMaximum() {
         var learningOptions = LearningOptions()
         learningOptions.fuzzing = false

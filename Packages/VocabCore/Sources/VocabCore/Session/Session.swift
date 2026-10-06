@@ -30,9 +30,9 @@ public struct Session: Sendable {
     private var random: SeededRandom
 
     /// A regular session over all cards of `deck` that are due at `now`.
-    public init(deck: Deck, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
+    public init(deck: Deck, at now: Date = Date(), calendar: StudyCalendar = StudyCalendar(), random: SeededRandom = SeededRandom()) {
         var random = random
-        let ids = Self.selectCards(from: deck, at: now, using: &random)
+        let ids = Self.selectCards(from: deck, at: now, calendar: calendar, using: &random)
         self.init(mode: .study, cardIDs: ids, steps: deck.learningOptions.steps, startedAt: now, random: random)
     }
 
@@ -128,8 +128,8 @@ public struct Session: Sendable {
     /// Due cards in the order they should be introduced: cards in (re)learning
     /// first, then new cards, then reviews with the lowest probability of recall.
     /// At most `cardsPerSession` cards are selected.
-    static func selectCards(from deck: Deck, at now: Date, using random: inout SeededRandom) -> [Card.ID] {
-        let fsrs = FSRS(parameters: deck.learningOptions.parameters)
+    static func selectCards(from deck: Deck, at now: Date, calendar: StudyCalendar, using random: inout SeededRandom) -> [Card.ID] {
+        let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
         var newCardsLeft = deck.learningOptions.newCardsPerSession ?? Int.max
         var candidates: [(id: Card.ID, priority: Double, tieBreak: UInt64)] = []
 
@@ -137,8 +137,7 @@ public struct Session: Sendable {
             let priority: Double
             if let learningState = card.learningState {
                 if learningState.phase == .review {
-                    let elapsed = now.timeIntervalSince(learningState.lastReview) / 86400
-                    let r = fsrs.retrievability(elapsedDays: elapsed, stability: learningState.stability)
+                    let r = scheduler.recallProbability(of: learningState, at: now)
                     // Coarse buckets so cards of similar urgency get mixed.
                     priority = (r * 50).rounded(.down) / 50
                 } else {

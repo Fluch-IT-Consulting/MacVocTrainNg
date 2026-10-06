@@ -153,7 +153,7 @@ struct SessionTests {
         relearning.learningState = LearningState(phase: .relearning, stability: 1, difficulty: 5, lastReview: now, due: now)
         deck.cards.append(relearning)
         var random = SeededRandom(seed: 8)
-        let order = Session.selectCards(from: deck, at: now, using: &random)
+        let order = Session.selectCards(from: deck, at: now, calendar: StudyCalendar(), using: &random)
         #expect(order.first == relearning.id)
         let newIDs = Set(deck.cards.filter(\.isNew).map(\.id))
         #expect(order.dropFirst().prefix(30).allSatisfy(newIDs.contains))
