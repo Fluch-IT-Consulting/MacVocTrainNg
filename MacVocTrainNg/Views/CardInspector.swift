@@ -68,10 +68,17 @@ private struct CardDetail: View {
                 if let learningState = card.learningState {
                     LabeledContent("Maturity") { MaturityLabel(category: MaturityCategory(card: card)) }
                     LabeledContent("Phase", value: learningState.phase.title)
-                    LabeledContent("Due", value: Format.due(card, now: document.clock.now))
+                    // Due date and recall probability change as time passes, so these rows
+                    // are re-evaluated every minute. The text fields above stay outside the
+                    // tick.
+                    TimelineView(.everyMinute) { _ in
+                        LabeledContent("Due", value: Format.due(card, now: document.clock.now))
+                    }
                     LabeledContent("Stability", value: Format.days(learningState.stability))
                     LabeledContent("Difficulty", value: learningState.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")
-                    LabeledContent("Recall Probability", value: Format.percent(recallProbability(learningState)))
+                    TimelineView(.everyMinute) { _ in
+                        LabeledContent("Recall Probability", value: Format.percent(recallProbability(learningState)))
+                    }
                     LabeledContent("Reviews", value: learningState.reviews.formatted())
                     LabeledContent("Lapses", value: learningState.lapses.formatted())
                     LabeledContent("Last Review", value: learningState.lastReview.formatted(date: .abbreviated, time: .shortened))
