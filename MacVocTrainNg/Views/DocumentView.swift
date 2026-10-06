@@ -86,7 +86,9 @@ struct DocumentView: View {
         }
         if UserDefaults.standard.bool(forKey: "debugSave") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                NSDocumentController.shared.documents.forEach { $0.save(nil) }
+                for openDocument in NSDocumentController.shared.documents {
+                    openDocument.save(nil)
+                }
             }
         }
     }
