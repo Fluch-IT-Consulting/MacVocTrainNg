@@ -4,12 +4,16 @@ import VocabCore
 /// Learning options stored in the deck.
 struct DeckOptionsView: View {
     @ObservedObject var document: VocabularyDocument
-    @Environment(\.undoManager) private var undoManager
+    /// The document's undo manager. A sheet is a window of its own, and its environment
+    /// holds that window's undo manager: changes registered there could not be undone and
+    /// would not mark the document as edited (#48).
+    let undoManager: UndoManager?
     @Environment(\.dismiss) private var dismiss
     @State private var options: LearningOptions
 
-    init(document: VocabularyDocument) {
+    init(document: VocabularyDocument, undoManager: UndoManager?) {
         self.document = document
+        self.undoManager = undoManager
         _options = State(initialValue: document.deck.learningOptions)
     }
 
