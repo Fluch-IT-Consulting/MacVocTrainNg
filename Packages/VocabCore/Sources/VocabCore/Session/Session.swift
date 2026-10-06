@@ -4,7 +4,9 @@ import Foundation
 /// which one is asked, and how it went so far.
 ///
 /// The session only tracks card IDs. Applying a grade to the card itself is the
-/// job of `Scheduler`; the caller passes the rescheduled card back via `record`.
+/// job of `Scheduler`; in a study session the caller passes the rescheduled card
+/// back via `record(_:scheduledCard:)`. Practice changes no card and records its
+/// reviews with `recordPractice(_:)`.
 public struct Session: Sendable {
     public enum Mode: Sendable {
         /// Due cards; reviews change their learning state.
@@ -30,14 +32,14 @@ public struct Session: Sendable {
     private var random: SeededRandom
 
     /// A regular session over all cards of `deck` that are due at `now`.
-    public init(deck: Deck, at now: Date = Date(), calendar: StudyCalendar = StudyCalendar(), random: SeededRandom = SeededRandom()) {
+    public init(deck: Deck, at now: Date, calendar: StudyCalendar = StudyCalendar(), random: SeededRandom = SeededRandom()) {
         var random = random
         let ids = Self.selectCards(from: deck, at: now, calendar: calendar, using: &random)
         self.init(mode: .study, cardIDs: ids, steps: deck.learningOptions.steps, startedAt: now, random: random)
     }
 
     /// A practice session over the given cards.
-    public init(practicing cardIDs: [Card.ID], steps: Int, at now: Date = Date(), random: SeededRandom = SeededRandom()) {
+    public init(practicing cardIDs: [Card.ID], steps: Int, at now: Date, random: SeededRandom = SeededRandom()) {
         var random = random
         self.init(mode: .practice, cardIDs: cardIDs.shuffled(using: &random), steps: steps, startedAt: now, random: random)
     }
@@ -58,30 +60,31 @@ public struct Session: Sendable {
     /// Cards already asked that would still be finished by `finishUp()`.
     public var startedCount: Int { queue.startedCount }
 
-    /// Records the review of the current card and moves on to the next one.
+    /// Records the review of the current card in a study session and moves on to
+    /// the next one.
     ///
-    /// - Parameter scheduledCard: In a regular session, the current card after the
-    ///   scheduler applied `grade`. It leaves the session once it is in the review phase.
-    public mutating func record(_ grade: Grade, scheduledCard: Card? = nil) {
+    /// - Parameter scheduledCard: The current card after the scheduler applied
+    ///   `grade`. It leaves the session once it is in the review phase.
+    public mutating func record(_ grade: Grade, scheduledCard: Card) {
+        precondition(mode == .study, "Practice records reviews with recordPractice(_:)")
         guard let id = currentCardID else { return }
-        reviewCount += 1
-        if grade.isRecall {
-            recalledCount += 1
-        } else if !mistakeIDs.contains(id) {
-            mistakeIDs.append(id)
+        precondition(scheduledCard.id == id, "scheduledCard must be the current card")
+        count(grade, of: id)
+        if scheduledCard.learningState?.phase == .review {
+            queue.remove(id)
         }
+        advance()
+    }
 
-        let isDone: Bool
-        switch mode {
-        case .study:
-            isDone = scheduledCard?.learningState?.phase == .review
-        case .practice:
-            // Mistakes need steps like (re)learning cards in a study session;
-            // other cards leave after one recall like cards in the review phase.
-            guard mistakeIDs.contains(id) else {
-                isDone = true
-                break
-            }
+    /// Records the review of the current card in practice and moves on to the next one.
+    public mutating func recordPractice(_ grade: Grade) {
+        precondition(mode == .practice, "A study session records reviews with record(_:scheduledCard:)")
+        guard let id = currentCardID else { return }
+        count(grade, of: id)
+        // Mistakes need steps like (re)learning cards in a study session;
+        // other cards leave after one recall like cards in the review phase.
+        var isDone = true
+        if mistakeIDs.contains(id) {
             var step = practiceSteps[id, default: 0]
             switch grade {
             case .again: step = 0
@@ -96,6 +99,15 @@ public struct Session: Sendable {
             queue.remove(id)
         }
         advance()
+    }
+
+    private mutating func count(_ grade: Grade, of id: Card.ID) {
+        reviewCount += 1
+        if grade.isRecall {
+            recalledCount += 1
+        } else if !mistakeIDs.contains(id) {
+            mistakeIDs.append(id)
+        }
     }
 
     /// Stops introducing new cards; only cards already asked are finished.
