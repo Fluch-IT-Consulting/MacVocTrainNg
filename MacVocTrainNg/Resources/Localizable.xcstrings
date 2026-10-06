@@ -264,6 +264,16 @@
         }
       }
     },
+    "Algorithm Parameters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algorithmus-Parameter"
+          }
+        }
+      }
+    },
     "Almost – check the spelling": {
       "localizations": {
         "de": {
@@ -464,6 +474,26 @@
         }
       }
     },
+    "Compute from Review Log": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus dem Verlauf berechnen"
+          }
+        }
+      }
+    },
+    "Computing needs %lld usable reviews: reviews on a later study day than the previous review of the same card.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Berechnung braucht %lld verwertbare Abfragen: Abfragen an einem späteren Lerntag als die vorige Abfrage derselben Karte."
+          }
+        }
+      }
+    },
     "Continue": {
       "localizations": {
         "de": {
@@ -504,6 +534,36 @@
         }
       }
     },
+    "Current": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuell"
+          }
+        }
+      }
+    },
+    "Current parameters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktuelle Parameter"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Angepasst"
+          }
+        }
+      }
+    },
     "Date": {
       "localizations": {
         "de": {
@@ -530,6 +590,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tage"
+          }
+        }
+      }
+    },
+    "Default": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Standard"
           }
         }
       }
@@ -722,6 +792,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Export fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "FSRS starts with parameters averaged over many learners. Computed from this deck's review log, they fit your memory, so cards need fewer reviews for the same target recall. Cards keep their due dates; new intervals apply from their next review.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FSRS beginnt mit Parametern, die über viele Lernende gemittelt sind. Aus dem Verlauf dieses Stapels berechnet, passen sie zu deinem Gedächtnis: Bei gleicher angestrebter Abrufquote brauchen die Karten weniger Abfragen. Fälligkeiten bleiben; neue Abstände gelten ab der nächsten Abfrage einer Karte."
           }
         }
       }
@@ -944,6 +1024,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lernstand"
+          }
+        }
+      }
+    },
+    "Log loss": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log-Loss"
           }
         }
       }
@@ -1184,6 +1274,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Übung abgeschlossen"
+          }
+        }
+      }
+    },
+    "Prediction error": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorhersagefehler"
           }
         }
       }
@@ -1628,12 +1728,42 @@
         }
       }
     },
+    "Takes effect when you save.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gilt nach dem Sichern."
+          }
+        }
+      }
+    },
     "Target recall": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Angestrebte Abrufquote"
+          }
+        }
+      }
+    },
+    "The current parameters already predict your reviews best.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die aktuellen Parameter sagen deine Abfragen schon am besten voraus."
+          }
+        }
+      }
+    },
+    "The parameters could not be computed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Parameter ließen sich nicht berechnen."
           }
         }
       }
@@ -1724,6 +1854,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kommende Abfragen"
+          }
+        }
+      }
+    },
+    "Usable reviews": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwertbare Abfragen"
+          }
+        }
+      }
+    },
+    "Use New Parameters": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Parameter übernehmen"
           }
         }
       }
