@@ -73,6 +73,13 @@ Den Import mit einer echten alten Datei prüfen:
 cd Packages/VocabCore && MVT_SAMPLE=~/Private/polska.mvt swift test --filter importsRealDocument
 ```
 
+Formatierung mit swift-format (liegt Xcode bei, Einstellungen in `.swift-format`);
+`lint --strict` prüft, `format -i` statt `lint --strict` korrigiert:
+
+```bash
+xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
+```
+
 Neue Swift-Dateien einfach in `MacVocTrainNg/` anlegen: Der Ordner ist mit dem Target
 synchronisiert, die Projektdatei muss nicht angepasst werden.
 
