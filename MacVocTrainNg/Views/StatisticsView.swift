@@ -5,14 +5,24 @@ import VocabCore
 struct StatisticsView: View {
     @ObservedObject var document: VocabularyDocument
     @State private var granularity: DeckStatistics.Granularity = .day
+    @State private var figures = StatisticsFigures()
 
     var body: some View {
-        let now = Date()
-        let summary = DeckStatistics.summary(of: document.deck, at: now, calendar: document.calendar)
+        // Re-evaluated every minute because cards become due as time passes. In
+        // between, the date stays the same, so the figures come from the cache.
+        TimelineView(.everyMinute) { context in
+            content(at: context.date)
+        }
+    }
 
-        ScrollView {
+    private func content(at now: Date) -> some View {
+        let deck = document.deck
+        let calendar = document.calendar
+        let today = calendar.dayNumber(for: now)
+
+        return ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                SummaryTiles(summary: summary)
+                SummaryTiles(summary: figures.summary(of: deck, at: now, calendar: calendar))
 
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
@@ -31,9 +41,9 @@ struct StatisticsView: View {
                     Text("How well the cards are known, by how long they are remembered.")
                         .foregroundStyle(.secondary)
                     ProgressChart(
-                        points: DeckStatistics.progress(
-                            snapshots: document.deck.progress,
-                            today: document.calendar.dayNumber(for: now),
+                        series: figures.progress(
+                            of: deck.progress,
+                            today: today,
                             granularity: granularity,
                             firstWeekday: Calendar.current.firstWeekday
                         ),
@@ -48,13 +58,8 @@ struct StatisticsView: View {
                     Text("Cards falling due in the next 30 days.")
                         .foregroundStyle(.secondary)
                     ForecastChart(
-                        counts: DeckStatistics.forecast(
-                            cards: document.deck.cards,
-                            calendar: document.calendar,
-                            today: document.calendar.dayNumber(for: now),
-                            days: 30
-                        ),
-                        today: document.calendar.dayNumber(for: now)
+                        counts: figures.forecast(of: deck.cards, calendar: calendar, today: today, days: 30),
+                        today: today
                     )
                     .frame(height: 200)
                 }
@@ -117,34 +122,10 @@ private struct Tile: View {
 
 // MARK: - Charts
 
-/// Converts a study day to a date for the chart axis (noon avoids time zone edges).
-private func chartDate(forDay day: Int) -> Date {
-    let civil = CivilDate(dayNumber: day)
-    return Calendar.current.date(from: DateComponents(year: civil.year, month: civil.month, day: civil.day, hour: 12)) ?? Date()
-}
-
 private struct ProgressChart: View {
-    var points: [DeckStatistics.ProgressPoint]
+    var series: ProgressSeries
     var granularity: DeckStatistics.Granularity
     @State private var selection: Date?
-
-    private struct Bar: Identifiable {
-        var date: Date
-        var category: MaturityCategory
-        var count: Int
-        var id: String { "\(date.timeIntervalSince1970)-\(category.rawValue)" }
-    }
-
-    private var bars: [Bar] {
-        points.flatMap { point in
-            let counts = MaturityCategory.counts(fromBins: point.bins)
-            let date = chartDate(forDay: point.day)
-            // Most solid at the bottom of each stack.
-            return MaturityCategory.allCases.reversed().map { category in
-                Bar(date: date, category: category, count: counts[category] ?? 0)
-            }
-        }
-    }
 
     private var unit: Calendar.Component {
         switch granularity {
@@ -163,22 +144,20 @@ private struct ProgressChart: View {
     }
 
     var body: some View {
-        if points.isEmpty {
-            ContentUnavailableView("No Progress Yet", systemImage: "chart.bar", description: Text("Progress is recorded from the first change to the deck."))
-        } else {
+        if let last = series.dates.last {
             Chart {
-                ForEach(bars) { bar in
+                ForEach(series.bars) { bar in
                     BarMark(
                         x: .value("Date", bar.date, unit: unit),
                         y: .value("Cards", bar.count)
                     )
                     .foregroundStyle(by: .value("Maturity", bar.category.title))
                 }
-                if let selected = selectedPoint {
-                    RuleMark(x: .value("Date", chartDate(forDay: selected.day), unit: unit))
+                if let selection, let index = series.index(closestTo: selection) {
+                    RuleMark(x: .value("Date", series.dates[index], unit: unit))
                         .foregroundStyle(.secondary.opacity(0.3))
                         .annotation(position: .top, spacing: 4, overflowResolution: .init(x: .fit(to: .chart), y: .disabled)) {
-                            ProgressTooltip(point: selected, granularity: granularity)
+                            ProgressTooltip(point: series.points[index], date: series.dates[index])
                         }
                 }
             }
@@ -195,25 +174,22 @@ private struct ProgressChart: View {
             }
             .chartScrollableAxes(.horizontal)
             .chartXVisibleDomain(length: visibleLength)
-            .chartScrollPosition(initialX: chartDate(forDay: points.last!.day))
+            .chartScrollPosition(initialX: last)
             .chartXSelection(value: $selection)
+        } else {
+            ContentUnavailableView("No Progress Yet", systemImage: "chart.bar", description: Text("Progress is recorded from the first change to the deck."))
         }
-    }
-
-    private var selectedPoint: DeckStatistics.ProgressPoint? {
-        guard let selection else { return nil }
-        return points.min { abs(chartDate(forDay: $0.day).timeIntervalSince(selection)) < abs(chartDate(forDay: $1.day).timeIntervalSince(selection)) }
     }
 }
 
 private struct ProgressTooltip: View {
     var point: DeckStatistics.ProgressPoint
-    var granularity: DeckStatistics.Granularity
+    var date: Date
 
     var body: some View {
         let counts = MaturityCategory.counts(fromBins: point.bins)
         VStack(alignment: .leading, spacing: 4) {
-            Text(chartDate(forDay: point.day).formatted(date: .abbreviated, time: .omitted))
+            Text(date.formatted(date: .abbreviated, time: .omitted))
                 .font(.headline)
             ForEach(MaturityCategory.allCases.reversed(), id: \.self) { category in
                 HStack(spacing: 6) {
