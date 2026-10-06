@@ -146,15 +146,10 @@ final class SessionViewModel {
     }
 
     private func registerSessionUndo(from before: Session, to after: Session, undoManager: UndoManager?) {
-        // Undo handlers run on the main thread, where the undo manager lives.
-        nonisolated(unsafe) let undoManager = undoManager
-        undoManager?.registerUndo(withTarget: self) { model in
-            MainActor.assumeIsolated {
-                model.restore(before)
-                model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
-            }
+        undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
+            model.restore(before)
+            model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
         }
-        undoManager?.setActionName(String(localized: "Review"))
     }
 
     /// Called by undo/redo of a review.

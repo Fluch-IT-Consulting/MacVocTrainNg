@@ -20,6 +20,28 @@ struct UndoHook {
     var inverted: UndoHook { UndoHook(forward: backward, backward: forward) }
 }
 
+extension UndoManager {
+    /// Registers `handler` as the undo action for `target` and names it. The handler
+    /// gets the undo manager, so it can register the redo action.
+    ///
+    /// Undo handlers run on the main thread, where the undo manager lives. This is
+    /// the one place that tells the compiler so.
+    @MainActor
+    func registerMainActorUndo<Target: AnyObject & Sendable>(
+        withTarget target: Target,
+        actionName: String,
+        handler: @escaping @MainActor (Target, UndoManager) -> Void
+    ) {
+        nonisolated(unsafe) let undoManager = self
+        registerUndo(withTarget: target) { target in
+            MainActor.assumeIsolated {
+                handler(target, undoManager)
+            }
+        }
+        setActionName(actionName)
+    }
+}
+
 /// The SwiftUI document of one deck.
 ///
 /// All changes go through methods that register undo actions. Besides providing
@@ -97,27 +119,27 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
 
     @MainActor
     func add(_ card: Card, undoManager: UndoManager?) {
-        perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Add Card"), undoManager: undoManager)
+        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Add Card"), undoManager: undoManager)
     }
 
     /// Appends cards from an import as one change.
     @MainActor
     func importCards(_ cards: [Card], undoManager: UndoManager?) {
         guard !cards.isEmpty else { return }
-        perform(CardChange(upserts: cards.map { ($0, nil) }), actionName: String(localized: "Import Cards"), undoManager: undoManager)
+        perform(DeckChange(upserts: cards.map { ($0, nil) }), actionName: String(localized: "Import Cards"), undoManager: undoManager)
     }
 
     @MainActor
     func update(_ card: Card, actionName: String = String(localized: "Edit Card"), undoManager: UndoManager?) {
         guard deck.card(withID: card.id) != card else { return }
-        perform(CardChange(upserts: [(card, nil)]), actionName: actionName, undoManager: undoManager)
+        perform(DeckChange(upserts: [(card, nil)]), actionName: actionName, undoManager: undoManager)
     }
 
     @MainActor
     func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
         guard !ids.isEmpty else { return }
         let name = ids.count == 1 ? String(localized: "Delete Card") : String(localized: "Delete Cards")
-        perform(CardChange(removals: Array(ids)), actionName: name, undoManager: undoManager)
+        perform(DeckChange(removals: Array(ids)), actionName: name, undoManager: undoManager)
     }
 
     @MainActor
@@ -128,13 +150,13 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             return (card, Int?.none)
         }
         guard !cards.isEmpty else { return }
-        perform(CardChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
+        perform(DeckChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
     /// Stores a card rescheduled after a review in a study session.
     @MainActor
     func applyReview(_ card: Card, undoManager: UndoManager?, hook: UndoHook) {
-        perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
+        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
     }
 
     /// Changes the learning options. New FSRS parameters also replay stability and
@@ -142,7 +164,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     @MainActor
     func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
         guard deck.learningOptions != learningOptions else { return }
-        var change = CardChange()
+        var change = DeckChange(learningOptions: learningOptions)
         if learningOptions.parameters != deck.learningOptions.parameters {
             let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
             change.upserts = deck.cards.compactMap { card -> (Card, Int?)? in
@@ -150,51 +172,38 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
                 return (replayed, nil)
             }
         }
-        changeLearningOptions(learningOptions, cards: change, undoManager: undoManager)
-    }
-
-    @MainActor
-    private func changeLearningOptions(_ learningOptions: LearningOptions, cards change: CardChange, undoManager: UndoManager?) {
-        let old = deck.learningOptions
-        deck.learningOptions = learningOptions
-        let inverse = change.upserts.isEmpty ? change : apply(change)
-        // Undo handlers run on the main thread, where the undo manager lives.
-        nonisolated(unsafe) let undoManager = undoManager
-        undoManager?.registerUndo(withTarget: self) { document in
-            MainActor.assumeIsolated {
-                document.changeLearningOptions(old, cards: inverse, undoManager: undoManager)
-            }
-        }
-        undoManager?.setActionName(String(localized: "Change Learning Options"))
+        perform(change, actionName: String(localized: "Change Learning Options"), undoManager: undoManager)
     }
 
     // MARK: - Undo machinery
 
-    private struct CardChange {
+    private struct DeckChange {
         /// Cards to replace (matched by ID) or insert at the given index (appended if `nil`).
         var upserts: [(card: Card, index: Int?)] = []
         var removals: [Card.ID] = []
+        /// New learning options; `nil` keeps them.
+        var learningOptions: LearningOptions?
     }
 
     @MainActor
-    private func perform(_ change: CardChange, actionName: String, undoManager: UndoManager?, hook: UndoHook? = nil) {
+    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?, hook: UndoHook? = nil) {
         let inverse = apply(change)
-        // Undo handlers run on the main thread, where the undo manager lives.
-        nonisolated(unsafe) let undoManager = undoManager
-        undoManager?.registerUndo(withTarget: self) { document in
-            MainActor.assumeIsolated {
-                document.perform(inverse, actionName: actionName, undoManager: undoManager, hook: hook?.inverted)
-                hook?.backward()
-            }
+        undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
+            document.perform(inverse, actionName: actionName, undoManager: undoManager, hook: hook?.inverted)
+            hook?.backward()
         }
-        undoManager?.setActionName(actionName)
     }
 
     /// Applies `change` and returns the change that reverts it.
     @MainActor
-    private func apply(_ change: CardChange) -> CardChange {
+    private func apply(_ change: DeckChange) -> DeckChange {
         var deck = deck
-        var inverse = CardChange()
+        var inverse = DeckChange()
+
+        if let learningOptions = change.learningOptions {
+            inverse.learningOptions = deck.learningOptions
+            deck.learningOptions = learningOptions
+        }
 
         let removalIndices = change.removals.compactMap(deck.index(of:)).sorted(by: >)
         for index in removalIndices {
@@ -212,7 +221,10 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             }
         }
 
-        deck.updateProgress(day: calendar.dayNumber(for: clock.now))
+        // Learning options alone move no card between the bins of a snapshot.
+        if !change.upserts.isEmpty || !change.removals.isEmpty {
+            deck.updateProgress(day: calendar.dayNumber(for: clock.now))
+        }
         self.deck = deck
         return inverse
     }

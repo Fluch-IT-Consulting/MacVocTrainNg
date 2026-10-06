@@ -143,6 +143,26 @@ struct DocumentTests {
         #expect(document.deck.learningOptions.parameters == options.parameters)
         #expect(document.deck.cards[0].learningState == replayed)
     }
+
+    @Test func learningOptionsWithoutNewParametersAreUndoableAndRecordNoProgress() {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let undoManager = makeUndoManager()
+        var options = LearningOptions()
+        options.steps = 3
+
+        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
+        #expect(document.deck.learningOptions == options)
+        #expect(document.deck.cards == [card])
+        #expect(document.deck.progress.isEmpty)
+        #expect(undoManager.undoActionName == "Change Learning Options" || undoManager.undoActionName == "Lernoptionen ändern")
+
+        undoManager.undo()
+        #expect(document.deck.learningOptions == LearningOptions())
+        undoManager.redo()
+        #expect(document.deck.learningOptions == options)
+        #expect(document.deck.progress.isEmpty)
+    }
 }
 
 @MainActor
