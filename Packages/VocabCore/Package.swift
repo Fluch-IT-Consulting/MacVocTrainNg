@@ -13,6 +13,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "VocabCore"),
-        .testTarget(name: "VocabCoreTests", dependencies: ["VocabCore"]),
+        .testTarget(name: "VocabCoreTests", dependencies: ["VocabCore"], resources: [.copy("Resources")]),
     ]
 )

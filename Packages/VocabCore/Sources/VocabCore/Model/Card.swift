@@ -80,7 +80,7 @@ public struct Card: Identifiable, Hashable, Sendable {
     public var created: Date
     /// `nil` while the card has never been studied.
     public var learningState: LearningState?
-    /// The review log, oldest first. Kept so FSRS parameters can be optimised later.
+    /// The review log, oldest first. `FSRSOptimizer` computes parameters from it.
     public var log: [ReviewLogEntry]
 
     public init(
