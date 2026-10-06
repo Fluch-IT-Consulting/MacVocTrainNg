@@ -1,32 +1,6 @@
 import SwiftUI
 import VocabCore
 
-/// One row of the card table, with plain sortable values.
-private struct CardRow: Identifiable {
-    var id: Card.ID
-    var position: Int
-    var question: String
-    var answer: String
-    var remark: String
-    var category: MaturityCategory
-    var categoryRank: Int
-    var due: Date?
-    /// New cards first, then by due date.
-    var dueSortKey: Double
-
-    init(card: Card, position: Int) {
-        id = card.id
-        self.position = position
-        question = card.question
-        answer = card.answer
-        remark = card.remark
-        category = MaturityCategory(card: card)
-        categoryRank = StabilityBins.bin(for: card)
-        due = card.memory?.due
-        dueSortKey = card.memory?.due.timeIntervalSinceReferenceDate ?? -.infinity
-    }
-}
-
 struct CardListView: View {
     @ObservedObject var document: VocabularyDocument
     @Environment(\.undoManager) private var undoManager
@@ -34,6 +8,7 @@ struct CardListView: View {
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var searchText = ""
     @State private var showingInspector = false
+    @State private var table = CardTable()
 
     var body: some View {
         let now = Date()
@@ -122,29 +97,12 @@ struct CardListView: View {
     }
 
     private func rows() -> [CardRow] {
-        let needle = searchText.trimmingCharacters(in: .whitespaces)
-        var rows: [CardRow] = []
-        rows.reserveCapacity(document.deck.cards.count)
-        for (position, card) in document.deck.cards.enumerated() {
-            if !needle.isEmpty, !card.matches(needle) { continue }
-            rows.append(CardRow(card: card, position: position))
-        }
-        return rows.sorted(using: sortOrder)
+        table.rows(of: document.deck.cards, sortedBy: sortOrder, matching: searchText)
     }
 
     private func delete(_ ids: Set<Card.ID>) {
         document.delete(ids, undoManager: undoManager)
         selection.subtract(ids)
-    }
-}
-
-private extension Card {
-    /// Case- and diacritic-insensitive search, so "dzien" finds "dzień".
-    func matches(_ needle: String) -> Bool {
-        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
-        return question.range(of: needle, options: options) != nil
-            || answer.range(of: needle, options: options) != nil
-            || remark.range(of: needle, options: options) != nil
     }
 }
 
