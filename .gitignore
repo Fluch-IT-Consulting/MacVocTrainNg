@@ -11,3 +11,6 @@ build/
 .build/
 .swiftpm/
 Packages/*/Package.resolved
+
+# Cargo
+Tools/fsrs-reference/target/
