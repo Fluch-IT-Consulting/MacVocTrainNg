@@ -48,7 +48,7 @@ struct StudyView: View {
             Button("End Now") { onClose() }
             Button("Continue", role: .cancel) {}
         } message: {
-            Text("Your answers so far are saved. Cards you haven't finished stay due.")
+            Text("Your reviews so far are saved. Cards you haven't finished stay due.")
         }
     }
 
@@ -66,7 +66,7 @@ struct StudyView: View {
             Label("\(session.failedCardIDs.count)", systemImage: "xmark.circle")
                 .monospacedDigit()
                 .foregroundStyle(session.failedCardIDs.isEmpty ? Color.secondary : Grade.again.color)
-                .help("Cards answered wrongly")
+                .help("Mistakes")
             Spacer()
             if !model.isFinished {
                 Button("End Session") { confirmingEnd = true }
@@ -93,7 +93,7 @@ struct StudyView: View {
                     .multilineTextAlignment(.center)
             }
 
-            TextField("Answer", text: $model.input, prompt: Text("Your answer"))
+            TextField("Response", text: $model.input, prompt: Text("Response"))
                 .textFieldStyle(.roundedBorder)
                 .font(.title2)
                 .multilineTextAlignment(.center)
@@ -108,7 +108,7 @@ struct StudyView: View {
                         model.grade(grade, undoManager: undoManager)
                     }
                 } else {
-                    Text("Press Return to check your answer.")
+                    Text("Press Return to check your response.")
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -142,7 +142,7 @@ private struct FeedbackView: View {
 
             if result != .correct {
                 VStack(spacing: 4) {
-                    Text("Correct answer:")
+                    Text("Answer:")
                         .foregroundStyle(.secondary)
                     answerText
                         .font(.title2)
@@ -170,10 +170,10 @@ private struct FeedbackView: View {
     private var title: String {
         switch result {
         case .correct: String(localized: "Correct")
-        case .incomplete: String(localized: "Correct, but incomplete")
+        case .incomplete: String(localized: "Incomplete")
         case .almostCorrect: String(localized: "Almost – check the spelling")
         case .wrong: given.trimmingCharacters(in: .whitespaces).isEmpty
-            ? String(localized: "Not answered")
+            ? String(localized: "No response")
             : String(localized: "Wrong")
         }
     }
@@ -237,7 +237,7 @@ private struct CardStateLine: View {
             if let memory = card.memory {
                 switch memory.phase {
                 case .review:
-                    Text("Review · remembered for \(Format.days(memory.stability))")
+                    Text("Review phase · remembered for \(Format.days(memory.stability))")
                 case .learning:
                     Text("Learning")
                 case .relearning:

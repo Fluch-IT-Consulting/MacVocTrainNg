@@ -26,7 +26,7 @@ struct CardListView: View {
                 TableColumn("Question", value: \.question)
                 TableColumn("Answer", value: \.answer)
                 TableColumn("Hint", value: \.remark)
-                TableColumn("Status", value: \.categoryRank) { row in
+                TableColumn("Maturity", value: \.categoryRank) { row in
                     MaturityLabel(category: row.category)
                 }
                 .width(min: 90, ideal: 110)
@@ -42,7 +42,7 @@ struct CardListView: View {
                         selection = ids
                         showingInspector = true
                     }
-                    Button("Reset Progress") {
+                    Button("Reset Learning State") {
                         document.resetProgress(of: ids, undoManager: undoManager)
                     }
                     Divider()

@@ -77,13 +77,13 @@ private struct SummaryTiles: View {
             Tile(
                 title: "Recall Probability",
                 value: summary.averageRetrievability.map(Format.percent) ?? "–",
-                help: "Estimated chance of remembering a learned card right now, on average."
+                help: "Average recall probability of all studied cards right now."
             )
             Tile(
                 title: "Reviewed Today",
                 value: summary.reviewsToday.formatted(),
                 detail: summary.reviewsToday > 0
-                    ? String(localized: "\(Format.percent(Double(summary.correctToday) / Double(summary.reviewsToday))) correct")
+                    ? String(localized: "\(Format.percent(Double(summary.correctToday) / Double(summary.reviewsToday))) recalled")
                     : nil
             )
         }
@@ -164,7 +164,7 @@ private struct ProgressChart: View {
 
     var body: some View {
         if points.isEmpty {
-            ContentUnavailableView("No History Yet", systemImage: "chart.bar", description: Text("Progress is recorded from the first change to the deck."))
+            ContentUnavailableView("No Progress Yet", systemImage: "chart.bar", description: Text("Progress is recorded from the first change to the deck."))
         } else {
             Chart {
                 ForEach(bars) { bar in
@@ -172,7 +172,7 @@ private struct ProgressChart: View {
                         x: .value("Date", bar.date, unit: unit),
                         y: .value("Cards", bar.count)
                     )
-                    .foregroundStyle(by: .value("Status", bar.category.title))
+                    .foregroundStyle(by: .value("Maturity", bar.category.title))
                 }
                 if let selected = selectedPoint {
                     RuleMark(x: .value("Date", chartDate(forDay: selected.day), unit: unit))

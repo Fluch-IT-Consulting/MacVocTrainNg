@@ -134,7 +134,7 @@ final class StudyViewModel {
                 model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
             }
         }
-        undoManager?.setActionName(String(localized: "Answer"))
+        undoManager?.setActionName(String(localized: "Review"))
     }
 
     /// Called by undo/redo of an answer.

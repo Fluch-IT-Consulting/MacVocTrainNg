@@ -27,13 +27,13 @@ struct SessionSummaryView: View {
                     Text(session.completedCount.formatted())
                 }
                 GridRow {
-                    Text("Answers")
+                    Text("Reviews")
                         .foregroundStyle(.secondary)
                     Text(session.answerCount.formatted())
                 }
                 if session.answerCount > 0 {
                     GridRow {
-                        Text("Correct")
+                        Text("Recalled")
                             .foregroundStyle(.secondary)
                         Text(Format.percent(Double(session.correctCount) / Double(session.answerCount)))
                     }

@@ -7,7 +7,7 @@ extension MaturityCategory {
     var title: String {
         switch self {
         case .new: String(localized: "New")
-        case .learning: String(localized: "Learning")
+        case .learning: String(localized: "Shaky")
         case .young: String(localized: "Young")
         case .maturing: String(localized: "Maturing")
         case .mature: String(localized: "Mature")
@@ -70,7 +70,7 @@ extension LearningPhase {
     var title: String {
         switch self {
         case .learning: String(localized: "Learning")
-        case .review: String(localized: "Review")
+        case .review: String(localized: "Review phase")
         case .relearning: String(localized: "Relearning")
         }
     }

@@ -1,12 +1,12 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "%@ correct": {
+    "%@ recalled": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ richtig"
+            "value": "%@ gewusst"
           }
         }
       }
@@ -250,12 +250,22 @@
         }
       }
     },
-    "Answers": {
+    "Answer:": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Antworten"
+            "value": "Antwort:"
+          }
+        }
+      }
+    },
+    "Average recall probability of all studied cards right now.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durchschnittliche Abrufwahrscheinlichkeit aller gelernten Karten im Moment."
           }
         }
       }
@@ -290,32 +300,22 @@
         }
       }
     },
-    "Cards answered wrongly": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Falsch beantwortete Karten"
-          }
-        }
-      }
-    },
-    "Cards are asked again when the chance of still remembering them drops to this value. Higher means more reviews and fewer mistakes; 90 % is a good balance.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Karten werden wieder abgefragt, wenn die Wahrscheinlichkeit, sie noch zu wissen, auf diesen Wert sinkt. Höher bedeutet mehr Wiederholungen und weniger Fehler; 90 % ist ein guter Kompromiss."
-          }
-        }
-      }
-    },
     "Cards falling due in the next 30 days.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Karten, die in den nächsten 30 Tagen fällig werden."
+          }
+        }
+      }
+    },
+    "Cards in the review phase are asked again when their recall probability drops to this value. Higher means more reviews but fewer lapses; 90 % is a good balance.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten in der Wiederholungsphase werden wieder abgefragt, wenn ihre Abrufwahrscheinlichkeit auf diesen Wert sinkt. Höher bedeutet mehr Abfragen, dafür seltener Vergessen; 90 % ist ein guter Kompromiss."
           }
         }
       }
@@ -350,6 +350,16 @@
         }
       }
     },
+    "Checking": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfen"
+          }
+        }
+      }
+    },
     "Choose a MacVocTrain 1 document (.mvt) to import.": {
       "localizations": {
         "de": {
@@ -380,12 +390,12 @@
         }
       }
     },
-    "Continue automatically after a correct answer": {
+    "Continue automatically when the response is correct": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nach richtiger Antwort automatisch weiter"
+            "value": "Automatisch weiter, wenn die Eingabe richtig ist"
           }
         }
       }
@@ -396,36 +406,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Richtig"
-          }
-        }
-      }
-    },
-    "Correct answer:": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Richtige Antwort:"
-          }
-        }
-      }
-    },
-    "Correct answers to learn a card": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Richtige Antworten, bis eine Karte sitzt"
-          }
-        }
-      }
-    },
-    "Correct, but incomplete": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Richtig, aber unvollständig"
           }
         }
       }
@@ -600,16 +580,6 @@
         }
       }
     },
-    "Estimated chance of remembering a learned card right now, on average.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Geschätzte durchschnittliche Wahrscheinlichkeit, eine gelernte Karte jetzt noch zu wissen."
-          }
-        }
-      }
-    },
     "Finish Started Cards (%lld)": {
       "localizations": {
         "de": {
@@ -660,16 +630,6 @@
         }
       }
     },
-    "History": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verlauf"
-          }
-        }
-      }
-    },
     "How well the cards are known, by how long they are remembered.": {
       "localizations": {
         "de": {
@@ -706,6 +666,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import fehlgeschlagen"
+          }
+        }
+      }
+    },
+    "Incomplete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unvollständig"
           }
         }
       }
@@ -810,6 +780,16 @@
         }
       }
     },
+    "Maturity": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reifegrad"
+          }
+        }
+      }
+    },
     "Mistakes": {
       "localizations": {
         "de": {
@@ -850,22 +830,22 @@
         }
       }
     },
-    "New and forgotten cards come back within the session until they have been answered correctly this many times.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neue und vergessene Karten kommen in der Sitzung wieder, bis sie so oft richtig beantwortet wurden."
-          }
-        }
-      }
-    },
     "New card": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Neue Karte"
+          }
+        }
+      }
+    },
+    "New cards and cards after a lapse come back within the session until they have been graded Good this many times. Hard keeps a card on its step, Again resets it, Easy moves it to the review phase at once.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neue Karten und Karten nach einem Vergessen kommen in der Sitzung wieder, bis sie so oft mit „Gut“ bewertet wurden. „Schwer“ hält eine Karte auf ihrem Lernschritt, „Nochmal“ setzt sie zurück, „Leicht“ bringt sie sofort in die Wiederholungsphase."
           }
         }
       }
@@ -890,12 +870,12 @@
         }
       }
     },
-    "No History Yet": {
+    "No Progress Yet": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Noch kein Verlauf"
+            "value": "Noch kein Fortschritt"
           }
         }
       }
@@ -920,12 +900,12 @@
         }
       }
     },
-    "Not answered": {
+    "No response": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nicht beantwortet"
+            "value": "Keine Eingabe"
           }
         }
       }
@@ -990,12 +970,12 @@
         }
       }
     },
-    "Press Return to check your answer.": {
+    "Press Return to check your response.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Drücke ↩, um deine Antwort zu prüfen."
+            "value": "Drücke ↩, um deine Eingabe zu prüfen."
           }
         }
       }
@@ -1050,12 +1030,22 @@
         }
       }
     },
+    "Recalled": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gewusst"
+          }
+        }
+      }
+    },
     "Relearning": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neu lernen"
+            "value": "Erneut lernen"
           }
         }
       }
@@ -1120,12 +1110,22 @@
         }
       }
     },
-    "Reset Progress": {
+    "Reset Learning State": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lernfortschritt zurücksetzen"
+            "value": "Lernstand zurücksetzen"
+          }
+        }
+      }
+    },
+    "Response": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eingabe"
           }
         }
       }
@@ -1145,17 +1145,37 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wiederholung"
+            "value": "Abfrage"
           }
         }
       }
     },
-    "Review · remembered for %@": {
+    "Review Log": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wiederholung · bleibt %@ im Gedächtnis"
+            "value": "Verlauf"
+          }
+        }
+      }
+    },
+    "Review phase": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederholungsphase"
+          }
+        }
+      }
+    },
+    "Review phase · remembered for %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wiederholungsphase · bleibt %@ im Gedächtnis"
           }
         }
       }
@@ -1165,7 +1185,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Heute wiederholt"
+            "value": "Heute abgefragt"
           }
         }
       }
@@ -1175,7 +1195,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wiederholungen"
+            "value": "Abfragen"
           }
         }
       }
@@ -1250,6 +1270,16 @@
         }
       }
     },
+    "Shaky": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsicher"
+          }
+        }
+      }
+    },
     "Show Details": {
       "localizations": {
         "de": {
@@ -1270,12 +1300,12 @@
         }
       }
     },
-    "Spread out review dates": {
+    "Spread out intervals": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wiederholungstermine streuen"
+            "value": "Abstände streuen"
           }
         }
       }
@@ -1320,12 +1350,12 @@
         }
       }
     },
-    "Status": {
+    "Steps per card": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Status"
+            "value": "Lernschritte pro Karte"
           }
         }
       }
@@ -1360,12 +1390,12 @@
         }
       }
     },
-    "The review history of this deck is damaged (line %lld).": {
+    "The review log of this deck is damaged (line %lld).": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Der Antwortverlauf dieses Stapels ist beschädigt (Zeile %lld)."
+            "value": "Der Verlauf dieses Stapels ist beschädigt (Zeile %lld)."
           }
         }
       }
@@ -1435,7 +1465,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Anstehende Wiederholungen"
+            "value": "Kommende Abfragen"
           }
         }
       }
@@ -1470,12 +1500,12 @@
         }
       }
     },
-    "When off, you rate every answer yourself, e.g. as Easy.": {
+    "When off, you grade every review yourself, e.g. as Easy.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wenn aus, bewertest du jede Antwort selbst, z. B. als „Leicht“."
+            "value": "Wenn aus, bewertest du jede Abfrage selbst, z. B. als „Leicht“."
           }
         }
       }
@@ -1500,22 +1530,12 @@
         }
       }
     },
-    "Your answer": {
+    "Your reviews so far are saved. Cards you haven't finished stay due.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Antwort"
-          }
-        }
-      }
-    },
-    "Your answers so far are saved. Cards you haven't finished stay due.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine bisherigen Antworten sind gespeichert. Nicht abgeschlossene Karten bleiben fällig."
+            "value": "Deine bisherigen Abfragen sind gespeichert. Nicht abgeschlossene Karten bleiben fällig."
           }
         }
       }
