@@ -7,9 +7,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Continue automatically after a correct answer", isOn: $autoAdvance)
+                Toggle("Continue automatically when the response is correct", isOn: $autoAdvance)
             } footer: {
-                Text("When off, you rate every answer yourself, e.g. as Easy.")
+                Text("When off, you grade every review yourself, e.g. as Easy.")
                     .foregroundStyle(.secondary)
             }
         }

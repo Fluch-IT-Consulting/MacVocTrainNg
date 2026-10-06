@@ -28,7 +28,7 @@ struct DeckOptionsView: View {
                 } header: {
                     Text("Scheduling")
                 } footer: {
-                    Text("Cards are asked again when the chance of still remembering them drops to this value. Higher means more reviews and fewer mistakes; 90 % is a good balance.")
+                    Text("Cards in the review phase are asked again when their recall probability drops to this value. Higher means more reviews but fewer lapses; 90 % is a good balance.")
                         .foregroundStyle(.secondary)
                 }
 
@@ -36,21 +36,21 @@ struct DeckOptionsView: View {
                     LimitField(title: "Cards per session", value: $settings.cardsPerSession, defaultValue: 100, step: 10)
                     LimitField(title: "New cards per session", value: $settings.newCardsPerSession, defaultValue: 20, step: 5)
                     Stepper(value: $settings.learningSteps, in: DeckSettings.learningStepsRange) {
-                        LabeledContent("Correct answers to learn a card", value: settings.learningSteps.formatted())
+                        LabeledContent("Steps per card", value: settings.learningSteps.formatted())
                     }
                 } header: {
                     Text("Sessions")
                 } footer: {
-                    Text("New and forgotten cards come back within the session until they have been answered correctly this many times.")
+                    Text("New cards and cards after a lapse come back within the session until they have been graded Good this many times. Hard keeps a card on its step, Again resets it, Easy moves it to the review phase at once.")
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Answers") {
+                Section("Checking") {
                     Toggle("Case-sensitive", isOn: $settings.caseSensitive)
                 }
 
                 Section("Advanced") {
-                    Toggle("Spread out review dates", isOn: $settings.fuzzing)
+                    Toggle("Spread out intervals", isOn: $settings.fuzzing)
                         .help("Varies intervals slightly so cards learned together don't always come back together.")
                     Stepper(value: $settings.maximumInterval, in: 30...36500, step: 30) {
                         LabeledContent("Longest interval", value: Format.days(Double(settings.maximumInterval)))

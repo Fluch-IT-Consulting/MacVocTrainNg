@@ -16,7 +16,7 @@ struct CardInspector: View {
                 VStack(spacing: 12) {
                     Text("\(selection.count) cards selected")
                         .font(.headline)
-                    Button("Reset Progress") {
+                    Button("Reset Learning State") {
                         document.resetProgress(of: selection, undoManager: undoManager)
                     }
                     Button("Delete", role: .destructive) {
@@ -66,7 +66,7 @@ private struct CardDetail: View {
 
             Section("Learning State") {
                 if let memory = card.memory {
-                    LabeledContent("Status") { MaturityLabel(category: MaturityCategory(card: card)) }
+                    LabeledContent("Maturity") { MaturityLabel(category: MaturityCategory(card: card)) }
                     LabeledContent("Phase", value: memory.phase.title)
                     LabeledContent("Due", value: Format.due(card))
                     LabeledContent("Stability", value: Format.days(memory.stability))
@@ -80,14 +80,14 @@ private struct CardDetail: View {
                         .foregroundStyle(.secondary)
                 }
                 if !card.isNew {
-                    Button("Reset Progress") {
+                    Button("Reset Learning State") {
                         document.resetProgress(of: [card.id], undoManager: undoManager)
                     }
                 }
             }
 
             if !card.log.isEmpty {
-                Section("History") {
+                Section("Review Log") {
                     ForEach(Array(card.log.suffix(50).reversed().enumerated()), id: \.offset) { _, entry in
                         LabeledContent(entry.date.formatted(date: .abbreviated, time: .shortened)) {
                             Text(entry.grade.title)

@@ -43,7 +43,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         do {
             deck = try DeckFile.decode(configuration.file)
         } catch let DeckFile.Error.damagedReviewLog(line) {
-            throw AppError(String(localized: "The review history of this deck is damaged (line \(line))."))
+            throw AppError(String(localized: "The review log of this deck is damaged (line \(line))."))
         } catch DeckFile.Error.unsupportedVersion {
             throw AppError(String(localized: "This deck was created by a newer version of MacVocTrain."))
         } catch {
@@ -107,13 +107,13 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             return (card, Int?.none)
         }
         guard !cards.isEmpty else { return }
-        perform(CardChange(upserts: cards), actionName: String(localized: "Reset Progress"), undoManager: undoManager)
+        perform(CardChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
     /// Stores a card rescheduled after an answer in a study session.
     @MainActor
     func applyReview(_ card: Card, undoManager: UndoManager?, hook: UndoHook) {
-        perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Answer"), undoManager: undoManager, hook: hook)
+        perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
     }
 
     @MainActor
