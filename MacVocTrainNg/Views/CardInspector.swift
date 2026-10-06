@@ -127,16 +127,14 @@ private struct CardDetail: View {
         guard question != card.question || answer != card.answer || hint != card.hint,
             var current = document.card(withID: card.id)
         else { return }
-        let newQuestion = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newQuestion.isEmpty, !newAnswer.isEmpty else {
+        guard let text = CardText(question: question, answer: answer, hint: hint) else {
             question = current.question
             answer = current.answer
             return
         }
-        current.question = newQuestion
-        current.answer = newAnswer
-        current.hint = hint.trimmingCharacters(in: .whitespacesAndNewlines)
+        current.question = text.question
+        current.answer = text.answer
+        current.hint = text.hint
         document.update(current, undoManager: undoManager)
     }
 }
