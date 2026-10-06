@@ -148,3 +148,20 @@ Issues behält jeden Text, auch nach dem Bearbeiten.
 
 - „publish to the issue tracker“: ein GitHub-Issue anlegen.
 - „fetch the relevant ticket“: `gh issue view <nummer> --comments`.
+
+## Wegfindung (`/wayfinder`)
+
+Die **Karte** ist ein einzelnes Issue, die **Tickets** sind seine Sub-Issues. Beide
+bekommen wie jedes Issue einen Typ, meist `Task`.
+
+- **Karte**: Label `wayfinder:map`; der Rumpf hält Notizen, bisherige Entscheidungen
+  und den Nebel (offene Fragen).
+- **Ticket**: Sub-Issue der Karte (`gh issue edit <n> --parent <karte>`), Label
+  `wayfinder:<art>` mit `research`, `prototype`, `grilling` oder `task`.
+- **Blockiert**: Blocked-by-Beziehung (`gh issue edit <n> --add-blocked-by <m>`). Ein
+  Ticket ist frei, sobald alle Blocker geschlossen sind.
+- **Nächstes Ticket**: offene Sub-Issues der Karte ohne offenen Blocker und ohne
+  Zuweisung; das erste in Kartenreihenfolge gewinnt.
+- **Übernehmen**: `gh issue edit <n> --add-assignee @me`, als erste Änderung der Sitzung.
+- **Erledigen**: Antwort kommentieren, Issue schließen, dann Kern und Link unter den
+  bisherigen Entscheidungen der Karte nachtragen.

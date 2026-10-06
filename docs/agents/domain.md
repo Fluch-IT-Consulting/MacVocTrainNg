@@ -30,6 +30,11 @@ Wo ein Ergebnis einen Fachbegriff nennt (Issue-Titel, Umbauvorschlag, Testname),
 gilt der Begriff aus `CONTEXT.md`. Bis es das Glossar gibt, gelten die Namen im Code:
 `Card`, `Deck`, `Grade`, `MemoryState`, `StudySession`, `MaturityCategory`.
 
+Keine Synonyme benutzen, die das Glossar ausdrücklich meidet. Fehlt ein Begriff im
+Glossar, ist das ein Zeichen: Entweder wird gerade Sprache erfunden, die das Projekt
+nicht spricht (überdenken), oder es gibt eine echte Lücke (für `/domain-modeling`
+vormerken).
+
 ## Widersprüche zu einem ADR offen nennen
 
 Widerspricht ein Ergebnis einem bestehenden ADR, das ausdrücklich sagen statt es still
