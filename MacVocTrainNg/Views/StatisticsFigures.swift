@@ -73,9 +73,17 @@ final class StatisticsFigures {
         var firstWeekday: Int
     }
 
+    private var time = Memo<Date, Date>()
     private var summary = Memo<SummaryInputs, DeckStatistics.Summary>()
     private var forecast = Memo<ForecastInputs, [Int]>()
     private var progress: [DeckStatistics.Granularity: Memo<ProgressInputs, ProgressSeries>] = [:]
+
+    /// The time the figures are computed for, read from `clock` once per `tick` of the
+    /// view's timeline. Until the next tick it stays the same, so the summary, which
+    /// depends on it, comes from the cache.
+    func time(forTick tick: Date, from clock: StudyClock) -> Date {
+        time.value(for: tick) { clock.now }
+    }
 
     func summary(of deck: Deck, at now: Date, calendar: StudyCalendar) -> DeckStatistics.Summary {
         let inputs = SummaryInputs(cards: deck.cards, learningOptions: deck.learningOptions, calendar: calendar, now: now)

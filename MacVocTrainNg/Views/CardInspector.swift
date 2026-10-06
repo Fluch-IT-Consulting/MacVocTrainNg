@@ -68,7 +68,7 @@ private struct CardDetail: View {
                 if let learningState = card.learningState {
                     LabeledContent("Maturity") { MaturityLabel(category: MaturityCategory(card: card)) }
                     LabeledContent("Phase", value: learningState.phase.title)
-                    LabeledContent("Due", value: Format.due(card))
+                    LabeledContent("Due", value: Format.due(card, now: document.clock.now))
                     LabeledContent("Stability", value: Format.days(learningState.stability))
                     LabeledContent("Difficulty", value: learningState.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")
                     LabeledContent("Recall Probability", value: Format.percent(recallProbability(learningState)))

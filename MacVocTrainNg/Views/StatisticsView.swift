@@ -8,10 +8,11 @@ struct StatisticsView: View {
     @State private var figures = StatisticsFigures()
 
     var body: some View {
-        // Re-evaluated every minute because cards become due as time passes. In
-        // between, the date stays the same, so the figures come from the cache.
+        // Re-evaluated every minute because cards become due as time passes. The time
+        // comes from the document's clock and stays the same until the next minute, so
+        // in between the figures come from the cache.
         TimelineView(.everyMinute) { context in
-            content(at: context.date)
+            content(at: figures.time(forTick: context.date, from: document.clock))
         }
     }
 

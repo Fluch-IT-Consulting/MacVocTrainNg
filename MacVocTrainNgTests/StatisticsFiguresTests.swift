@@ -47,6 +47,19 @@ struct StatisticsFiguresTests {
         #expect(after != before)
     }
 
+    @Test func timeIsReadOncePerTick() {
+        let figures = StatisticsFigures()
+        let clock = ManualClock(now)
+        #expect(figures.time(forTick: now, from: clock.studyClock) == now)
+
+        // Until the next tick, the summary keeps its time and stays in the cache.
+        clock.now = now.addingTimeInterval(30)
+        #expect(figures.time(forTick: now, from: clock.studyClock) == now)
+
+        let nextTick = now.addingTimeInterval(60)
+        #expect(figures.time(forTick: nextTick, from: clock.studyClock) == clock.now)
+    }
+
     @Test func forecastFollowsCardsAndDay() {
         let figures = StatisticsFigures()
         var cards = [reviewCard("kot", dueIn: 2)]

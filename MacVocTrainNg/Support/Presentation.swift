@@ -89,7 +89,7 @@ enum Format {
     }
 
     /// When a card is due, relative to now.
-    static func due(_ card: Card, now: Date = Date()) -> String {
+    static func due(_ card: Card, now: Date) -> String {
         guard let learningState = card.learningState else { return String(localized: "New") }
         if learningState.due <= now { return String(localized: "Now") }
         return learningState.due.formatted(.relative(presentation: .named))

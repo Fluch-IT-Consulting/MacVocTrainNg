@@ -11,7 +11,7 @@ struct CardListView: View {
     @State private var table = CardTable()
 
     var body: some View {
-        let now = Date()
+        let now = document.clock.now
         let rows = rows()
 
         VStack(spacing: 0) {
