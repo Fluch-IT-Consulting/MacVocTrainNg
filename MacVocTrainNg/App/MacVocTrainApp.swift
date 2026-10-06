@@ -11,14 +11,14 @@ struct MacVocTrainApp: App {
         }
 
         Settings {
-            SettingsView()
+            PreferencesView()
         }
     }
 }
 
 /// App-wide preferences, stored in the user defaults.
 enum Preferences {
-    /// Move on to the next card right after a correct answer instead of asking for a grade.
+    /// Move on to the next card right after a correct response instead of asking for a grade.
     static let autoAdvanceKey = "autoAdvanceOnCorrectAnswer"
 
     static var autoAdvance: Bool {

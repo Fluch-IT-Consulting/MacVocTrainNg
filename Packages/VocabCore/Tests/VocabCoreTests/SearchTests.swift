@@ -5,7 +5,7 @@ import Testing
 struct CardSearchIndexTests {
     let cards = [
         Card(question: "dzień", answer: "Tag"),
-        Card(question: "dom", answer: "Haus", remark: "Gebäude"),
+        Card(question: "dom", answer: "Haus", hint: "Gebäude"),
         Card(question: "kot", answer: "Katze"),
     ]
 

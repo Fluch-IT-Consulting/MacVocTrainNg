@@ -25,7 +25,7 @@ struct CardListView: View {
             Table(rows, selection: $selection, sortOrder: $sortOrder) {
                 TableColumn("Question", value: \.question)
                 TableColumn("Answer", value: \.answer)
-                TableColumn("Hint", value: \.remark)
+                TableColumn("Hint", value: \.hint)
                 TableColumn("Maturity", value: \.categoryRank) { row in
                     MaturityLabel(category: row.category)
                 }
@@ -43,7 +43,7 @@ struct CardListView: View {
                         showingInspector = true
                     }
                     Button("Reset Learning State") {
-                        document.resetProgress(of: ids, undoManager: undoManager)
+                        document.resetLearningState(of: ids, undoManager: undoManager)
                     }
                     Divider()
                     Button("Delete", role: .destructive) {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// App-wide preferences (⌘,).
-struct SettingsView: View {
+struct PreferencesView: View {
     @AppStorage(Preferences.autoAdvanceKey) private var autoAdvance = true
 
     var body: some View {

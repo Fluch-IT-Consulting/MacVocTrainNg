@@ -32,7 +32,7 @@ struct StatisticsView: View {
                         .foregroundStyle(.secondary)
                     ProgressChart(
                         points: DeckStatistics.progress(
-                            history: document.deck.history,
+                            snapshots: document.deck.progress,
                             today: document.calendar.dayNumber(for: now),
                             granularity: granularity,
                             firstWeekday: Calendar.current.firstWeekday
@@ -76,14 +76,14 @@ private struct SummaryTiles: View {
             Tile(title: "New", value: summary.new.formatted())
             Tile(
                 title: "Recall Probability",
-                value: summary.averageRetrievability.map(Format.percent) ?? "–",
+                value: summary.averageRecallProbability.map(Format.percent) ?? "–",
                 help: "Average recall probability of all studied cards right now."
             )
             Tile(
                 title: "Reviewed Today",
                 value: summary.reviewsToday.formatted(),
                 detail: summary.reviewsToday > 0
-                    ? String(localized: "\(Format.percent(Double(summary.correctToday) / Double(summary.reviewsToday))) recalled")
+                    ? String(localized: "\(Format.percent(Double(summary.recalledToday) / Double(summary.reviewsToday))) recalled")
                     : nil
             )
         }

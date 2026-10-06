@@ -8,7 +8,7 @@ import VocabCore
 /// cleared and the cursor returns to the question, ready for the next card.
 struct AddCardForm: View {
     private enum Field: Hashable {
-        case question, answer, remark
+        case question, answer, hint
     }
 
     @ObservedObject var document: VocabularyDocument
@@ -17,7 +17,7 @@ struct AddCardForm: View {
     @Environment(\.undoManager) private var undoManager
     @State private var question = ""
     @State private var answer = ""
-    @State private var remark = ""
+    @State private var hint = ""
     @FocusState private var focus: Field?
 
     private var trimmedQuestion: String { question.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -33,8 +33,8 @@ struct AddCardForm: View {
                 TextField("Answer", text: $answer, prompt: Text("Answer (alternatives separated by /)"))
                     .focused($focus, equals: .answer)
                     .onSubmit { submit() }
-                TextField("Hint", text: $remark, prompt: Text("Hint (optional)"))
-                    .focused($focus, equals: .remark)
+                TextField("Hint", text: $hint, prompt: Text("Hint (optional)"))
+                    .focused($focus, equals: .hint)
                     .onSubmit { submit() }
                     .frame(maxWidth: 200)
                 Button("Add") { submit(fromButton: true) }
@@ -67,13 +67,13 @@ struct AddCardForm: View {
         let card = Card(
             question: trimmedQuestion,
             answer: trimmedAnswer,
-            remark: remark.trimmingCharacters(in: .whitespacesAndNewlines)
+            hint: hint.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         document.add(card, undoManager: undoManager)
         onAdd(card.id)
         question = ""
         answer = ""
-        remark = ""
+        hint = ""
         focus = .question
     }
 }

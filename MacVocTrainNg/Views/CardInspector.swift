@@ -1,7 +1,7 @@
 import SwiftUI
 import VocabCore
 
-/// Details of the selected card: editable content, learning state and history.
+/// Details of the selected card: editable content, learning state and review log.
 struct CardInspector: View {
     @ObservedObject var document: VocabularyDocument
     var selection: Set<Card.ID>
@@ -17,7 +17,7 @@ struct CardInspector: View {
                     Text("\(selection.count) cards selected")
                         .font(.headline)
                     Button("Reset Learning State") {
-                        document.resetProgress(of: selection, undoManager: undoManager)
+                        document.resetLearningState(of: selection, undoManager: undoManager)
                     }
                     Button("Delete", role: .destructive) {
                         document.delete(selection, undoManager: undoManager)
@@ -33,7 +33,7 @@ struct CardInspector: View {
 
 private struct CardDetail: View {
     private enum Field: Hashable {
-        case question, answer, remark
+        case question, answer, hint
     }
 
     @ObservedObject var document: VocabularyDocument
@@ -41,7 +41,7 @@ private struct CardDetail: View {
     @Environment(\.undoManager) private var undoManager
     @State private var question: String
     @State private var answer: String
-    @State private var remark: String
+    @State private var hint: String
     @FocusState private var focus: Field?
 
     init(document: VocabularyDocument, card: Card) {
@@ -49,7 +49,7 @@ private struct CardDetail: View {
         self.card = card
         _question = State(initialValue: card.question)
         _answer = State(initialValue: card.answer)
-        _remark = State(initialValue: card.remark)
+        _hint = State(initialValue: card.hint)
     }
 
     var body: some View {
@@ -59,29 +59,29 @@ private struct CardDetail: View {
                     .focused($focus, equals: .question)
                 TextField("Answer", text: $answer, axis: .vertical)
                     .focused($focus, equals: .answer)
-                TextField("Hint", text: $remark, axis: .vertical)
-                    .focused($focus, equals: .remark)
+                TextField("Hint", text: $hint, axis: .vertical)
+                    .focused($focus, equals: .hint)
             }
             .onSubmit(commit)
 
             Section("Learning State") {
-                if let memory = card.memory {
+                if let learningState = card.learningState {
                     LabeledContent("Maturity") { MaturityLabel(category: MaturityCategory(card: card)) }
-                    LabeledContent("Phase", value: memory.phase.title)
+                    LabeledContent("Phase", value: learningState.phase.title)
                     LabeledContent("Due", value: Format.due(card))
-                    LabeledContent("Stability", value: Format.days(memory.stability))
-                    LabeledContent("Difficulty", value: memory.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")
-                    LabeledContent("Recall Probability", value: Format.percent(recallProbability(memory)))
-                    LabeledContent("Reviews", value: memory.reps.formatted())
-                    LabeledContent("Lapses", value: memory.lapses.formatted())
-                    LabeledContent("Last Review", value: memory.lastReview.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("Stability", value: Format.days(learningState.stability))
+                    LabeledContent("Difficulty", value: learningState.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")
+                    LabeledContent("Recall Probability", value: Format.percent(recallProbability(learningState)))
+                    LabeledContent("Reviews", value: learningState.reviews.formatted())
+                    LabeledContent("Lapses", value: learningState.lapses.formatted())
+                    LabeledContent("Last Review", value: learningState.lastReview.formatted(date: .abbreviated, time: .shortened))
                 } else {
                     Text("This card has not been studied yet.")
                         .foregroundStyle(.secondary)
                 }
                 if !card.isNew {
                     Button("Reset Learning State") {
-                        document.resetProgress(of: [card.id], undoManager: undoManager)
+                        document.resetLearningState(of: [card.id], undoManager: undoManager)
                     }
                 }
             }
@@ -105,20 +105,20 @@ private struct CardDetail: View {
             // Show changes made elsewhere, e.g. by undo.
             question = card.question
             answer = card.answer
-            remark = card.remark
+            hint = card.hint
         }
         .onDisappear(perform: commit)
     }
 
-    private func recallProbability(_ memory: MemoryState) -> Double {
-        let fsrs = FSRS(parameters: document.deck.settings.parameters)
-        let elapsed = Date().timeIntervalSince(memory.lastReview) / 86400
-        return fsrs.retrievability(elapsedDays: elapsed, stability: memory.stability)
+    private func recallProbability(_ learningState: LearningState) -> Double {
+        let fsrs = FSRS(parameters: document.deck.learningOptions.parameters)
+        let elapsed = Date().timeIntervalSince(learningState.lastReview) / 86400
+        return fsrs.retrievability(elapsedDays: elapsed, stability: learningState.stability)
     }
 
     /// Writes edited text back to the document as one undoable change.
     private func commit() {
-        guard question != card.question || answer != card.answer || remark != card.remark,
+        guard question != card.question || answer != card.answer || hint != card.hint,
               var current = document.card(withID: card.id)
         else { return }
         let newQuestion = question.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -130,7 +130,7 @@ private struct CardDetail: View {
         }
         current.question = newQuestion
         current.answer = newAnswer
-        current.remark = remark.trimmingCharacters(in: .whitespacesAndNewlines)
+        current.hint = hint.trimmingCharacters(in: .whitespacesAndNewlines)
         document.update(current, undoManager: undoManager)
     }
 }

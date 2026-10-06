@@ -23,9 +23,9 @@ struct FSRSTests {
     }
 
     @Test func intervalEqualsStabilityAtNinetyPercentRetention() {
-        #expect(abs(fsrs.interval(stability: 42, desiredRetention: 0.9) - 42) < 1e-9)
-        #expect(fsrs.interval(stability: 42, desiredRetention: 0.95) < 42)
-        #expect(fsrs.interval(stability: 42, desiredRetention: 0.8) > 42)
+        #expect(abs(fsrs.interval(stability: 42, targetRecall: 0.9) - 42) < 1e-9)
+        #expect(fsrs.interval(stability: 42, targetRecall: 0.95) < 42)
+        #expect(fsrs.interval(stability: 42, targetRecall: 0.8) > 42)
     }
 
     @Test func initialStateUsesFirstFourWeights() {

@@ -8,7 +8,7 @@ import Foundation
 /// 3. `rotation`: up to `rotationSize` cards that are asked in turn.
 ///
 /// The next card is picked at random from the front of the rotation and then moved
-/// to its end. A card answered wrongly therefore comes back after a few others, and
+/// to its end. A card graded `.again` therefore comes back after a few others, and
 /// the same card is never asked twice in a row while others are left.
 /// (Same idea as the IndexCardRevisionPool of MacVocTrain 1.)
 public struct SessionQueue: Sendable {

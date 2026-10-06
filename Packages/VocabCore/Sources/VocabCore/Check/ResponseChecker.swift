@@ -1,18 +1,18 @@
 import Foundation
 
-/// Compares a typed answer with the expected one.
+/// Compares a response with the answer of a card.
 ///
 /// An answer may consist of several alternatives separated by `/`, e.g.
 /// `"Haus / Gebäude"`. The order of alternatives does not matter. Whitespace
 /// differences and Unicode composition (e.g. a precomposed "ą" versus "a" plus
 /// a combining ogonek) are ignored; diacritics themselves are not.
-public struct AnswerChecker: Sendable {
+public struct ResponseChecker: Sendable {
     public enum Result: Hashable, Sendable {
         /// All alternatives given, nothing wrong.
         case correct
         /// Only some of the alternatives given, but none wrong.
         case incomplete(missing: [String])
-        /// Close to the expected answer: a typo or a capitalisation slip.
+        /// Close to the answer: one typo or a capitalisation slip.
         case almostCorrect
         case wrong
 
@@ -34,8 +34,8 @@ public struct AnswerChecker: Sendable {
         self.caseSensitive = caseSensitive
     }
 
-    public func check(_ given: String, against expected: String) -> Result {
-        let givenParts = Self.alternatives(of: given)
+    public func check(_ response: String, against expected: String) -> Result {
+        let givenParts = Self.alternatives(of: response)
         let expectedParts = Self.alternatives(of: expected)
         guard !givenParts.isEmpty, !expectedParts.isEmpty else { return .wrong }
 
@@ -72,14 +72,14 @@ public struct AnswerChecker: Sendable {
     }
 
     /// True for a capitalisation difference or a small number of typos.
-    static func isClose(_ given: String, _ expected: String) -> Bool {
-        let given = given.lowercased()
+    static func isClose(_ response: String, _ expected: String) -> Bool {
+        let response = response.lowercased()
         let expected = expected.lowercased()
-        if given == expected { return true }
+        if response == expected { return true }
         let length = expected.count
         let tolerance = length < 4 ? 0 : (length < 8 ? 1 : 2)
-        guard tolerance > 0, abs(given.count - length) <= tolerance else { return false }
-        return editDistance(Array(given), Array(expected)) <= tolerance
+        guard tolerance > 0, abs(response.count - length) <= tolerance else { return false }
+        return editDistance(Array(response), Array(expected)) <= tolerance
     }
 
     /// Damerau–Levenshtein distance (optimal string alignment): swapped neighbours count as one typo.

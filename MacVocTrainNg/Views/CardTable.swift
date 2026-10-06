@@ -7,7 +7,7 @@ struct CardRow: Identifiable {
     var position: Int
     var question: String
     var answer: String
-    var remark: String
+    var hint: String
     var category: MaturityCategory
     var categoryRank: Int
     var due: Date?
@@ -19,11 +19,11 @@ struct CardRow: Identifiable {
         self.position = position
         question = card.question
         answer = card.answer
-        remark = card.remark
+        hint = card.hint
         category = MaturityCategory(card: card)
         categoryRank = StabilityBins.bin(for: card)
-        due = card.memory?.due
-        dueSortKey = card.memory?.due.timeIntervalSinceReferenceDate ?? -.infinity
+        due = card.learningState?.due
+        dueSortKey = card.learningState?.due.timeIntervalSinceReferenceDate ?? -.infinity
     }
 }
 

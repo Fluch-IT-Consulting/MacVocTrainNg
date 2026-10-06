@@ -2,31 +2,31 @@ import Foundation
 import Observation
 import VocabCore
 
-/// Drives a study session: checks typed answers, applies grades to the document
+/// Drives a study session: checks responses, applies grades to the document
 /// and keeps the session's place in sync with undo and redo.
 @MainActor @Observable
 final class StudyViewModel {
     enum Stage: Equatable {
-        /// Waiting for the answer to the current card.
+        /// Waiting for the response to the current card.
         case asking
-        /// The answer was checked; waiting for the learner to confirm a grade.
-        case feedback(AnswerChecker.Result, given: String)
+        /// The response was checked; waiting for the learner to confirm a grade.
+        case feedback(ResponseChecker.Result, response: String)
         case finished
     }
 
-    /// The card answered last, shown below the current one.
-    struct PreviousAnswer: Equatable {
+    /// The card reviewed last, shown below the current one.
+    struct PreviousReview: Equatable {
         var question: String
         var answer: String
         var grade: Grade
     }
 
     let document: VocabularyDocument
-    /// Move on right after a correct answer instead of asking for a grade.
+    /// Move on right after a correct response instead of asking for a grade.
     let autoAdvance: Bool
     private(set) var session: StudySession
     private(set) var stage: Stage
-    private(set) var previous: PreviousAnswer?
+    private(set) var previous: PreviousReview?
     var input = ""
 
     init(document: VocabularyDocument, autoAdvance: Bool = Preferences.autoAdvance) {
@@ -48,15 +48,15 @@ final class StudyViewModel {
         return result.suggestedGrade
     }
 
-    /// Checks the typed answer. An empty answer counts as "I don't know".
+    /// Checks the response. An empty response counts as "I don't know".
     func submit(undoManager: UndoManager?) {
         guard stage == .asking, let card = currentCard else { return }
-        let checker = AnswerChecker(caseSensitive: document.deck.settings.caseSensitive)
+        let checker = ResponseChecker(caseSensitive: document.deck.learningOptions.caseSensitive)
         let result = checker.check(input, against: card.answer)
         if result == .correct, autoAdvance {
             grade(.good, undoManager: undoManager)
         } else {
-            stage = .feedback(result, given: input)
+            stage = .feedback(result, response: input)
         }
     }
 
@@ -66,7 +66,7 @@ final class StudyViewModel {
 
         switch session.mode {
         case .regular:
-            let scheduler = Scheduler(settings: document.deck.settings, calendar: document.calendar)
+            let scheduler = Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
             let scheduled = scheduler.review(card, grade: grade, at: Date())
             session.record(grade, scheduledCard: scheduled)
             let after = session
@@ -77,12 +77,12 @@ final class StudyViewModel {
             document.applyReview(scheduled, undoManager: undoManager, hook: hook)
         case .practice:
             // Practice doesn't touch the cards, but ⌘Z should still take back the
-            // last answer instead of reaching an answer of the earlier session.
+            // last review instead of reaching a review of the earlier session.
             session.record(grade)
             registerSessionUndo(from: before, to: session, undoManager: undoManager)
         }
 
-        previous = PreviousAnswer(question: card.question, answer: card.answer, grade: grade)
+        previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
         moveOn()
     }
 
@@ -92,12 +92,12 @@ final class StudyViewModel {
         moveOn()
     }
 
-    /// Drills the cards answered wrongly in this session once more, without
+    /// Practises the mistakes of this session once more, without
     /// affecting their schedule.
     func practiceMistakes() {
-        let ids = session.failedCardIDs.filter { document.card(withID: $0) != nil }
+        let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
         guard !ids.isEmpty else { return }
-        session = StudySession(practicing: ids, learningSteps: document.deck.settings.learningSteps)
+        session = StudySession(practicing: ids, steps: document.deck.learningOptions.steps)
         previous = nil
         moveOn()
     }
@@ -137,7 +137,7 @@ final class StudyViewModel {
         undoManager?.setActionName(String(localized: "Review"))
     }
 
-    /// Called by undo/redo of an answer.
+    /// Called by undo/redo of a review.
     private func restore(_ snapshot: StudySession) {
         guard snapshot.id == session.id else { return } // a different session by now
         session = snapshot

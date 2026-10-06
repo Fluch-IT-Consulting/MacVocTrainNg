@@ -83,7 +83,7 @@ struct CardTableTests {
         func makeCard() -> Card {
             var card = Card(question: words.randomElement(using: &random)!, answer: words.randomElement(using: &random)!)
             if Bool.random(using: &random) {
-                card.memory = MemoryState(
+                card.learningState = LearningState(
                     phase: .review, stability: .random(in: 0.5...300, using: &random), difficulty: 5,
                     lastReview: Date(), due: Date()
                 )
@@ -105,7 +105,7 @@ struct CardTableTests {
                     let position = Int.random(in: deck.indices, using: &random)
                     let replacement = makeCard()
                     deck[position].question = replacement.question
-                    deck[position].memory = replacement.memory
+                    deck[position].learningState = replacement.learningState
                 default:
                     deck.append(makeCard())
                 }

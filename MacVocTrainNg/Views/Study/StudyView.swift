@@ -3,10 +3,10 @@ import VocabCore
 
 /// The study screen: asks one card after another.
 ///
-/// Keyboard flow: type the answer and press Return. A correct answer moves on
-/// directly (unless disabled in Settings). Otherwise the correct answer is shown
+/// Keyboard flow: type the response and press Return. A correct response moves on
+/// directly (unless disabled in the preferences). Otherwise the answer is shown
 /// and Return accepts the suggested grade; 1–4 choose a grade explicitly, e.g. 3
-/// when the answer was right after all. ⌘Z takes back the last answer.
+/// when the response was right after all. ⌘Z takes back the last review.
 struct StudyView: View {
     @Bindable var model: StudyViewModel
     var onClose: () -> Void
@@ -19,7 +19,7 @@ struct StudyView: View {
     }
 
     @Environment(\.undoManager) private var undoManager
-    @FocusState private var answerFocused: Bool
+    @FocusState private var responseFocused: Bool
     @State private var confirmingEnd = false
 
     var body: some View {
@@ -33,7 +33,7 @@ struct StudyView: View {
             }
             if let previous = model.previous, !model.isFinished {
                 Divider()
-                PreviousAnswerBar(previous: previous)
+                PreviousReviewBar(previous: previous)
             }
         }
         .onChange(of: document.deck.cards.count) {
@@ -63,9 +63,9 @@ struct StudyView: View {
                 .frame(maxWidth: 320)
             Text("\(session.completedCount) / \(session.totalCount)")
                 .monospacedDigit()
-            Label("\(session.failedCardIDs.count)", systemImage: "xmark.circle")
+            Label("\(session.mistakeIDs.count)", systemImage: "xmark.circle")
                 .monospacedDigit()
-                .foregroundStyle(session.failedCardIDs.isEmpty ? Color.secondary : Grade.again.color)
+                .foregroundStyle(session.mistakeIDs.isEmpty ? Color.secondary : Grade.again.color)
                 .help("Mistakes")
             Spacer()
             if !model.isFinished {
@@ -86,8 +86,8 @@ struct StudyView: View {
                 .multilineTextAlignment(.center)
                 .textSelection(.enabled)
 
-            if !card.remark.isEmpty {
-                Text(card.remark)
+            if !card.hint.isEmpty {
+                Text(card.hint)
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -98,13 +98,13 @@ struct StudyView: View {
                 .font(.title2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 480)
-                .focused($answerFocused)
+                .focused($responseFocused)
                 .disabled(model.stage != .asking)
                 .onSubmit { model.submit(undoManager: undoManager) }
 
             Group {
-                if case let .feedback(result, given) = model.stage {
-                    FeedbackView(result: result, given: given, expected: card.answer) { grade in
+                if case let .feedback(result, response) = model.stage {
+                    FeedbackView(result: result, response: response, expected: card.answer) { grade in
                         model.grade(grade, undoManager: undoManager)
                     }
                 } else {
@@ -120,17 +120,17 @@ struct StudyView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { answerFocused = true }
+        .onAppear { responseFocused = true }
         .onChange(of: model.stage) { _, stage in
-            if stage == .asking { answerFocused = true }
+            if stage == .asking { responseFocused = true }
         }
     }
 }
 
-/// Result of the check, the correct answer, and the grade buttons.
+/// Check result, the answer, and the grade buttons.
 private struct FeedbackView: View {
-    var result: AnswerChecker.Result
-    var given: String
+    var result: ResponseChecker.Result
+    var response: String
     var expected: String
     var onGrade: (Grade) -> Void
 
@@ -172,7 +172,7 @@ private struct FeedbackView: View {
         case .correct: String(localized: "Correct")
         case .incomplete: String(localized: "Incomplete")
         case .almostCorrect: String(localized: "Almost – check the spelling")
-        case .wrong: given.trimmingCharacters(in: .whitespaces).isEmpty
+        case .wrong: response.trimmingCharacters(in: .whitespaces).isEmpty
             ? String(localized: "No response")
             : String(localized: "Wrong")
         }
@@ -187,10 +187,10 @@ private struct FeedbackView: View {
         }
     }
 
-    /// The expected answer; for near misses with the differences highlighted.
+    /// The answer; for almost correct responses with the differences highlighted.
     private var answerText: Text {
         guard result == .almostCorrect else { return Text(expected) }
-        return AnswerDiff.segments(given: given, expected: expected).reduce(Text("")) { text, segment in
+        return ResponseDiff.segments(response: response, expected: expected).reduce(Text("")) { text, segment in
             if segment.isMismatch {
                 return text + Text(segment.text).bold().underline().foregroundColor(Grade.again.color)
             }
@@ -234,10 +234,10 @@ private struct CardStateLine: View {
 
     var body: some View {
         Group {
-            if let memory = card.memory {
-                switch memory.phase {
+            if let learningState = card.learningState {
+                switch learningState.phase {
                 case .review:
-                    Text("Review phase · remembered for \(Format.days(memory.stability))")
+                    Text("Review phase · remembered for \(Format.days(learningState.stability))")
                 case .learning:
                     Text("Learning")
                 case .relearning:
@@ -252,8 +252,8 @@ private struct CardStateLine: View {
     }
 }
 
-private struct PreviousAnswerBar: View {
-    var previous: StudyViewModel.PreviousAnswer
+private struct PreviousReviewBar: View {
+    var previous: StudyViewModel.PreviousReview
 
     var body: some View {
         HStack(spacing: 8) {

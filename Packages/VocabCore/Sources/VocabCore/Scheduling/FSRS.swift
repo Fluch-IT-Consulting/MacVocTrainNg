@@ -69,9 +69,10 @@ public struct FSRS: Sendable {
         pow(1 + factor * max(0, elapsedDays) / stability, decay)
     }
 
-    /// Days after which the probability of recall falls to `desiredRetention` (unrounded).
-    public func interval(stability: Double, desiredRetention: Double) -> Double {
-        stability / factor * (pow(desiredRetention, 1 / decay) - 1)
+    /// Days after which the recall probability falls to `targetRecall` (unrounded;
+    /// FSRS calls it "desired retention").
+    public func interval(stability: Double, targetRecall: Double) -> Double {
+        stability / factor * (pow(targetRecall, 1 / decay) - 1)
     }
 
     public func initialStability(_ grade: Grade) -> Double {

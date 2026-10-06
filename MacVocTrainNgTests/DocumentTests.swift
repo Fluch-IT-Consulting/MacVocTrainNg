@@ -49,14 +49,14 @@ struct DocumentTests {
 
     @Test func editingAndResettingAreUndoable() {
         var card = Card(question: "dom", answer: "Haus")
-        card.memory = MemoryState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
+        card.learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
         let document = VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager()
 
         var edited = card
         edited.answer = "Haus / Heim"
         step(undoManager) { document.update(edited, undoManager: undoManager) }
-        step(undoManager) { document.resetProgress(of: [card.id], undoManager: undoManager) }
+        step(undoManager) { document.resetLearningState(of: [card.id], undoManager: undoManager) }
         #expect(document.deck.cards[0].isNew)
         #expect(document.deck.cards[0].answer == "Haus / Heim")
 
@@ -74,12 +74,12 @@ struct DocumentTests {
         #expect(!undoManager.canUndo)
     }
 
-    @Test func changesUpdateTodaysHistory() {
+    @Test func changesUpdateTodaysSnapshot() {
         let document = VocabularyDocument()
         let undoManager = makeUndoManager()
         step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
-        #expect(document.deck.history.last?.day == document.calendar.dayNumber(for: Date()))
-        #expect(document.deck.history.last?.total == 1)
+        #expect(document.deck.progress.last?.day == document.calendar.dayNumber(for: Date()))
+        #expect(document.deck.progress.last?.total == 1)
     }
 
     @Test func snapshotSavesReadableDeck() throws {
@@ -93,14 +93,14 @@ struct DocumentTests {
 
 @MainActor
 struct StudyViewModelTests {
-    private func makeDocument(cards: Int, learningSteps: Int = 1) -> VocabularyDocument {
-        var settings = DeckSettings()
-        settings.learningSteps = learningSteps
-        settings.fuzzing = false
-        return VocabularyDocument(deck: Deck(settings: settings, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }))
+    private func makeDocument(cards: Int, steps: Int = 1) -> VocabularyDocument {
+        var learningOptions = LearningOptions()
+        learningOptions.steps = steps
+        learningOptions.fuzzing = false
+        return VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }))
     }
 
-    @Test func correctAnswerMovesOnAndCanBeUndone() throws {
+    @Test func correctResponseMovesOnAndCanBeUndone() throws {
         let document = makeDocument(cards: 2)
         let undoManager = makeUndoManager()
         let model = StudyViewModel(document: document, autoAdvance: true)
@@ -108,7 +108,7 @@ struct StudyViewModelTests {
 
         model.input = first.answer
         step(undoManager) { model.submit(undoManager: undoManager) }
-        #expect(document.card(withID: first.id)?.memory?.phase == .review)
+        #expect(document.card(withID: first.id)?.learningState?.phase == .review)
         #expect(model.previous?.grade == .good)
         #expect(model.currentCard?.id != first.id)
         #expect(model.session.completedCount == 1)
@@ -120,25 +120,25 @@ struct StudyViewModelTests {
         #expect(model.stage == .asking)
 
         undoManager.redo()
-        #expect(document.card(withID: first.id)?.memory?.phase == .review)
+        #expect(document.card(withID: first.id)?.learningState?.phase == .review)
         #expect(model.currentCard?.id != first.id)
     }
 
-    @Test func wrongAnswerAsksForGrade() throws {
-        let document = makeDocument(cards: 2, learningSteps: 2)
+    @Test func wrongResponseAsksForGrade() throws {
+        let document = makeDocument(cards: 2, steps: 2)
         let undoManager = makeUndoManager()
         let model = StudyViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
 
         model.input = "nonsense"
         model.submit(undoManager: undoManager)
-        #expect(model.stage == .feedback(.wrong, given: "nonsense"))
+        #expect(model.stage == .feedback(.wrong, response: "nonsense"))
         #expect(model.suggestedGrade == .again)
         #expect(document.card(withID: card.id)?.isNew == true) // nothing applied yet
 
         step(undoManager) { model.grade(.again, undoManager: undoManager) }
-        #expect(document.card(withID: card.id)?.memory?.phase == .learning)
-        #expect(model.session.failedCardIDs == [card.id])
+        #expect(document.card(withID: card.id)?.learningState?.phase == .learning)
+        #expect(model.session.mistakeIDs == [card.id])
         #expect(model.stage == .asking)
     }
 
@@ -149,12 +149,12 @@ struct StudyViewModelTests {
 
         model.input = "dzien"
         model.submit(undoManager: undoManager)
-        #expect(model.stage == .feedback(.almostCorrect, given: "dzien"))
+        #expect(model.stage == .feedback(.almostCorrect, response: "dzien"))
         step(undoManager) { model.grade(.good, undoManager: undoManager) }
         #expect(document.deck.cards[0].log.map(\.grade) == [.good])
     }
 
-    @Test func withoutAutoAdvanceCorrectAnswersAreConfirmed() {
+    @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() {
         let document = makeDocument(cards: 1)
         let model = StudyViewModel(document: document, autoAdvance: false)
         model.input = "a0"
@@ -185,7 +185,7 @@ struct StudyViewModelTests {
         #expect(document.deck == before)
     }
 
-    @Test func undoingPracticeAnswerKeepsEarlierSessionIntact() throws {
+    @Test func undoingPracticeReviewKeepsEarlierSessionIntact() throws {
         let document = makeDocument(cards: 1)
         let undoManager = makeUndoManager()
         let model = StudyViewModel(document: document, autoAdvance: true)
@@ -220,16 +220,16 @@ struct StudyViewModelTests {
         #expect(model.session.totalCount == 1)
     }
 
-    @Test func emptyAnswerRevealsTheAnswer() {
+    @Test func emptyResponseRevealsTheAnswer() {
         let document = makeDocument(cards: 1)
         let model = StudyViewModel(document: document, autoAdvance: true)
         model.submit(undoManager: nil)
-        #expect(model.stage == .feedback(.wrong, given: ""))
+        #expect(model.stage == .feedback(.wrong, response: ""))
     }
 
     @Test func nothingDueMeansFinished() {
         var card = Card(question: "q", answer: "a")
-        card.memory = MemoryState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
+        card.learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
         let model = StudyViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
         #expect(model.isFinished)
     }

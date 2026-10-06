@@ -19,7 +19,7 @@ struct UndoHook {
     var inverted: UndoHook { UndoHook(forward: backward, backward: forward) }
 }
 
-/// A vocabulary deck document.
+/// The SwiftUI document of one deck.
 ///
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes.
@@ -100,32 +100,32 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     }
 
     @MainActor
-    func resetProgress(of ids: Set<Card.ID>, undoManager: UndoManager?) {
+    func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
         let cards = ids.compactMap(deck.card(withID:)).filter { !$0.isNew || !$0.log.isEmpty }.map { card in
             var card = card
-            card.resetProgress()
+            card.resetLearningState()
             return (card, Int?.none)
         }
         guard !cards.isEmpty else { return }
         perform(CardChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
-    /// Stores a card rescheduled after an answer in a study session.
+    /// Stores a card rescheduled after a review in a study session.
     @MainActor
     func applyReview(_ card: Card, undoManager: UndoManager?, hook: UndoHook) {
         perform(CardChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
     }
 
     @MainActor
-    func updateSettings(_ settings: DeckSettings, undoManager: UndoManager?) {
-        let old = deck.settings
-        guard old != settings else { return }
-        deck.settings = settings
+    func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
+        let old = deck.learningOptions
+        guard old != learningOptions else { return }
+        deck.learningOptions = learningOptions
         // Undo handlers run on the main thread, where the undo manager lives.
         nonisolated(unsafe) let undoManager = undoManager
         undoManager?.registerUndo(withTarget: self) { document in
             MainActor.assumeIsolated {
-                document.updateSettings(old, undoManager: undoManager)
+                document.updateLearningOptions(old, undoManager: undoManager)
             }
         }
         undoManager?.setActionName(String(localized: "Change Learning Options"))
@@ -175,7 +175,7 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
             }
         }
 
-        deck.updateHistory(day: calendar.dayNumber(for: Date()))
+        deck.updateProgress(day: calendar.dayNumber(for: Date()))
         self.deck = deck
         return inverse
     }
