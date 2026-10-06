@@ -184,10 +184,10 @@ struct SessionTests {
         let ids = [UUID(), UUID()]
         var session = Session(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1))
         let target = session.currentCardID!
-        session.record(.again)
+        session.recordPractice(.again)
         var reviews = 1
         while !session.isFinished {
-            session.record(.good)
+            session.recordPractice(.good)
             reviews += 1
         }
         // target needs 2 steps after its again, the other card one.
@@ -197,39 +197,39 @@ struct SessionTests {
 
     @Test func practiceHardKeepsStepAfterAgain() {
         var session = Session(practicing: [UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
-        session.record(.again)
-        session.record(.hard)
-        session.record(.hard)
+        session.recordPractice(.again)
+        session.recordPractice(.hard)
+        session.recordPractice(.hard)
         #expect(!session.isFinished)
-        session.record(.good)
-        session.record(.hard)
+        session.recordPractice(.good)
+        session.recordPractice(.hard)
         #expect(!session.isFinished)
-        session.record(.good)
+        session.recordPractice(.good)
         #expect(session.isFinished)
     }
 
     @Test func practiceAgainResetsSteps() {
         var session = Session(practicing: [UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
-        session.record(.again)
-        session.record(.good)
-        session.record(.again)
-        session.record(.good)
+        session.recordPractice(.again)
+        session.recordPractice(.good)
+        session.recordPractice(.again)
+        session.recordPractice(.good)
         #expect(!session.isFinished)
-        session.record(.good)
+        session.recordPractice(.good)
         #expect(session.isFinished)
     }
 
     @Test func practiceEasyEndsCardAfterAgain() {
         var session = Session(practicing: [UUID()], steps: 3, at: now, random: SeededRandom(seed: 1))
-        session.record(.again)
-        session.record(.easy)
+        session.recordPractice(.again)
+        session.recordPractice(.easy)
         #expect(session.isFinished)
     }
 
     @Test func practiceEndsCardWithoutAgainAfterAnyRecall() {
         var session = Session(practicing: [UUID(), UUID()], steps: 2, at: now, random: SeededRandom(seed: 1))
-        session.record(.hard)
-        session.record(.hard)
+        session.recordPractice(.hard)
+        session.recordPractice(.hard)
         #expect(session.isFinished)
     }
 

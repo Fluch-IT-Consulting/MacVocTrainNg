@@ -88,7 +88,7 @@ final class SessionViewModel {
         case .practice:
             // Practice doesn't touch the cards, but ⌘Z should still take back the
             // last review instead of reaching a review of the earlier session.
-            session.record(grade)
+            session.recordPractice(grade)
             registerSessionUndo(from: before, to: session, undoManager: undoManager)
         }
 
