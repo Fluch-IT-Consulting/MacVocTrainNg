@@ -71,7 +71,7 @@ wird, wann MacVocTrain 1 sie abgefragt hätte:
 
 - Nie abgefragte Karten werden zu neuen Karten.
 - Level 0 heißt „nicht gewusst“: Die Karte kommt in „Erneut lernen“ und ist sofort fällig,
-  mit Stabilität und Schwierigkeit wie nach einem ersten „Nochmal“.
+  mit Stabilität und Schwierigkeit wie nach einem ersten „Nochmal“. Sie zählt eine Abfrage.
 - Ab Level 1 kommt die Karte in die Wiederholungsphase. Ihre Stabilität ist der Abstand
   ihres Levels samt der Streuung von ±10 %, die MacVocTrain 1 je Karte gespeichert hat;
   fällig ist sie diesen Abstand nach ihrer letzten Abfrage. Die Schwierigkeit ist

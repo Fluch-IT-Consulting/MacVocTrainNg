@@ -103,6 +103,12 @@ public struct Card: Identifiable, Hashable, Sendable {
 
     public var isNew: Bool { learningState == nil }
 
+    /// Whether the review log reaches back to the card's first review. Cards imported
+    /// from MacVocTrain 1 with a learning state lack the reviews before the import.
+    public var hasCompleteLog: Bool {
+        !log.isEmpty && learningState?.reviews == log.count
+    }
+
     /// New cards are always due.
     public func isDue(at date: Date) -> Bool {
         guard let learningState else { return true }
