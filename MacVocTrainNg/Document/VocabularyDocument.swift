@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 import VocabCore
@@ -30,7 +31,12 @@ struct UndoHook {
 final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     static var readableContentTypes: [UTType] { [.vocabularyDeck] }
 
-    @Published private(set) var deck: Deck
+    @Published private(set) var deck: Deck {
+        didSet { deckDidChange.send() }
+    }
+    /// Sends after every change to `deck`, once it holds the new state.
+    /// `$deck` and `objectWillChange` send before the change.
+    let deckDidChange = PassthroughSubject<Void, Never>()
     let calendar = StudyCalendar()
     /// The time of reviews, of today's snapshot and of which cards are due.
     let clock: StudyClock

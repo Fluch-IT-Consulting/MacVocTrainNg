@@ -10,13 +10,6 @@ import VocabCore
 struct SessionView: View {
     @Bindable var model: SessionViewModel
     var onClose: () -> Void
-    @ObservedObject private var document: VocabularyDocument
-
-    init(model: SessionViewModel, onClose: @escaping () -> Void) {
-        self.model = model
-        self.onClose = onClose
-        document = model.document
-    }
 
     @Environment(\.undoManager) private var undoManager
     /// The question whose response field has the focus.
@@ -36,9 +29,6 @@ struct SessionView: View {
                 Divider()
                 PreviousReviewBar(previous: previous)
             }
-        }
-        .onChange(of: document.deck.cards.count) {
-            model.documentDidChange()
         }
         .confirmationDialog("End this session?", isPresented: $confirmingEnd) {
             if model.session.startedCount > 0 {

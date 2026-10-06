@@ -268,10 +268,39 @@ struct SessionViewModelTests {
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
         step(undoManager) { document.delete([current.id], undoManager: undoManager) }
-        model.documentDidChange()
         #expect(model.currentCard != nil)
         #expect(model.currentCard?.id != current.id)
         #expect(model.session.totalCount == 1)
+    }
+
+    /// The session used to notice removals only by a changed number of cards (#57).
+    @Test func removingTheCurrentCardMovesOnEvenIfTheCountStays() throws {
+        let document = makeDocument(cards: 2)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        let current = try #require(model.currentCard)
+        step(undoManager) {
+            document.delete([current.id], undoManager: undoManager)
+            document.add(Card(question: "kot", answer: "Katze"), undoManager: undoManager)
+        }
+        #expect(document.deck.cards.count == 2)
+        #expect(model.currentCard != nil)
+        #expect(model.currentCard?.id != current.id)
+        #expect(model.stage == .asking)
+        #expect(model.session.totalCount == 1)
+    }
+
+    @Test func undoingAnEditChangesTheCurrentCard() throws {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        var edited = document.deck.cards[0]
+        edited.question = "dom"
+        step(undoManager) { document.update(edited, undoManager: undoManager) }
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        #expect(model.currentCard?.question == "dom")
+
+        undoManager.undo()
+        #expect(model.currentCard?.question == "q0")
     }
 
     @Test func emptyResponseRevealsTheAnswer() {
