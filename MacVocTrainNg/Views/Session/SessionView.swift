@@ -92,6 +92,8 @@ struct SessionView: View {
                 .focused($focusedQuestion, equals: model.questionNumber)
                 .disabled(model.stage != .asking)
                 .onSubmit { model.submit(undoManager: undoManager) }
+                // Before `id`, so it runs for every new field, not only the first.
+                .onAppear { focus(model.questionNumber) }
                 // A new field per question: with automatic continuing the field never
                 // ends editing, and ⌘Z would first take back the previous typing (#9).
                 .id(model.questionNumber)
@@ -114,9 +116,14 @@ struct SessionView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { focusedQuestion = model.questionNumber }
-        .onChange(of: model.questionNumber) { _, number in
-            focusedQuestion = number
+    }
+
+    /// Focuses the response field of `question` once the current event is handled.
+    /// With automatic continuing the new field appears while the previous one is
+    /// still ending its editing; focus set right away got lost there (#75).
+    private func focus(_ question: Int) {
+        Task { @MainActor in
+            focusedQuestion = question
         }
     }
 }
