@@ -46,6 +46,19 @@ struct DocumentTests {
         #expect(document.deck.cards == [card])
     }
 
+    @Test func importIsOneUndoableChange() {
+        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
+        let undoManager = makeUndoManager()
+        let imported = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
+
+        step(undoManager) { document.importCards(imported, undoManager: undoManager) }
+        #expect(document.deck.cards.map(\.question) == ["dom", "kot", "pies"])
+        #expect(undoManager.undoActionName == "Import Cards" || undoManager.undoActionName == "Karten importieren")
+
+        undoManager.undo()
+        #expect(document.deck.cards.map(\.question) == ["dom"])
+    }
+
     @Test func deletingRestoresOriginalPositions() {
         let cards = (0..<5).map { Card(question: "q\($0)", answer: "a\($0)") }
         let document = VocabularyDocument(deck: Deck(cards: cards))
