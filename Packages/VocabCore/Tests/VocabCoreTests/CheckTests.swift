@@ -73,4 +73,25 @@ struct ResponseDiffTests {
     @Test func identicalResponseHasNoMismatch() {
         #expect(ResponseDiff.segments(response: "Haus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
     }
+
+    @Test(arguments: [
+        ("uWmbel", ["Wu", "mbel"], [true, false]),
+        ("Wubmel", ["Wu", "mb", "el"], [false, true, false]),
+        ("Wumble", ["Wumb", "el"], [false, true]),
+    ])
+    func transpositionMarksBothCharacters(response: String, texts: [String], mismatches: [Bool]) {
+        let segments = ResponseDiff.segments(response: response, expected: "Wumbel")
+        #expect(segments.map(\.text) == texts)
+        #expect(segments.map(\.isMismatch) == mismatches)
+    }
+
+    @Test func extraCharacterMarksNothing() {
+        #expect(ResponseDiff.segments(response: "Hauus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
+    }
+
+    @Test func substitutionMarksOnlyTheWrongCharacter() {
+        let segments = ResponseDiff.segments(response: "haus", expected: "Haus")
+        #expect(segments.map(\.text) == ["H", "aus"])
+        #expect(segments.map(\.isMismatch) == [true, false])
+    }
 }
