@@ -59,12 +59,9 @@ struct DeckOptionsView: View {
                     Stepper(value: $options.maximumInterval, in: 30...36500, step: 30) {
                         LabeledContent("Longest interval", value: Format.days(Double(options.maximumInterval)))
                     }
-                    if options.parameters != .default {
-                        Button("Reset Algorithm Parameters") {
-                            options.parameters = .default
-                        }
-                    }
                 }
+
+                ParametersSection(options: $options, cards: document.deck.cards, calendar: document.calendar)
             }
             .formStyle(.grouped)
 
