@@ -20,8 +20,6 @@ public struct Scheduler: Sendable {
 
     public var fsrs: FSRS { FSRS(parameters: learningOptions.parameters) }
 
-    private var requiredSteps: Int { max(1, learningOptions.steps) }
-
     public func review<R: RandomNumberGenerator>(_ card: Card, grade: Grade, at now: Date, using random: inout R) -> Card {
         let previous = card.learningState
         let elapsedDays = previous.map { self.elapsedDays(since: $0, at: now) } ?? 0
@@ -43,15 +41,13 @@ public struct Scheduler: Sendable {
                 lapses += 1
             }
         case .learning, .relearning:
-            switch grade {
-            case .again: step = 0
-            case .hard: break
-            case .good: step += 1
-            case .easy: step = requiredSteps
-            }
-            if step >= requiredSteps {
+            var steps = Steps(count: step, required: learningOptions.steps)
+            steps.apply(grade)
+            if steps.areEnough {
                 phase = .review
                 step = 0
+            } else {
+                step = steps.count
             }
         }
 
