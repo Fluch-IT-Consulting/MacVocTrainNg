@@ -28,7 +28,7 @@ public struct Session: Sendable {
     private var queue: SessionQueue
     private let steps: Int
     /// Steps of practice mistakes, counted like steps in a study session.
-    private var practiceSteps: [Card.ID: Int] = [:]
+    private var practiceSteps: [Card.ID: Steps] = [:]
     private var random: SeededRandom
 
     /// A regular session over all cards of `deck` that are due at `now`.
@@ -47,7 +47,7 @@ public struct Session: Sendable {
     private init(mode: Mode, cardIDs: [Card.ID], steps: Int, startedAt: Date, random: SeededRandom) {
         self.mode = mode
         self.startedAt = startedAt
-        self.steps = max(1, steps)
+        self.steps = steps
         self.random = random
         queue = SessionQueue(cardIDs: cardIDs)
         totalCount = cardIDs.count
@@ -85,15 +85,10 @@ public struct Session: Sendable {
         // other cards leave after one recall like cards in the review phase.
         var isDone = true
         if mistakeIDs.contains(id) {
-            var step = practiceSteps[id, default: 0]
-            switch grade {
-            case .again: step = 0
-            case .hard: break
-            case .good: step += 1
-            case .easy: step = steps
-            }
-            practiceSteps[id] = step
-            isDone = step >= steps
+            var mistakeSteps = practiceSteps[id] ?? Steps(required: steps)
+            mistakeSteps.apply(grade)
+            practiceSteps[id] = mistakeSteps
+            isDone = mistakeSteps.areEnough
         }
         if isDone {
             queue.remove(id)
