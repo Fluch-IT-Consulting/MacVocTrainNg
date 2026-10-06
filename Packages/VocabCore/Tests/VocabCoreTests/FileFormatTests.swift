@@ -33,10 +33,13 @@ struct DeckFileTests {
 
         let deckJSON = file(wrapper, DeckFile.deckFileName)
         #expect(deckJSON.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
-        #expect(deckJSON.contains("\"version\" : 2"))
+        #expect(deckJSON.contains("\"version\" : 3"))
         #expect(deckJSON.contains("\"question\" : \"dom\""))
+        for key in ["learningOptions", "targetRecall", "steps", "learningState", "reviews", "hint", "progress"] {
+            #expect(deckJSON.contains("\"\(key)\" :"), "missing key \(key)")
+        }
         #expect(!deckJSON.contains("\"log\""))
-        #expect(!deckJSON.contains("\"remark\" : \"\""))
+        #expect(!deckJSON.contains("\"hint\" : \"\""))
 
         let id = deck.cards[0].id.uuidString
         #expect(file(wrapper, DeckFile.reviewsFileName) == """
@@ -46,19 +49,24 @@ struct DeckFileTests {
         """)
     }
 
-    @Test func readsSingleFileOfVersion1() throws {
-        let json = """
+    @Test func rejectsVersionsBeforeTheFirstRelease() {
+        let version1 = Data("""
         {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {}, "history": [],
          "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus",
                     "created": "2026-10-05T16:00:00Z", "log": [{"date": "2026-10-05T16:00:00Z", "grade": 3}]}]}
-        """
-        let deck = try DeckFile.decode(FileWrapper(regularFileWithContents: Data(json.utf8)))
-        #expect(deck.cards.first?.log == [ReviewLogEntry(date: date, grade: .good)])
+        """.utf8)
+        #expect(throws: DeckFile.Error.outdatedVersion(1)) { try DeckFile.decode(FileWrapper(regularFileWithContents: version1)) }
 
-        // The next save writes it as a package with the log apart.
-        let package = try DeckFile.fileWrapper(for: deck)
-        #expect(try DeckFile.decode(package) == deck)
-        #expect(!file(package, DeckFile.deckFileName).contains("\"log\""))
+        let version2 = Data("""
+        {"format": "com.mfluch.voctrain.deck", "version": 2, "settings": {}, "history": [], "cards": []}
+        """.utf8)
+        let package = FileWrapper(directoryWithFileWrappers: [DeckFile.deckFileName: FileWrapper(regularFileWithContents: version2)])
+        #expect(throws: DeckFile.Error.outdatedVersion(2)) { try DeckFile.decode(package) }
+    }
+
+    @Test func singleFileOfCurrentVersionIsNoDeck() throws {
+        let deckJSON = try DeckFile.encodeDeck(sampleDeck())
+        #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(FileWrapper(regularFileWithContents: deckJSON)) }
     }
 
     @Test func packageWithoutReviewLogHasEmptyLogs() throws {
@@ -90,24 +98,11 @@ struct DeckFileTests {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(wrapper) }
     }
 
-    @Test func packageReplacesSingleFileOnDisk() throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("Stapel.voctrain")
-        try Data("{}".utf8).write(to: url)
-
-        let deck = sampleDeck()
-        try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
-        try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
-        #expect(try DeckFile.decode(FileWrapper(url: url)) == deck)
-    }
-
     @Test func optionalFieldsMayBeMissing() throws {
         let json = """
-        {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {},
+        {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {},
          "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus"}],
-         "history": []}
+         "progress": []}
         """
         let deck = try DeckFile.decode(Data(json.utf8))
         #expect(deck.cards.first?.hint == "")
@@ -117,8 +112,8 @@ struct DeckFileTests {
 
     @Test func clampsInvalidLearningOptions() throws {
         let json = """
-        {"format": "com.mfluch.voctrain.deck", "version": 1, "history": [], "cards": [],
-         "settings": {"desiredRetention": 0, "learningSteps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
+        {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
+         "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
         """
         let learningOptions = try DeckFile.decode(Data(json.utf8)).learningOptions
         #expect(learningOptions.targetRecall == LearningOptions.targetRecallRange.lowerBound)

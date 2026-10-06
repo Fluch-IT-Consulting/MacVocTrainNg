@@ -1420,6 +1420,16 @@
         }
       }
     },
+    "This deck was saved by a test version of MacVocTrain from before its first release and can no longer be opened.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Stapel wurde mit einer Testversion von MacVocTrain vor der ersten Veröffentlichung gesichert und lässt sich nicht mehr öffnen."
+          }
+        }
+      }
+    },
     "Time": {
       "localizations": {
         "de": {

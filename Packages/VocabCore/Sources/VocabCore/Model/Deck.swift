@@ -25,9 +25,7 @@ public struct LearningOptions: Codable, Hashable, Sendable {
 
 extension LearningOptions {
     private enum CodingKeys: String, CodingKey {
-        case maximumInterval, cardsPerSession, newCardsPerSession
-        case targetRecall = "desiredRetention"
-        case steps = "learningSteps"
+        case targetRecall, maximumInterval, steps, cardsPerSession, newCardsPerSession
         case caseSensitive, fuzzing, parameters
     }
 
