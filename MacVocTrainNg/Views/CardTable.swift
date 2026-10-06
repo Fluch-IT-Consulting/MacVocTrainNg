@@ -29,10 +29,11 @@ struct CardRow: Identifiable {
 
 /// The rows of the card table, sorted and filtered by a search.
 ///
-/// Keeps the rows, the search index and the sorted order between view updates and
-/// rebuilds them only when the cards or the sort order change, so typing a search
-/// or selecting rows stays fast with many cards. It is not observable: the view asks
-/// for its rows while it renders.
+/// Keeps the rows, the search index and the sorted order between view updates, so
+/// typing a search or selecting rows stays fast with many cards. When cards change,
+/// only the changed and added cards are sorted in again; a full sort happens only
+/// when the sort order changes. It is not observable: the view asks for its rows
+/// while it renders.
 @MainActor
 final class CardTable {
     private var cards: [Card] = []
@@ -44,16 +45,21 @@ final class CardTable {
     func rows(of cards: [Card], sortedBy order: [KeyPathComparator<CardRow>], matching query: String) -> [CardRow] {
         // Cheap while nothing changed: arrays sharing storage compare equal at once.
         if cards != self.cards {
+            let oldCards = self.cards
             self.cards = cards
             allRows = cards.enumerated().map { CardRow(card: $1, position: $0) }
             index = CardSearchIndex(cards: cards)
-            sorted = nil
+            sorted = sorted.flatMap { sorted in
+                guard sorted.order == order else { return nil }
+                return resorted(sorted.positions, by: order, after: oldCards).map { (order, $0) }
+            }
+            shown = nil
         }
         let positions: [Int]
         if let sorted, sorted.order == order {
             positions = sorted.positions
         } else {
-            positions = allRows.sorted(using: order).map(\.position)
+            positions = allRows.indices.sorted { precedes($0, $1, by: order) }
             sorted = (order, positions)
             shown = nil
         }
@@ -63,5 +69,62 @@ final class CardTable {
         let rows = index.filter(positions, by: query).map { allRows[$0] }
         shown = (query, rows)
         return rows
+    }
+
+    /// Updates `positions`, sorted for `oldCards`, to the current cards: unchanged
+    /// cards keep their relative order, changed and added ones are inserted by binary
+    /// search. Returns `nil` if the unchanged cards were reordered, which the document
+    /// never does; the caller then sorts from scratch.
+    private func resorted(_ positions: [Int], by order: [KeyPathComparator<CardRow>], after oldCards: [Card]) -> [Int]? {
+        let newPositions = Dictionary(cards.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var newPositionOfOld = [Int?](repeating: nil, count: oldCards.count)
+        var isUnchanged = [Bool](repeating: false, count: cards.count)
+        var previous = -1
+        for (oldPosition, card) in oldCards.enumerated() {
+            guard let position = newPositions[card.id], cards[position] == card else { continue }
+            guard position > previous else { return nil }
+            previous = position
+            newPositionOfOld[oldPosition] = position
+            isUnchanged[position] = true
+        }
+        // Insertions and removals shift positions, but not the relative order of the
+        // cards that stay, so neither does the tie-break by position.
+        var result = positions.compactMap { newPositionOfOld[$0] }
+        for position in cards.indices where !isUnchanged[position] {
+            let slot = result.partitioningIndex { precedes(position, $0, by: order) }
+            result.insert(position, at: slot)
+        }
+        return result
+    }
+
+    /// Whether the row at position `lhs` comes before the one at `rhs`. Equal rows keep
+    /// their deck order, so sorting from scratch and inserting give the same result.
+    private func precedes(_ lhs: Int, _ rhs: Int, by order: [KeyPathComparator<CardRow>]) -> Bool {
+        for comparator in order {
+            switch comparator.compare(allRows[lhs], allRows[rhs]) {
+            case .orderedAscending: return true
+            case .orderedDescending: return false
+            case .orderedSame: continue
+            }
+        }
+        return lhs < rhs
+    }
+}
+
+private extension Array {
+    /// The index of the first element satisfying `belongsAfter`, for an array in
+    /// which all elements satisfying it come after those that don't.
+    func partitioningIndex(where belongsAfter: (Element) -> Bool) -> Int {
+        var low = startIndex
+        var high = endIndex
+        while low < high {
+            let middle = low + (high - low) / 2
+            if belongsAfter(self[middle]) {
+                high = middle
+            } else {
+                low = middle + 1
+            }
+        }
+        return low
     }
 }
