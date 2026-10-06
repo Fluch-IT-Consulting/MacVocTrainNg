@@ -133,6 +133,12 @@ Die Recall probability, bei der eine Card in der Review phase wieder abgefragt w
 „desired retention“.
 _Vermeiden_: Desired retention, Retention, Behaltensquote
 
+**Parameters** (Parameter):
+Die 21 Gewichte des FSRS-Modells, je Deck in den Learning options. Sie beginnen mit den
+Standardwerten von open-spaced-repetition und lassen sich aus dem Review log des Decks
+berechnen. Dafür zählen nur Reviews an einem späteren Study day als die vorige Review
+derselben Card, und nur von Cards, deren Review log bis zur ersten Review reicht.
+
 **Interval** (Abstand):
 Die Zahl der Study days, bis eine Card in der Review phase wieder abgefragt wird.
 _Vermeiden_: Wiederholungstermin, Pause
