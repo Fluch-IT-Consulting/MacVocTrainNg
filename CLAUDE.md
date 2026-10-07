@@ -35,7 +35,8 @@ The active developer dir may be the Command Line Tools; prefix with
 - Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
   validated one-hue ordinal ramp, keep it that way.
 - A deck is a package (`deck.json` + `reviews.jsonl`, see `DeckFile`); its keys are the
-  glossary terms. Versions 1 and 2 predate the first release and are no longer read.
+  glossary terms. Only the private records in `DeckFile` know its keys; domain types
+  are not `Codable`. Versions 1 and 2 predate the first release and are no longer read.
   Bump `DeckFile.currentVersion` only for incompatible changes; new optional fields
   decode with defaults. The review log is encoded incrementally by `ReviewLogEncoder`:
   logs may only grow at the end or be replaced as a whole.
