@@ -15,9 +15,9 @@ public enum SessionMode: Sendable {
     case practice(Practice)
 
     /// What grading the current card recorded.
-    public enum Outcome: Equatable, Sendable {
-        /// A study session rescheduled the card; the deck stores it.
-        case rescheduled(Card)
+    public enum Outcome: Sendable {
+        /// A study session rescheduled the card; the change stores it in the deck.
+        case rescheduled(DeckChange)
         /// Practice counted the review; no card changes.
         case practiced
     }
@@ -40,7 +40,7 @@ public enum SessionMode: Sendable {
         case var .study(study):
             guard let card = study.review(grade, in: deck, at: now) else { return nil }
             self = .study(study)
-            return .rescheduled(card)
+            return .rescheduled(DeckChange(upserts: [card]))
         case var .practice(practice):
             practice.record(grade)
             self = .practice(practice)

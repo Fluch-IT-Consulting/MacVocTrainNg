@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import VocabCore
+@testable import VocabCore
 
 struct DeckChangeTests {
     private let start = Date(timeIntervalSince1970: 1_791_216_000)
@@ -88,6 +88,53 @@ struct DeckChangeTests {
         let inverse = deck.apply(DeckChange(learningOptions: options), day: 100)
         _ = deck.apply(inverse, day: 100)
         #expect(deck.progress.isEmpty)
+    }
+
+    @Test func addingAppendsNewCards() throws {
+        let existing = Card(question: "dom", answer: "Haus")
+        var deck = Deck(cards: [existing])
+        let added = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
+
+        _ = deck.apply(try #require(DeckChange.adding(added, to: deck)), day: 100)
+        #expect(deck.cards == [existing] + added)
+    }
+
+    @Test func addingNeverReplacesACard() {
+        let studied = studiedCard()
+        let deck = Deck(cards: [studied])
+        var renamed = studied
+        renamed.answer = "Heim"
+        let reset = Card(id: studied.id, question: "dom", answer: "Haus")
+
+        #expect(DeckChange.adding([renamed], to: deck) == nil)
+        #expect(DeckChange.adding([reset], to: deck) == nil)
+    }
+
+    @Test func addingSkipsCardsWithALearningStateOrALog() throws {
+        let new = Card(question: "kot", answer: "Katze")
+        let studied = studiedCard()
+        let logOnly = Card(question: "pies", answer: "Hund", log: studied.log)
+        var deck = Deck()
+
+        _ = deck.apply(try #require(DeckChange.adding([studied, new, logOnly], to: deck)), day: 100)
+        #expect(deck.cards == [new])
+    }
+
+    @Test func addingACardTwiceAddsItOnce() throws {
+        let card = Card(question: "dom", answer: "Haus")
+        var deck = Deck()
+
+        _ = deck.apply(try #require(DeckChange.adding([card, card], to: deck)), day: 100)
+        #expect(deck.cards == [card])
+    }
+
+    @Test func removingOnlyRemovesCardsOfTheDeck() throws {
+        let cards = [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")]
+        var deck = Deck(cards: cards)
+
+        #expect(DeckChange.removing([UUID()], from: deck) == nil)
+        _ = deck.apply(try #require(DeckChange.removing([cards[0].id, UUID()], from: deck)), day: 100)
+        #expect(deck.cards == [cards[1]])
     }
 
     @Test func editingTextKeepsTheLearningState() throws {

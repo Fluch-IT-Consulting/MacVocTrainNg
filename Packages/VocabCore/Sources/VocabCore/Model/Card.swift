@@ -84,13 +84,19 @@ public struct Card: Identifiable, Hashable, Sendable {
     /// The review log, oldest first. `FSRSOptimizer` computes parameters from it.
     public internal(set) var log: [ReviewLogEntry]
 
-    public init(
+    /// A new card, never studied.
+    public init(id: UUID = UUID(), question: String, answer: String, hint: String = "", created: Date) {
+        self.init(id: id, question: question, answer: answer, hint: hint, created: created, learningState: nil)
+    }
+
+    /// A card with a learning state, for `DeckFile`, `LegacyImporter` and tests.
+    init(
         id: UUID = UUID(),
         question: String,
         answer: String,
         hint: String = "",
         created: Date,
-        learningState: LearningState? = nil,
+        learningState: LearningState?,
         log: [ReviewLogEntry] = []
     ) {
         self.id = id

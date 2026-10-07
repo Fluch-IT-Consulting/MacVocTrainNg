@@ -93,14 +93,16 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     // MARK: - Changes
 
+    /// Appends a new card, see `DeckChange.adding(_:to:)`.
     func add(_ card: Card, undoManager: UndoManager?) {
-        perform(DeckChange(upserts: [card]), actionName: String(localized: "Add Card"), undoManager: undoManager)
+        guard let change = DeckChange.adding([card], to: deck) else { return }
+        perform(change, actionName: String(localized: "Add Card"), undoManager: undoManager)
     }
 
-    /// Appends cards from an import as one change.
+    /// Appends cards from an import as one change, see `DeckChange.adding(_:to:)`.
     func importCards(_ cards: [Card], undoManager: UndoManager?) {
-        guard !cards.isEmpty else { return }
-        perform(DeckChange(upserts: cards), actionName: String(localized: "Import Cards"), undoManager: undoManager)
+        guard let change = DeckChange.adding(cards, to: deck) else { return }
+        perform(change, actionName: String(localized: "Import Cards"), undoManager: undoManager)
     }
 
     /// Changes question, answer and hint of a card, see `DeckChange.editingText(of:to:in:)`.
@@ -110,9 +112,9 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
-        guard !ids.isEmpty else { return }
+        guard let change = DeckChange.removing(ids, from: deck) else { return }
         let name = ids.count == 1 ? String(localized: "Delete Card") : String(localized: "Delete Cards")
-        perform(DeckChange(removals: Array(ids)), actionName: name, undoManager: undoManager)
+        perform(change, actionName: name, undoManager: undoManager)
     }
 
     func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
@@ -120,10 +122,11 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(change, actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
-    /// Stores a card rescheduled after a review in a study session. The session
-    /// registers its own undo for its place, see `SessionViewModel.grade`.
-    func applyReview(_ card: Card, undoManager: UndoManager?) {
-        perform(DeckChange(upserts: [card]), actionName: String(localized: "Review"), undoManager: undoManager)
+    /// Stores a card rescheduled after a review in a study session, with the change
+    /// `SessionMode.grade(_:in:at:)` returns. The session registers its own undo for
+    /// its place, see `SessionViewModel.grade`.
+    func applyReview(_ change: DeckChange, undoManager: UndoManager?) {
+        perform(change, actionName: String(localized: "Review"), undoManager: undoManager)
     }
 
     /// Changes the learning options, see `DeckChange.changingLearningOptions(_:in:calendar:)`.

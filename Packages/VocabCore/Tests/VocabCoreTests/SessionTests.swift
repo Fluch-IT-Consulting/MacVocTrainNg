@@ -319,13 +319,19 @@ struct SessionTests {
         #expect(study.session.isFinished)
     }
 
-    @Test func gradingInAStudySessionReschedulesTheCard() {
-        let deck = deck(newCards: 2)
+    @Test func gradingInAStudySessionReschedulesTheCard() throws {
+        var deck = deck(newCards: 2)
         var mode = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
         var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
-        let expected = study.review(.good, in: deck, at: now)!
+        let reviewed = study.review(.good, in: deck, at: now)
+        let expected = try #require(reviewed)
 
-        #expect(mode.grade(.good, in: deck, at: now) == .rescheduled(expected))
+        guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now) else {
+            Issue.record("The study session didn't reschedule the card")
+            return
+        }
+        _ = deck.apply(change, day: 100)
+        #expect(deck.cards.filter { !$0.isNew } == [expected])
         #expect(mode.session.reviewCount == 1)
     }
 
@@ -333,7 +339,10 @@ struct SessionTests {
         let deck = deck(newCards: 2)
         var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), steps: 2, at: now, random: SeededRandom(seed: 1)))
 
-        #expect(mode.grade(.again, in: deck, at: now) == .practiced)
+        guard case .practiced = mode.grade(.again, in: deck, at: now) else {
+            Issue.record("Practice changed a card")
+            return
+        }
         #expect(mode.session.reviewCount == 1)
         #expect(mode.session.mistakeIDs.count == 1)
     }
