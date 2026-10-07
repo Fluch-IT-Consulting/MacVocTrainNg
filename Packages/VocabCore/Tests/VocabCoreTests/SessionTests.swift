@@ -167,7 +167,7 @@ struct SessionTests {
         deck.cards.removeAll { $0.id == study.session.currentCardID }
         #expect(study.review(.good, in: deck, at: now) == nil)
         #expect(study.session.reviewCount == 0)
-        study.session.stop()
+        study.stop()
         #expect(study.review(.good, in: deck, at: now) == nil)
     }
 
@@ -214,7 +214,7 @@ struct SessionTests {
         let started = study.session.startedCount
         let completed = study.session.completedCount
         #expect(started > 0)
-        study.session.finishUp()
+        study.finishUp()
         #expect(study.session.remainingCount == started)
         #expect(study.session.completedCount == completed)
         #expect(study.session.totalCount == completed + started)
@@ -278,17 +278,17 @@ struct SessionTests {
     @Test func skipDropsCardWithoutCountingIt() {
         var study = StudySession(deck: deck(newCards: 2), at: now, random: SeededRandom(seed: 1))
         let skipped = study.session.currentCardID
-        study.session.skip()
+        study.skip()
         #expect(study.session.totalCount == 1)
         #expect(study.session.reviewCount == 0)
         #expect(study.session.currentCardID != skipped)
-        study.session.skip()
+        study.skip()
         #expect(study.session.isFinished)
     }
 
     @Test func stopEndsImmediately() {
         var study = StudySession(deck: deck(newCards: 3), at: now, random: SeededRandom(seed: 1))
-        study.session.stop()
+        study.stop()
         #expect(study.session.isFinished)
     }
 }
