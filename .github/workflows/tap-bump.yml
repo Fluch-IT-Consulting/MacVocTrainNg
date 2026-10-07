@@ -1,0 +1,103 @@
+# Updates the Homebrew cask in Fluch-IT-Consulting/homebrew-tap after a release is
+# published (#126): version and sha256 of the disk image that Tools/make-release.sh
+# attached to it. The cask derives its url from the version.
+#
+# Triggered by publishing, not by the tag: Tools/make-release.sh --draft creates a
+# draft, and a cask pointing at an unpublished image breaks every `brew upgrade`.
+#
+# The built-in GITHUB_TOKEN can only write to its own repository, so the workflow
+# pushes to the tap with a deploy key. It belongs to that one repository, to no
+# person, and doesn't expire. Set up once:
+#   ssh-keygen -t ed25519 -f tap-deploy -N "" -C "MacVocTrainNg release -> homebrew-tap"
+#   gh repo deploy-key add tap-deploy.pub --repo Fluch-IT-Consulting/homebrew-tap \
+#     --title MacVocTrainNg-release --allow-write
+#   gh secret set TAP_DEPLOY_KEY --repo Fluch-IT-Consulting/MacVocTrainNg < tap-deploy
+#   rm tap-deploy tap-deploy.pub
+name: Update Homebrew cask
+
+# Can be started by hand to catch up when the automatic run failed, without
+# publishing the release again.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag of a published release, e.g. v0.3'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    # A pre-release doesn't update the cask, or every `brew upgrade` would install it.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    # The tag reaches the scripts as a variable, not as an interpolated expression:
+    # what is interpolated into a script can break out of it.
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - name: Download the disk image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${TAG#v}"
+          dmg="MacVocTrain-${version}.dmg"
+
+          # The checksum is taken from the file the cask downloads, not from a new build.
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$dmg"
+          sha=$(sha256sum "$dmg" | cut -d' ' -f1)
+
+          {
+            echo "VERSION=${version}"
+            echo "SHA=${sha}"
+          } >> "$GITHUB_ENV"
+
+      - name: Check out the tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Fluch-IT-Consulting/homebrew-tap
+          ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+          path: tap
+
+      - name: Update the cask
+        run: |
+          f=tap/Casks/macvoctrain.rb
+          sed -i -E \
+            -e "s|^(  version \")[^\"]*(\")|\1${VERSION}\2|" \
+            -e "s|^(  sha256 \")[^\"]*(\")|\1${SHA}\2|" \
+            "$f"
+
+          # A sed that matches nothing succeeds anyway; the cask would stay on the
+          # old version and the workflow would be green.
+          for line in "  version \"${VERSION}\"" "  sha256 \"${SHA}\""; do
+            if ! grep -qxF -- "$line" "$f"; then
+              echo "::error::'${line}' is not in the cask after the update."
+              exit 1
+            fi
+          done
+
+          ruby -c "$f"
+          grep -nE '^  (version|sha256) ' "$f"
+
+      - name: Commit and push
+        working-directory: tap
+        run: |
+          if git diff --quiet; then
+            echo "The cask is already at ${VERSION}."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -a -F - <<EOF
+          macvoctrain ${VERSION}
+
+          Angehoben vom Release-Workflow von MacVocTrainNg, ausgelöst vom
+          Veröffentlichen von ${TAG}.
+
+          sha256 ${SHA}
+          EOF
+          git push
