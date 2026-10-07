@@ -37,11 +37,13 @@ extension LearningOptions {
 
 /// A collection of cards together with its learning options and progress, stored
 /// as one package (see `DeckFile`).
+///
+/// Cards change only through `apply(_:day:)`, which keeps `progress` in step with them.
 public struct Deck: Hashable, Sendable {
     public var learningOptions: LearningOptions
-    public var cards: [Card]
+    public internal(set) var cards: [Card]
     /// One daily snapshot per study day on which the deck changed, oldest first.
-    public var progress: [DailySnapshot]
+    public internal(set) var progress: [DailySnapshot]
 
     public init(learningOptions: LearningOptions = LearningOptions(), cards: [Card] = [], progress: [DailySnapshot] = []) {
         self.learningOptions = learningOptions
@@ -58,7 +60,7 @@ public struct Deck: Hashable, Sendable {
     }
 
     /// Records the current distribution of cards as the snapshot for `day`.
-    public mutating func updateProgress(day: Int) {
+    mutating func updateProgress(day: Int) {
         let snapshot = DailySnapshot(day: day, bins: StabilityBins.histogram(of: cards))
         if let last = progress.last, last.day == day {
             progress[progress.count - 1] = snapshot
