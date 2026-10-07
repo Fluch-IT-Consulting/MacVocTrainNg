@@ -41,7 +41,7 @@ struct CardTableTests {
         #expect(table.rows(of: cards, sortedBy: byQuestion, matching: "haus").map(\.question) == ["dom"])
 
         var changed = cards
-        changed[2].answer = "Heim"
+        changed[2] = changed[2].withAnswer("Heim")
         changed.append(Card(question: "chata", answer: "Haus"))
         #expect(table.rows(of: changed, sortedBy: byQuestion, matching: "haus").map(\.question) == ["chata"])
         #expect(table.rows(of: changed, sortedBy: byQuestion, matching: "").map(\.position) == [3, 2, 1, 0])
@@ -58,7 +58,7 @@ struct CardTableTests {
         #expect(table.rows(of: twins, sortedBy: byQuestion, matching: "").map(\.answer) == ["2", "4", "1", "3"])
 
         var changed = twins
-        changed[0].answer = "5"
+        changed[0] = changed[0].withAnswer("5")
         changed.insert(Card(question: "a", answer: "6"), at: 0)
         #expect(table.rows(of: changed, sortedBy: byQuestion, matching: "").map(\.answer) == ["6", "2", "4", "5", "3"])
     }

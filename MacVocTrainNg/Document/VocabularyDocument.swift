@@ -101,7 +101,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// `DeckChange.adding(_:to:)`. Returns the ID of the new card.
     @discardableResult
     func add(_ text: CardText, undoManager: UndoManager?) -> Card.ID {
-        let card = Card(question: text.question, answer: text.answer, hint: text.hint, created: clock.now)
+        let card = Card(text: text, created: clock.now)
         if let change = DeckChange.adding([card], to: deck) {
             perform(change, actionName: String(localized: "Add Card"), undoManager: undoManager)
         }

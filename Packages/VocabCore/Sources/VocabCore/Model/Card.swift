@@ -73,10 +73,11 @@ public struct ReviewLogEntry: Hashable, Sendable {
 /// A question with its answer and an optional hint, asked from question to answer.
 public struct Card: Identifiable, Hashable, Sendable {
     public var id: UUID
-    public var question: String
-    public var answer: String
+    /// The texts follow the rule of `CardText`; only `DeckChange.editingText` changes them.
+    public internal(set) var question: String
+    public internal(set) var answer: String
     /// Optional hint shown together with the question.
-    public var hint: String
+    public internal(set) var hint: String
     public var created: Date
     /// `nil` while the card has never been studied. Only `Scheduler` and
     /// `DeckChange` change it.
@@ -85,7 +86,12 @@ public struct Card: Identifiable, Hashable, Sendable {
     public internal(set) var log: [ReviewLogEntry]
 
     /// A new card, never studied.
-    public init(id: UUID = UUID(), question: String, answer: String, hint: String = "", created: Date) {
+    public init(id: UUID = UUID(), text: CardText, created: Date) {
+        self.init(id: id, question: text.question, answer: text.answer, hint: text.hint, created: created)
+    }
+
+    /// A new card with unchecked texts, for `LegacyImporter` and tests.
+    init(id: UUID = UUID(), question: String, answer: String, hint: String = "", created: Date) {
         self.init(id: id, question: question, answer: answer, hint: hint, created: created, learningState: nil)
     }
 
