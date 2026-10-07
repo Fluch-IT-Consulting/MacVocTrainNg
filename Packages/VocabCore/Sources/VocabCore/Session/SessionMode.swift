@@ -32,8 +32,9 @@ public enum SessionMode: Sendable {
 
     /// Grades the current card and moves on to the next one.
     ///
-    /// A study session schedules the card with the learning options `deck` has now,
-    /// so a change to them during the session applies from the next review on.
+    /// Both modes use the learning options `deck` has now: a study session schedules
+    /// the card with them, practice counts the steps of mistakes with them. A change
+    /// to them during the session applies from the next review on.
     ///
     /// - Returns: `nil`, and the mode stays as it is, if the session is finished or
     ///   `deck` doesn't hold the current card.
@@ -45,7 +46,7 @@ public enum SessionMode: Sendable {
             self = .study(study)
             return .rescheduled(DeckChange(upserts: [scheduled]))
         case var .practice(practice):
-            practice.record(grade)
+            practice.record(grade, with: deck.learningOptions)
             self = .practice(practice)
             return .practiced
         }
