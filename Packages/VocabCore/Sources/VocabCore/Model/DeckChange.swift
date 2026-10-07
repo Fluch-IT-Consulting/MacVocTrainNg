@@ -82,7 +82,11 @@ extension Deck {
     ///
     /// A change to the cards records their distribution as the snapshot for `day`;
     /// learning options alone move no card between the bins of a snapshot. Applying
-    /// the inverse records the snapshot again rather than restoring the old one.
+    /// the inverse records the snapshot again rather than restoring the old one. That
+    /// holds when the inverse comes on a later study day, too, e.g. undoing a review
+    /// the next morning: a snapshot shows the cards at the end of its day, and at the
+    /// end of the earlier day the change was still in effect. So only the snapshot of
+    /// `day` changes, never an earlier one.
     public mutating func apply(_ change: DeckChange, day: Int) -> DeckChange {
         var inverse = DeckChange()
 
