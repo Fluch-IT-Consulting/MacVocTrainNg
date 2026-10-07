@@ -88,7 +88,7 @@ public struct Card: Identifiable, Hashable, Sendable {
         question: String,
         answer: String,
         hint: String = "",
-        created: Date = Date(),
+        created: Date,
         learningState: LearningState? = nil,
         log: [ReviewLogEntry] = []
     ) {
