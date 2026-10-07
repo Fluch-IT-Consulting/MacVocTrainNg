@@ -3,36 +3,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 import VocabCore
 
-extension UTType {
-    /// Decks of this app: packages with the extension `.voctrain` (see `DeckFile`).
-    /// Single JSON files of format version 1 carry the same type.
-    static let vocabularyDeck = UTType(exportedAs: "com.mfluch.voctrain.deck", conformingTo: .package)
-    /// Documents of MacVocTrain 1 (`.mvt`), which can be imported.
-    static let legacyMacVocTrain = UTType(importedAs: "com.mfluch.MacVocTrain", conformingTo: .data)
-}
-
-extension UndoManager {
-    /// Registers `handler` as the undo action for `target` and names it. The handler
-    /// gets the undo manager, so it can register the redo action.
-    ///
-    /// Undo handlers run on the main thread, where the undo manager lives. This is
-    /// the one place that tells the compiler so.
-    @MainActor
-    func registerMainActorUndo<Target: AnyObject & Sendable>(
-        withTarget target: Target,
-        actionName: String,
-        handler: @escaping @MainActor (Target, UndoManager) -> Void
-    ) {
-        nonisolated(unsafe) let undoManager = self
-        registerUndo(withTarget: target) { target in
-            MainActor.assumeIsolated {
-                handler(target, undoManager)
-            }
-        }
-        setActionName(actionName)
-    }
-}
-
 /// The SwiftUI document of one deck.
 ///
 /// All changes go through methods that register undo actions. Besides providing
