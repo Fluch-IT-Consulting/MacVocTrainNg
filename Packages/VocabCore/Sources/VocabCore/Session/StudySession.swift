@@ -24,17 +24,15 @@ public struct StudySession: Sendable {
         session = Session(cardIDs: ids, startedAt: now, random: random)
     }
 
-    /// Reviews the current card and moves on to the next one.
+    /// Reviews `card`, the current card, and moves on to the next one.
     ///
-    /// The card is scheduled with the learning options `deck` has now, so a change
-    /// to them during the session applies from the next review on. It leaves the
-    /// session once it is in the review phase.
+    /// The card leaves the session once it is in the review phase.
     ///
-    /// - Returns: The current card after the review, to be stored in the deck; `nil`
-    ///   if the session is finished or `deck` doesn't hold the current card.
-    mutating func review(_ grade: Grade, in deck: Deck, at now: Date) -> Card? {
-        guard let id = session.currentCardID, let card = deck.card(withID: id) else { return nil }
-        let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
+    /// - Returns: `card` after the review, to be stored in the deck; `nil` if `card`
+    ///   isn't the current card, e.g. because the session is finished.
+    mutating func review(_ grade: Grade, of card: Card, with learningOptions: LearningOptions, at now: Date) -> Card? {
+        guard card.id == session.currentCardID else { return nil }
+        let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
         let scheduled = scheduler.review(card, grade: grade, at: now, using: &fuzzing)
         session.record(grade, isDone: scheduled.learningState?.phase == .review)
         return scheduled
