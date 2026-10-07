@@ -1,9 +1,12 @@
 #!/bin/zsh
 # Builds a distributable disk image: build/release/MacVocTrain-<version>.dmg
 #
-# Without options the app is ad-hoc signed: it runs on other Macs, but Gatekeeper
-# asks the recipient to allow it once (System Settings → Privacy & Security →
-# Open Anyway).
+# The app is signed with SIGN_IDENTITY if given, otherwise with the certificate Xcode
+# signs local builds with (Config/Signing.local.xcconfig), otherwise ad hoc. Unless
+# it is notarised, Gatekeeper asks the recipient to allow the app once (System
+# Settings → Privacy & Security → Open Anyway). An ad-hoc signature changes with
+# every build, so it asks again after every update; a certificate keeps the
+# signature, and `brew upgrade` carries the approval over to the new version.
 #
 # With an Apple Developer ID the app is signed properly and, if a notary profile
 # is given, notarised, so it opens without any warning:
@@ -14,15 +17,46 @@
 #
 # Create the notary profile once with:
 #   xcrun notarytool store-credentials macvoctrain --apple-id <id> --team-id <TEAMID>
+#
+# --draft attaches the image to a GitHub release draft v<version> on the current
+# commit. Publishing the draft creates the tag and updates the Homebrew cask
+# (.github/workflows/tap-bump.yml). It needs a clean checkout of origin/main and a
+# version without a release, and refuses to sign ad hoc.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+DRAFT=false
+case "${1:-}" in
+    "") ;;
+    --draft) DRAFT=true ;;
+    *) echo "usage: $0 [--draft]" >&2; exit 2 ;;
+esac
+
+fail() {
+    echo "✗ $1" >&2
+    exit 1
+}
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 BUILD_DIR=build/release
 APP_NAME=MacVocTrain
 VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' MacVocTrainNg.xcodeproj/project.pbxproj | head -1)
+TAG="v$VERSION"
 DMG="$BUILD_DIR/$APP_NAME-$VERSION.dmg"
+
+# Checked before the build, which takes a while.
+if $DRAFT; then
+    [[ -z "$(git status --porcelain)" ]] || fail "The working tree is not clean."
+    git fetch --quiet origin main
+    [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || fail "HEAD is not origin/main."
+    if gh release view "$TAG" >/dev/null 2>&1; then
+        fail "Release $TAG already exists; raise MARKETING_VERSION."
+    fi
+    if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+        fail "Tag $TAG already exists; raise MARKETING_VERSION."
+    fi
+fi
 
 echo "▸ Building $APP_NAME $VERSION (Release, Apple Silicon + Intel)"
 rm -rf "$BUILD_DIR"
@@ -34,15 +68,30 @@ xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -configuration
 APP="$BUILD_DIR/DerivedData/Build/Products/Release/$APP_NAME.app"
 echo "  architectures: $(lipo -archs "$APP/Contents/MacOS/$APP_NAME")"
 
+IDENTITY="${SIGN_IDENTITY:-}"
+IDENTITY_NAME="$IDENTITY"
+XCODE_SIGNATURE=$(codesign -dvv "$APP" 2>&1)
+if [[ -z "$IDENTITY" && "$XCODE_SIGNATURE" != *Signature=adhoc* ]]; then
+    # Xcode signed with the certificate from Config/Signing.local.xcconfig. Its hash
+    # names exactly that one; its name would also match a renewed certificate.
+    codesign -d --extract-certificates="$BUILD_DIR/cert" "$APP" 2>/dev/null
+    IDENTITY=$(openssl x509 -inform DER -in "$BUILD_DIR/cert0" -noout -fingerprint -sha1 | sed 's/.*=//; s/://g')
+    IDENTITY_NAME=$(awk -F= '/^Authority=/ {print $2; exit}' <<< "$XCODE_SIGNATURE")
+    rm -f "$BUILD_DIR"/cert*
+fi
+
 # Always re-sign: Xcode's local signing adds the debugging entitlement
 # get-task-allow, which doesn't belong in a distributed app.
-if [[ -n "${SIGN_IDENTITY:-}" ]]; then
-    echo "▸ Signing with $SIGN_IDENTITY"
+if [[ -n "$IDENTITY" ]]; then
+    echo "▸ Signing with $IDENTITY_NAME"
     codesign --force --options runtime --timestamp \
         --entitlements MacVocTrainNg/MacVocTrainNg.entitlements \
-        --sign "$SIGN_IDENTITY" "$APP"
+        --sign "$IDENTITY" "$APP"
 else
-    echo "▸ Signing ad hoc (recipients must allow the app once)"
+    if $DRAFT; then
+        fail "A release needs a certificate: with an ad-hoc signature Homebrew can't carry the approval over to the next version. See Config/Signing.xcconfig."
+    fi
+    echo "▸ Signing ad hoc (recipients must allow the app once and after every update)"
     codesign --force --options runtime \
         --entitlements MacVocTrainNg/MacVocTrainNg.entitlements \
         --sign - "$APP"
@@ -67,3 +116,9 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
 fi
 
 echo "✓ $DMG ($(du -h "$DMG" | cut -f1))"
+
+if $DRAFT; then
+    echo "▸ Creating release draft $TAG"
+    gh release create "$TAG" "$DMG" --draft --target "$(git rev-parse HEAD)" \
+        --title "$TAG" --generate-notes
+fi
