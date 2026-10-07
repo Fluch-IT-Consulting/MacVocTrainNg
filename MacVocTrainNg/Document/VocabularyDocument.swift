@@ -11,15 +11,6 @@ extension UTType {
     static let legacyMacVocTrain = UTType(importedAs: "com.mfluch.MacVocTrain", conformingTo: .data)
 }
 
-/// Callbacks run when an undoable change is undone or redone, so views can restore
-/// state that lives outside the document (e.g. the position in a session).
-struct UndoHook {
-    var forward: @MainActor () -> Void
-    var backward: @MainActor () -> Void
-
-    var inverted: UndoHook { UndoHook(forward: backward, backward: forward) }
-}
-
 extension UndoManager {
     /// Registers `handler` as the undo action for `target` and names it. The handler
     /// gets the undo manager, so it can register the redo action.
@@ -164,9 +155,10 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(DeckChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
-    /// Stores a card rescheduled after a review in a study session.
-    func applyReview(_ card: Card, undoManager: UndoManager?, hook: UndoHook) {
-        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
+    /// Stores a card rescheduled after a review in a study session. The session
+    /// registers its own undo for its place, see `SessionViewModel.grade`.
+    func applyReview(_ card: Card, undoManager: UndoManager?) {
+        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager)
     }
 
     /// Changes the learning options. New FSRS parameters also replay stability and
@@ -194,11 +186,10 @@ final class VocabularyDocument: ReferenceFileDocument {
         var learningOptions: LearningOptions?
     }
 
-    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?, hook: UndoHook? = nil) {
+    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?) {
         let inverse = apply(change)
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
-            document.perform(inverse, actionName: actionName, undoManager: undoManager, hook: hook?.inverted)
-            hook?.backward()
+            document.perform(inverse, actionName: actionName, undoManager: undoManager)
         }
     }
 

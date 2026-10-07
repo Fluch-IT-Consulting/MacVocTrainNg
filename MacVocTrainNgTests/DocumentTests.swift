@@ -196,15 +196,43 @@ struct SessionViewModelTests {
         #expect(model.currentCard?.id != first.id)
         #expect(model.session.completedCount == 1)
 
+        #expect(undoManager.undoActionName == String(localized: "Review"))
+
         undoManager.undo()
         #expect(document.card(withID: first.id)?.isNew == true)
-        #expect(model.currentCard?.id == first.id)
+        #expect(model.currentCard == first)
         #expect(model.session.completedCount == 0)
         #expect(model.stage == .asking)
+        #expect(!undoManager.canUndo)  // card and session in one step
+        #expect(undoManager.redoActionName == String(localized: "Review"))
 
         undoManager.redo()
         #expect(document.card(withID: first.id)?.learningState?.phase == .review)
         #expect(model.currentCard?.id != first.id)
+        #expect(model.session.completedCount == 1)
+        #expect(undoManager.undoActionName == String(localized: "Review"))
+    }
+
+    @Test func undoingAReviewOfAnEarlierSessionOnlyTakesBackTheCard() throws {
+        let document = makeDocument(cards: 2, steps: 2)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        let first = try #require(model.currentCard)
+        model.input = first.answer
+        step(undoManager) { model.submit(undoManager: undoManager) }
+
+        model.continueStudying()
+        let session = model.session.id
+        let current = try #require(model.currentCard)
+
+        undoManager.undo()
+        #expect(document.card(withID: first.id)?.isNew == true)
+        #expect(model.session.id == session)
+        #expect(model.currentCard?.id == current.id)
+
+        undoManager.redo()
+        #expect(document.card(withID: first.id)?.log.count == 1)
+        #expect(model.session.id == session)
     }
 
     @Test func wrongResponseAsksForGrade() throws {
