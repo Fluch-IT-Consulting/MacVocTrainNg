@@ -84,9 +84,10 @@ struct SessionTests {
         return steps
     }
 
-    /// Reviews the current card and stores it in `deck`, like the app does.
+    /// Reviews the current card and stores it in `deck`, like `SessionMode` and the app do.
     func review(_ study: inout StudySession, deck: inout Deck, _ grade: Grade) {
-        let card = study.review(grade, in: deck, at: now)!
+        let current = deck.card(withID: study.session.currentCardID!)!
+        let card = study.review(grade, of: current, with: deck.learningOptions, at: now)!
         deck.cards[deck.index(of: card.id)!] = card
     }
 
@@ -131,10 +132,10 @@ struct SessionTests {
     @Test func reviewReturnsTheCurrentCardScheduled() {
         let deck = deck(newCards: 3)
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
-        let id = study.session.currentCardID!
-        let card = study.review(.good, in: deck, at: now)!
+        let current = deck.card(withID: study.session.currentCardID!)!
+        let card = study.review(.good, of: current, with: deck.learningOptions, at: now)!
         var random = SeededRandom(seed: 1)
-        let expected = Scheduler(learningOptions: deck.learningOptions, calendar: .testing).review(deck.card(withID: id)!, grade: .good, at: now, using: &random)
+        let expected = Scheduler(learningOptions: deck.learningOptions, calendar: .testing).review(current, grade: .good, at: now, using: &random)
         #expect(card == expected)
         #expect(study.session.reviewCount == 1)
     }
@@ -181,7 +182,7 @@ struct SessionTests {
         #expect(study.session.isFinished)
     }
 
-    @Test func reviewUsesTheLearningOptionsOfTheDeckPassed() {
+    @Test func reviewUsesTheLearningOptionsPassed() {
         var deck = deck(newCards: 1)
         deck.learningOptions.steps = 3
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
@@ -192,16 +193,16 @@ struct SessionTests {
         #expect(study.session.isFinished)
     }
 
-    @Test func reviewWithoutCurrentCardChangesNothing() {
-        var deck = deck(newCards: 2)
+    @Test func reviewRejectsACardOtherThanTheCurrentOne() {
+        let deck = deck(newCards: 2)
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
-        deck.cards.removeAll { $0.id == study.session.currentCardID }
-        #expect(study.review(.good, in: deck, at: now) == nil)
+        let other = deck.cards.first { $0.id != study.session.currentCardID }!
+        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now) == nil)
         #expect(study.session.reviewCount == 0)
         study.perform(.skip)
         study.perform(.skip)
         #expect(study.session.isFinished)
-        #expect(study.review(.good, in: deck, at: now) == nil)
+        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now) == nil)
     }
 
     @Test func onlyDueCardsAreSelected() {
@@ -323,7 +324,8 @@ struct SessionTests {
         var deck = deck(newCards: 2)
         var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
-        let reviewed = study.review(.good, in: deck, at: now)
+        let current = deck.card(withID: study.session.currentCardID!)!
+        let reviewed = study.review(.good, of: current, with: deck.learningOptions, at: now)
         let expected = try #require(reviewed)
 
         guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now) else {
@@ -358,6 +360,24 @@ struct SessionTests {
         #expect(practice.grade(.good, in: deck, at: now) == nil)
         #expect(study.session.reviewCount == 0)
         #expect(practice.session.reviewCount == 0)
+    }
+
+    @Test func gradingUsesTheLearningOptionsTheDeckHasNow() {
+        var deck = deck(newCards: 1)
+        deck.learningOptions.steps = 3
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
+        func grade() {
+            guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now) else {
+                Issue.record("The study session didn't reschedule the card")
+                return
+            }
+            _ = deck.apply(change, day: 100)
+        }
+        grade()
+        deck.learningOptions.steps = 2
+        grade()
+        #expect(deck.cards[0].learningState?.phase == .review)
+        #expect(mode.session.isFinished)
     }
 
     @Test func gradingAFinishedSessionRecordsNothing() {

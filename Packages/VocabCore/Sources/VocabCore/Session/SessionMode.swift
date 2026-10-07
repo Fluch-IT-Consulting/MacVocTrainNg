@@ -32,15 +32,18 @@ public enum SessionMode: Sendable {
 
     /// Grades the current card and moves on to the next one.
     ///
+    /// A study session schedules the card with the learning options `deck` has now,
+    /// so a change to them during the session applies from the next review on.
+    ///
     /// - Returns: `nil`, and the mode stays as it is, if the session is finished or
     ///   `deck` doesn't hold the current card.
     public mutating func grade(_ grade: Grade, in deck: Deck, at now: Date) -> Outcome? {
-        guard let id = session.currentCardID, deck.card(withID: id) != nil else { return nil }
+        guard let id = session.currentCardID, let card = deck.card(withID: id) else { return nil }
         switch self {
         case var .study(study):
-            guard let card = study.review(grade, in: deck, at: now) else { return nil }
+            guard let scheduled = study.review(grade, of: card, with: deck.learningOptions, at: now) else { return nil }
             self = .study(study)
-            return .rescheduled(DeckChange(upserts: [card]))
+            return .rescheduled(DeckChange(upserts: [scheduled]))
         case var .practice(practice):
             practice.record(grade)
             self = .practice(practice)
