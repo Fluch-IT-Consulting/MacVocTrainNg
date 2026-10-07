@@ -57,14 +57,15 @@ struct DocumentTests {
     }
 
     @Test func editingAndResettingAreUndoable() {
-        var card = Card(question: "dom", answer: "Haus")
-        card.learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
+        let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         let document = VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager()
 
         var edited = card
         edited.answer = "Haus / Heim"
-        step(undoManager) { document.update(edited, undoManager: undoManager) }
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus / Heim")!, undoManager: undoManager) }
+        #expect(document.deck.cards[0] == edited)
         step(undoManager) { document.resetLearningState(of: [card.id], undoManager: undoManager) }
         #expect(document.deck.cards[0].isNew)
         #expect(document.deck.cards[0].answer == "Haus / Heim")
@@ -79,7 +80,7 @@ struct DocumentTests {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager()
-        document.update(card, undoManager: undoManager)  // would throw without an open group if it registered anything
+        document.editText(of: card.id, to: CardText(question: " dom", answer: "Haus")!, undoManager: undoManager)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
     }
 
@@ -323,9 +324,8 @@ struct SessionViewModelTests {
     @Test func undoingAnEditChangesTheCurrentCard() throws {
         let document = makeDocument(cards: 1)
         let undoManager = makeUndoManager()
-        var edited = document.deck.cards[0]
-        edited.question = "dom"
-        step(undoManager) { document.update(edited, undoManager: undoManager) }
+        let card = document.deck.cards[0]
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: card.answer)!, undoManager: undoManager) }
         let model = SessionViewModel(document: document, autoAdvance: true)
         #expect(model.currentCard?.question == "dom")
 
@@ -341,8 +341,8 @@ struct SessionViewModelTests {
     }
 
     @Test func nothingDueMeansFinished() {
-        var card = Card(question: "q", answer: "a")
-        card.learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
+        let learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
+        let card = Card(question: "q", answer: "a", learningState: learningState)
         let model = SessionViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
         #expect(model.isFinished)
     }
@@ -388,8 +388,8 @@ struct SessionViewModelTests {
 
     @Test func dueCardsAreCountedAsTimePasses() {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
-        var card = Card(question: "dom", answer: "Haus")
-        card.learningState = LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: clock.now, due: clock.now.addingTimeInterval(3600))
+        let learningState = LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: clock.now, due: clock.now.addingTimeInterval(3600))
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         let document = VocabularyDocument(deck: Deck(cards: [card, Card(question: "kot", answer: "Katze")]), clock: clock.studyClock)
         let dueCards = document.dueCards
         #expect(dueCards.count == 1)

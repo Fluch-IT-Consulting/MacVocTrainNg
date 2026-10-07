@@ -20,6 +20,17 @@ public struct DeckChange: Sendable {
 }
 
 extension DeckChange {
+    /// Replaces question, answer and hint of the card with `id` in `deck` by `text`,
+    /// keeping its learning state; `nil` if `deck` doesn't hold it or the text stays.
+    public static func editingText(of id: Card.ID, to text: CardText, in deck: Deck) -> DeckChange? {
+        guard let card = deck.card(withID: id) else { return nil }
+        var edited = card
+        edited.question = text.question
+        edited.answer = text.answer
+        edited.hint = text.hint
+        return edited == card ? nil : DeckChange(upserts: [edited])
+    }
+
     /// Makes the cards with `ids` in `deck` new again, keeping their content. Cards
     /// that are new already and have no log stay out; `nil` if that leaves none.
     public static func resettingLearningState(of ids: Set<Card.ID>, in deck: Deck) -> DeckChange? {

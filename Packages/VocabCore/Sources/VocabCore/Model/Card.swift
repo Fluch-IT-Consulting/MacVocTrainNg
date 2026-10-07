@@ -78,10 +78,11 @@ public struct Card: Identifiable, Hashable, Sendable {
     /// Optional hint shown together with the question.
     public var hint: String
     public var created: Date
-    /// `nil` while the card has never been studied.
-    public var learningState: LearningState?
+    /// `nil` while the card has never been studied. Only `Scheduler` and
+    /// `DeckChange` change it.
+    public internal(set) var learningState: LearningState?
     /// The review log, oldest first. `FSRSOptimizer` computes parameters from it.
-    public var log: [ReviewLogEntry]
+    public internal(set) var log: [ReviewLogEntry]
 
     public init(
         id: UUID = UUID(),
@@ -116,7 +117,7 @@ public struct Card: Identifiable, Hashable, Sendable {
     }
 
     /// Makes the card a new card again but keeps its content.
-    public mutating func resetLearningState() {
+    mutating func resetLearningState() {
         learningState = nil
         log = []
     }

@@ -125,16 +125,13 @@ private struct CardDetail: View {
     /// Writes edited text back to the document as one undoable change.
     private func commit() {
         guard question != card.question || answer != card.answer || hint != card.hint,
-            var current = document.card(withID: card.id)
+            let current = document.card(withID: card.id)
         else { return }
         guard let text = CardText(question: question, answer: answer, hint: hint) else {
             question = current.question
             answer = current.answer
             return
         }
-        current.question = text.question
-        current.answer = text.answer
-        current.hint = text.hint
-        document.update(current, undoManager: undoManager)
+        document.editText(of: card.id, to: text, undoManager: undoManager)
     }
 }

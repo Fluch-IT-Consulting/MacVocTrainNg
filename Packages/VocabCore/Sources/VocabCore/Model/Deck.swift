@@ -20,27 +20,32 @@ public struct LearningOptions: Hashable, Sendable {
     public init() {}
 
     public static let targetRecallRange: ClosedRange<Double> = 0.7...0.97
+    public static let maximumIntervalRange: ClosedRange<Int> = 30...36500
     public static let stepsRange: ClosedRange<Int> = 1...5
+    /// For `cardsPerSession` and `newCardsPerSession` when they are limited.
+    public static let sessionLimitRange: ClosedRange<Int> = 1...9999
 }
 
 extension LearningOptions {
-    /// Clamps values from hand-edited or corrupt files into usable ranges.
+    /// Clamps values from hand-edited or corrupt files into the ranges the learning
+    /// options offer.
     mutating func sanitize() {
         if !targetRecall.isFinite { targetRecall = LearningOptions().targetRecall }
-        targetRecall = min(max(targetRecall, Self.targetRecallRange.lowerBound), Self.targetRecallRange.upperBound)
-        maximumInterval = max(1, maximumInterval)
-        steps = min(max(steps, Self.stepsRange.lowerBound), Self.stepsRange.upperBound)
-        cardsPerSession = cardsPerSession.map { max(1, $0) }
-        newCardsPerSession = newCardsPerSession.map { max(0, $0) }
+        targetRecall = targetRecall.clamped(to: Self.targetRecallRange)
+        maximumInterval = maximumInterval.clamped(to: Self.maximumIntervalRange)
+        steps = steps.clamped(to: Self.stepsRange)
+        cardsPerSession = cardsPerSession?.clamped(to: Self.sessionLimitRange)
+        newCardsPerSession = newCardsPerSession?.clamped(to: Self.sessionLimitRange)
     }
 }
 
 /// A collection of cards together with its learning options and progress, stored
 /// as one package (see `DeckFile`).
 ///
-/// Cards change only through `apply(_:day:)`, which keeps `progress` in step with them.
+/// Cards and learning options change only through `apply(_:day:)`, which keeps
+/// `progress` in step with the cards.
 public struct Deck: Hashable, Sendable {
-    public var learningOptions: LearningOptions
+    public internal(set) var learningOptions: LearningOptions
     public internal(set) var cards: [Card]
     /// One daily snapshot per study day on which the deck changed, oldest first.
     public internal(set) var progress: [DailySnapshot]

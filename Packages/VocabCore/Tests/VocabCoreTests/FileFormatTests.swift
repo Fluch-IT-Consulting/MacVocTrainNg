@@ -137,13 +137,15 @@ struct DeckFileTests {
     @Test func clampsInvalidLearningOptions() throws {
         let json = """
             {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
-             "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0}}
+             "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0,
+                                 "newCardsPerSession": 100000}}
             """
         let learningOptions = try DeckFile.decode(Data(json.utf8)).learningOptions
         #expect(learningOptions.targetRecall == LearningOptions.targetRecallRange.lowerBound)
-        #expect(learningOptions.steps == 1)
-        #expect(learningOptions.maximumInterval == 1)
-        #expect(learningOptions.cardsPerSession == 1)
+        #expect(learningOptions.steps == LearningOptions.stepsRange.lowerBound)
+        #expect(learningOptions.maximumInterval == LearningOptions.maximumIntervalRange.lowerBound)
+        #expect(learningOptions.cardsPerSession == LearningOptions.sessionLimitRange.lowerBound)
+        #expect(learningOptions.newCardsPerSession == LearningOptions.sessionLimitRange.upperBound)
     }
 
     @Test func rejectsInvalidValues() {

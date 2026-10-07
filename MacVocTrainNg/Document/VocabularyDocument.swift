@@ -91,9 +91,10 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(DeckChange(upserts: cards), actionName: String(localized: "Import Cards"), undoManager: undoManager)
     }
 
-    func update(_ card: Card, actionName: String = String(localized: "Edit Card"), undoManager: UndoManager?) {
-        guard deck.card(withID: card.id) != card else { return }
-        perform(DeckChange(upserts: [card]), actionName: actionName, undoManager: undoManager)
+    /// Changes question, answer and hint of a card, see `DeckChange.editingText(of:to:in:)`.
+    func editText(of id: Card.ID, to text: CardText, undoManager: UndoManager?) {
+        guard let change = DeckChange.editingText(of: id, to: text, in: deck) else { return }
+        perform(change, actionName: String(localized: "Edit Card"), undoManager: undoManager)
     }
 
     func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
