@@ -3,6 +3,7 @@
 
 # Xcode
 xcuserdata/
+MacVocTrainNg.xcodeproj/project.xcworkspace/xcshareddata/
 DerivedData/
 *.xcuserstate
 build/
