@@ -150,7 +150,7 @@ private struct StatusBar: View {
 
     var body: some View {
         let total = document.deck.cards.count
-        let due = document.dueCount(at: now)
+        let due = document.deck.dueCount(at: now)
         HStack(spacing: 16) {
             if isFiltered {
                 Text("\(shownCount) of \(total) cards")

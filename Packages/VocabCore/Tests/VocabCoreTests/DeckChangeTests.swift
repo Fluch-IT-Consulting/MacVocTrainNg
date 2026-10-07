@@ -3,6 +3,17 @@ import Testing
 import VocabCore
 
 struct DeckChangeTests {
+    private let start = Date(timeIntervalSince1970: 1_791_216_000)
+
+    /// A card reviewed three times, so its log reaches back to its first review.
+    private func studiedCard() -> Card {
+        let scheduler = Scheduler(learningOptions: LearningOptions())
+        var random = SeededRandom(seed: 1)
+        return [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
+            scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
+        }
+    }
+
     @Test func addingIsRevertedByTheInverse() {
         let existing = Card(question: "dom", answer: "Haus")
         var deck = Deck(cards: [existing])
@@ -77,6 +88,79 @@ struct DeckChangeTests {
         let inverse = deck.apply(DeckChange(learningOptions: options), day: 100)
         _ = deck.apply(inverse, day: 100)
         #expect(deck.progress.isEmpty)
+    }
+
+    @Test func resettingTakesOnlySelectedCardsThatWereStudied() throws {
+        let studied = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: start, due: start))
+        let new = Card(question: "kot", answer: "Katze")
+        let other = Card(question: "pies", answer: "Hund", learningState: studied.learningState)
+        var deck = Deck(cards: [studied, new, other])
+
+        let change = try #require(DeckChange.resettingLearningState(of: [studied.id, new.id], in: deck))
+        _ = deck.apply(change, day: 100)
+        #expect(deck.cards[0] == Card(id: studied.id, question: "dom", answer: "Haus"))
+        #expect(deck.cards[1] == new)
+        #expect(deck.cards[2] == other)
+    }
+
+    @Test func resettingNewCardsChangesNothing() {
+        let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+        #expect(DeckChange.resettingLearningState(of: [deck.cards[0].id], in: deck) == nil)
+        #expect(DeckChange.resettingLearningState(of: [UUID()], in: deck) == nil)
+    }
+
+    @Test func unchangedLearningOptionsChangeNothing() {
+        let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+        #expect(DeckChange.changingLearningOptions(LearningOptions(), in: deck, calendar: StudyCalendar()) == nil)
+    }
+
+    @Test func learningOptionsWithoutNewParametersLeaveTheCards() throws {
+        let studied = studiedCard()
+        var deck = Deck(cards: [studied])
+        var options = LearningOptions()
+        options.steps = 3
+
+        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: StudyCalendar()))
+        _ = deck.apply(change, day: 100)
+        #expect(deck.learningOptions == options)
+        #expect(deck.cards == [studied])
+        #expect(deck.progress.isEmpty)
+    }
+
+    @Test func newParametersReplayMemoryOfCardsWithCompleteLog() throws {
+        let studied = studiedCard()
+        var imported = Card(question: "kot", answer: "Katze")
+        imported.learningState = LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
+        var deck = Deck(cards: [studied, imported])
+
+        var options = LearningOptions()
+        var weights = FSRSParameters.default.weights
+        weights[8] = 1.2
+        options.parameters = try #require(FSRSParameters(weights))
+        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: StudyCalendar()))
+        _ = deck.apply(change, day: 100)
+
+        let replayed = try #require(deck.cards[0].learningState)
+        #expect(replayed.stability < studied.learningState!.stability)
+        #expect(replayed.due == studied.learningState!.due)
+        #expect(deck.cards[0].log == studied.log)
+        #expect(deck.cards[1] == imported)
+        #expect(deck.learningOptions.parameters == options.parameters)
+    }
+
+    @Test func dueCardsAreCountedAtTheGivenTime() {
+        let due = start.addingTimeInterval(3600)
+        let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: due))
+        let deck = Deck(cards: [scheduled, Card(question: "kot", answer: "Katze")])
+        #expect(deck.dueCount(at: start) == 1)
+        #expect(deck.dueCount(at: due) == 2)
+    }
+
+    @Test func cardsAreFoundByTheirQuestion() {
+        let deck = Deck(cards: [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")])
+        #expect(deck.cards(withQuestion: "dom").map(\.answer) == ["Haus"])
+        #expect(deck.cards(withQuestion: "pies").isEmpty)
+        #expect(deck.cards(withQuestion: "").isEmpty)
     }
 
     /// Each change passes over the cards once. Looking up every card on its own took

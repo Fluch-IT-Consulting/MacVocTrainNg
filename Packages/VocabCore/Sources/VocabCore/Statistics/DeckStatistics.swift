@@ -86,13 +86,13 @@ public enum DeckStatistics {
         let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
         let today = calendar.dayNumber(for: now)
         var summary = Summary()
+        summary.dueNow = deck.dueCount(at: now)
         var recallProbabilitySum = 0.0
         var reviewCards = 0
 
         for card in deck.cards {
             summary.total += 1
             if card.isNew { summary.new += 1 }
-            if card.isDue(at: now) { summary.dueNow += 1 }
             if let learningState = card.learningState, learningState.phase == .review {
                 recallProbabilitySum += scheduler.recallProbability(of: learningState, at: now)
                 reviewCards += 1

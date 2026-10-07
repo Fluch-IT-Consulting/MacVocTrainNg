@@ -79,19 +79,6 @@ final class VocabularyDocument: ReferenceFileDocument {
         deck.card(withID: id)
     }
 
-    /// Cards due at `date`, by default now according to `clock`.
-    func dueCount(at date: Date? = nil) -> Int {
-        let date = date ?? clock.now
-        return deck.cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
-    }
-
-    /// Cards with the same question as `question`, see `CardText.key(forQuestion:)`.
-    func cards(withQuestion question: String) -> [Card] {
-        let key = CardText.key(forQuestion: question)
-        guard !key.isEmpty else { return [] }
-        return deck.cards.filter { CardText.key(forQuestion: $0.question) == key }
-    }
-
     // MARK: - Changes
 
     func add(_ card: Card, undoManager: UndoManager?) {
@@ -116,13 +103,8 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
-        let cards = deck.cards.filter { ids.contains($0.id) && (!$0.isNew || !$0.log.isEmpty) }.map { card in
-            var card = card
-            card.resetLearningState()
-            return card
-        }
-        guard !cards.isEmpty else { return }
-        perform(DeckChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
+        guard let change = DeckChange.resettingLearningState(of: ids, in: deck) else { return }
+        perform(change, actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
     }
 
     /// Stores a card rescheduled after a review in a study session. The session
@@ -131,19 +113,9 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(DeckChange(upserts: [card]), actionName: String(localized: "Review"), undoManager: undoManager)
     }
 
-    /// Changes the learning options. New FSRS parameters also replay stability and
-    /// difficulty of every card with a complete review log; due dates stay.
+    /// Changes the learning options, see `DeckChange.changingLearningOptions(_:in:calendar:)`.
     func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
-        guard deck.learningOptions != learningOptions else { return }
-        var replayed: [Card] = []
-        if learningOptions.parameters != deck.learningOptions.parameters {
-            let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
-            replayed = deck.cards.compactMap { card in
-                guard let replayed = scheduler.replayingMemory(of: card), replayed != card else { return nil }
-                return replayed
-            }
-        }
-        let change = DeckChange(upserts: replayed, learningOptions: learningOptions)
+        guard let change = DeckChange.changingLearningOptions(learningOptions, in: deck, calendar: calendar) else { return }
         perform(change, actionName: String(localized: "Change Learning Options"), undoManager: undoManager)
     }
 

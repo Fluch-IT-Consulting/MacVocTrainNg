@@ -19,6 +19,35 @@ public struct DeckChange: Sendable {
     }
 }
 
+extension DeckChange {
+    /// Makes the cards with `ids` in `deck` new again, keeping their content. Cards
+    /// that are new already and have no log stay out; `nil` if that leaves none.
+    public static func resettingLearningState(of ids: Set<Card.ID>, in deck: Deck) -> DeckChange? {
+        let cards = deck.cards.filter { ids.contains($0.id) && (!$0.isNew || !$0.log.isEmpty) }.map { card in
+            var card = card
+            card.resetLearningState()
+            return card
+        }
+        return cards.isEmpty ? nil : DeckChange(upserts: cards)
+    }
+
+    /// Sets the learning options of `deck`, or `nil` if they don't change. New FSRS
+    /// parameters also replay stability and difficulty of every card with a complete
+    /// review log (`Scheduler.replayingMemory(of:)`); due dates stay.
+    public static func changingLearningOptions(_ learningOptions: LearningOptions, in deck: Deck, calendar: StudyCalendar) -> DeckChange? {
+        guard deck.learningOptions != learningOptions else { return nil }
+        var replayed: [Card] = []
+        if learningOptions.parameters != deck.learningOptions.parameters {
+            let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
+            replayed = deck.cards.compactMap { card in
+                guard let replayed = scheduler.replayingMemory(of: card), replayed != card else { return nil }
+                return replayed
+            }
+        }
+        return DeckChange(upserts: replayed, learningOptions: learningOptions)
+    }
+}
+
 extension Deck {
     /// Applies `change` and returns the change that reverts it.
     ///
