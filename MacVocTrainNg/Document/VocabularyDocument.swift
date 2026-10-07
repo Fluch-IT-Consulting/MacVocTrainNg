@@ -47,32 +47,39 @@ extension UndoManager {
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes.
 ///
-/// `@unchecked Sendable` is required by `ReferenceFileDocument`. It is safe because
-/// the deck is only changed by the `@MainActor` methods below, and SwiftUI takes
-/// snapshots for saving on the main thread as well.
-final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
-    static var readableContentTypes: [UTType] { [.vocabularyDeck] }
+/// The document lives on the main actor, so the compiler checks that the deck is only
+/// read and changed there. Initializers and the requirements of `ReferenceFileDocument`
+/// are `nonisolated`: SwiftUI creates and opens documents and writes snapshots to file
+/// wrappers off the main actor. Apart from the initializers, only `snapshot` reads
+/// `deck`, and it checks that it runs on the main actor.
+@MainActor
+final class VocabularyDocument: ReferenceFileDocument {
+    nonisolated static var readableContentTypes: [UTType] { [.vocabularyDeck] }
 
-    @Published private(set) var deck: Deck {
+    /// Not `@Published`: a nonisolated initializer can't set a property wrapper of the
+    /// main actor. `objectWillChange` sends just like it would.
+    private(set) var deck: Deck {
+        willSet { objectWillChange.send() }
         didSet { deckDidChange.send() }
     }
     /// Sends after every change to `deck`, once it holds the new state.
-    /// `$deck` and `objectWillChange` send before the change.
+    /// `objectWillChange` sends before the change.
     let deckDidChange = PassthroughSubject<Void, Never>()
     let calendar = StudyCalendar()
     /// The time of reviews, of today's snapshot and of which cards are due.
     let clock: StudyClock
     /// The number of cards due now, kept up to date as time passes.
-    @MainActor private(set) lazy var dueCards = DueCardCounter(document: self)
+    private(set) lazy var dueCards = DueCardCounter(document: self)
     /// Remembers the encoded review log between saves, so autosave stays cheap.
+    /// Thread-safe on its own, as saving uses it on a background thread.
     private let reviewLog = ReviewLogEncoder()
 
-    init(deck: Deck = Deck(), clock: StudyClock = .system) {
+    nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system) {
         self.deck = deck
         self.clock = clock
     }
 
-    required init(configuration: ReadConfiguration) throws {
+    nonisolated required init(configuration: ReadConfiguration) throws {
         clock = .system
         do {
             deck = try DeckFile.decode(configuration.file)
@@ -87,11 +94,12 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         }
     }
 
-    func snapshot(contentType: UTType) throws -> Deck {
-        deck
+    /// SwiftUI takes snapshots on the main thread; this traps if it ever doesn't.
+    nonisolated func snapshot(contentType: UTType) throws -> Deck {
+        MainActor.assumeIsolated { deck }
     }
 
-    func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
+    nonisolated func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
         try DeckFile.fileWrapper(for: snapshot, reviewLog: reviewLog)
     }
 
@@ -115,34 +123,28 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     }
 
     // MARK: - Changes
-    // All changes run on the main actor, which makes the class thread-safe.
 
-    @MainActor
     func add(_ card: Card, undoManager: UndoManager?) {
         perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Add Card"), undoManager: undoManager)
     }
 
     /// Appends cards from an import as one change.
-    @MainActor
     func importCards(_ cards: [Card], undoManager: UndoManager?) {
         guard !cards.isEmpty else { return }
         perform(DeckChange(upserts: cards.map { ($0, nil) }), actionName: String(localized: "Import Cards"), undoManager: undoManager)
     }
 
-    @MainActor
     func update(_ card: Card, actionName: String = String(localized: "Edit Card"), undoManager: UndoManager?) {
         guard deck.card(withID: card.id) != card else { return }
         perform(DeckChange(upserts: [(card, nil)]), actionName: actionName, undoManager: undoManager)
     }
 
-    @MainActor
     func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
         guard !ids.isEmpty else { return }
         let name = ids.count == 1 ? String(localized: "Delete Card") : String(localized: "Delete Cards")
         perform(DeckChange(removals: Array(ids)), actionName: name, undoManager: undoManager)
     }
 
-    @MainActor
     func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
         let cards = ids.compactMap(deck.card(withID:)).filter { !$0.isNew || !$0.log.isEmpty }.map { card in
             var card = card
@@ -154,14 +156,12 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     }
 
     /// Stores a card rescheduled after a review in a study session.
-    @MainActor
     func applyReview(_ card: Card, undoManager: UndoManager?, hook: UndoHook) {
         perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager, hook: hook)
     }
 
     /// Changes the learning options. New FSRS parameters also replay stability and
     /// difficulty of every card with a complete review log; due dates stay.
-    @MainActor
     func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
         guard deck.learningOptions != learningOptions else { return }
         var change = DeckChange(learningOptions: learningOptions)
@@ -185,7 +185,6 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
         var learningOptions: LearningOptions?
     }
 
-    @MainActor
     private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?, hook: UndoHook? = nil) {
         let inverse = apply(change)
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
@@ -195,7 +194,6 @@ final class VocabularyDocument: ReferenceFileDocument, @unchecked Sendable {
     }
 
     /// Applies `change` and returns the change that reverts it.
-    @MainActor
     private func apply(_ change: DeckChange) -> DeckChange {
         var deck = deck
         var inverse = DeckChange()
