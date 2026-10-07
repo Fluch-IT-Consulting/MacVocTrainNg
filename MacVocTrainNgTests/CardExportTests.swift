@@ -6,7 +6,7 @@ import VocabCore
 
 @MainActor
 struct CardExportTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!)
+    let calendar = StudyCalendar.testing
 
     private var studied: Card {
         let due = calendar.start(ofDay: CivilDate(year: 2026, month: 10, day: 9).dayNumber)

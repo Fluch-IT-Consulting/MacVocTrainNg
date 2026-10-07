@@ -222,7 +222,7 @@ struct ReviewLogEncoderTests {
 }
 
 struct LegacyImporterTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!, rolloverHour: 4)
+    let calendar = StudyCalendar.testing
     let now = Date(timeIntervalSince1970: 1_791_216_000)
 
     /// Builds an archive exactly like MacVocTrain 1 wrote it.

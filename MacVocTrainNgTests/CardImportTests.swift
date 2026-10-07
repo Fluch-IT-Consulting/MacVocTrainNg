@@ -6,7 +6,7 @@ import VocabCore
 
 @MainActor
 struct CardImportTests {
-    let calendar = StudyCalendar()
+    let calendar = StudyCalendar.testing
     let created = Date(timeIntervalSince1970: 1_791_216_000)
 
     @Test func recognisesHeadersInEveryLanguage() {

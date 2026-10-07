@@ -4,7 +4,7 @@ import Testing
 @testable import VocabCore
 
 struct StatisticsTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!, rolloverHour: 4)
+    let calendar = StudyCalendar.testing
     let now = Date(timeIntervalSince1970: 1_791_216_000)
 
     func reviewCard(stability: Double, due: Date? = nil) -> Card {
@@ -119,7 +119,7 @@ struct StatisticsTests {
 }
 
 struct CalendarTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!, rolloverHour: 4)
+    let calendar = StudyCalendar.testing
 
     @Test func civilDateRoundTrips() {
         for dayNumber in [-1000, -1, 0, 1, 365, 10_000, 20_731, 50_000] {

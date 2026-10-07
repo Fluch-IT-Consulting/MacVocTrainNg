@@ -16,7 +16,7 @@ public struct StudySession: Sendable {
     ///
     /// - Parameter random: Decides the selection and order of the cards and the fuzz
     ///   of the intervals; the same seed gives the same session.
-    public init(deck: Deck, at now: Date, calendar: StudyCalendar = StudyCalendar(), random: SeededRandom = SeededRandom()) {
+    public init(deck: Deck, at now: Date, calendar: StudyCalendar, random: SeededRandom = SeededRandom()) {
         var random = random
         let ids = Self.selectCards(from: deck, at: now, calendar: calendar, using: &random)
         self.calendar = calendar

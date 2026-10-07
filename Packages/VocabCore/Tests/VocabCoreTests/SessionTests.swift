@@ -92,7 +92,7 @@ struct SessionTests {
 
     @Test func newCardsNeedAllSteps() {
         var deck = deck(newCards: 12)
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         #expect(study.session.totalCount == 12)
         let reviews = play(&study, deck: &deck) { _ in .good }
         #expect(reviews == 12 * deck.learningOptions.steps)
@@ -103,7 +103,7 @@ struct SessionTests {
 
     @Test func cardsInReviewPhaseNeedOneRecall() {
         var deck = deck(newCards: 0, reviewCards: 8)
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let reviews = play(&study, deck: &deck) { _ in .good }
         #expect(reviews == 8)
         #expect(study.session.mistakeIDs.isEmpty)
@@ -112,7 +112,7 @@ struct SessionTests {
     @Test func mistakesComeBackUntilRelearned() {
         var deck = deck(newCards: 0, reviewCards: 5)
         let mistake = deck.cards[0].id
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 2))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 2))
         var gotAgain = false
         let reviews = play(&study, deck: &deck) { card in
             if card.id == mistake, !gotAgain {
@@ -130,11 +130,11 @@ struct SessionTests {
 
     @Test func reviewReturnsTheCurrentCardScheduled() {
         let deck = deck(newCards: 3)
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let id = study.session.currentCardID!
         let card = study.review(.good, in: deck, at: now)!
         var random = SeededRandom(seed: 1)
-        let expected = Scheduler(learningOptions: deck.learningOptions).review(deck.card(withID: id)!, grade: .good, at: now, using: &random)
+        let expected = Scheduler(learningOptions: deck.learningOptions, calendar: .testing).review(deck.card(withID: id)!, grade: .good, at: now, using: &random)
         #expect(card == expected)
         #expect(study.session.reviewCount == 1)
     }
@@ -144,7 +144,7 @@ struct SessionTests {
         deck.learningOptions.fuzzing = true
         func dueDates(seed: UInt64) -> [Card.ID: Date] {
             var deck = deck
-            var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: seed))
+            var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: seed))
             _ = play(&study, deck: &deck) { _ in .good }
             return Dictionary(uniqueKeysWithValues: deck.cards.map { ($0.id, $0.learningState!.due) })
         }
@@ -158,7 +158,7 @@ struct SessionTests {
         func order(fuzzing: Bool) -> [Card.ID] {
             var deck = reviewDeck
             deck.learningOptions.fuzzing = fuzzing
-            var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 3))
+            var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 3))
             var asked: [Card.ID] = []
             _ = play(&study, deck: &deck) { card in
                 asked.append(card.id)
@@ -172,7 +172,7 @@ struct SessionTests {
     @Test func cardLeavesOnlyInReviewPhase() {
         var deck = deck(newCards: 1)
         deck.learningOptions.steps = 2
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         review(&study, deck: &deck, .good)
         #expect(deck.cards[0].learningState?.phase == .learning)
         #expect(!study.session.isFinished)
@@ -184,7 +184,7 @@ struct SessionTests {
     @Test func reviewUsesTheLearningOptionsOfTheDeckPassed() {
         var deck = deck(newCards: 1)
         deck.learningOptions.steps = 3
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         review(&study, deck: &deck, .good)
         deck.learningOptions.steps = 2
         review(&study, deck: &deck, .good)
@@ -194,7 +194,7 @@ struct SessionTests {
 
     @Test func reviewWithoutCurrentCardChangesNothing() {
         var deck = deck(newCards: 2)
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         deck.cards.removeAll { $0.id == study.session.currentCardID }
         #expect(study.review(.good, in: deck, at: now) == nil)
         #expect(study.session.reviewCount == 0)
@@ -207,23 +207,23 @@ struct SessionTests {
     @Test func onlyDueCardsAreSelected() {
         var deck = deck(newCards: 2, reviewCards: 2)
         deck.cards[3].learningState?.due = now.addingTimeInterval(86400)
-        let session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).session
+        let session = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4)).session
         #expect(session.totalCount == 3)
     }
 
     @Test func newCardLimitIsRespected() {
         var deck = deck(newCards: 10, reviewCards: 3)
         deck.learningOptions.newCardsPerSession = 4
-        let session = StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).session
+        let session = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4)).session
         #expect(session.totalCount == 7)
     }
 
     @Test func sessionSizeIsLimited() {
         var deck = deck(newCards: 10, reviewCards: 10)
         deck.learningOptions.cardsPerSession = 5
-        #expect(StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).session.totalCount == 5)
+        #expect(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4)).session.totalCount == 5)
         deck.learningOptions.cardsPerSession = nil
-        #expect(StudySession(deck: deck, at: now, random: SeededRandom(seed: 4)).session.totalCount == 20)
+        #expect(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4)).session.totalCount == 20)
     }
 
     @Test func learningCardsAreIntroducedBeforeNewAndReviewCards() {
@@ -232,7 +232,7 @@ struct SessionTests {
         relearning.learningState = LearningState(phase: .relearning, stability: 1, difficulty: 5, lastReview: now, due: now)
         deck.cards.append(relearning)
         var random = SeededRandom(seed: 8)
-        let order = StudySession.selectCards(from: deck, at: now, calendar: StudyCalendar(), using: &random)
+        let order = StudySession.selectCards(from: deck, at: now, calendar: .testing, using: &random)
         #expect(order.first == relearning.id)
         let newIDs = Set(deck.cards.filter(\.isNew).map(\.id))
         #expect(order.dropFirst().prefix(30).allSatisfy(newIDs.contains))
@@ -240,7 +240,7 @@ struct SessionTests {
 
     @Test func finishUpEndsAfterStartedCards() {
         var deck = deck(newCards: 40)
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 6))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 6))
         for _ in 0..<3 {
             review(&study, deck: &deck, .good)
         }
@@ -309,7 +309,7 @@ struct SessionTests {
     }
 
     @Test func skipDropsCardWithoutCountingIt() {
-        var study = StudySession(deck: deck(newCards: 2), at: now, random: SeededRandom(seed: 1))
+        var study = StudySession(deck: deck(newCards: 2), at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let skipped = study.session.currentCardID
         study.perform(.skip)
         #expect(study.session.totalCount == 1)
@@ -321,8 +321,8 @@ struct SessionTests {
 
     @Test func gradingInAStudySessionReschedulesTheCard() throws {
         var deck = deck(newCards: 2)
-        var mode = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
-        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let reviewed = study.review(.good, in: deck, at: now)
         let expected = try #require(reviewed)
 
@@ -350,7 +350,7 @@ struct SessionTests {
     @Test func gradingACardTheDeckNoLongerHoldsRecordsNothing() {
         var deck = deck(newCards: 2)
         let ids = deck.cards.map(\.id)
-        var study = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
+        var study = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
         var practice = SessionMode.practice(Practice(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1)))
         deck.cards.removeAll { $0.id == study.session.currentCardID || $0.id == practice.session.currentCardID }
 
@@ -362,7 +362,7 @@ struct SessionTests {
 
     @Test func gradingAFinishedSessionRecordsNothing() {
         let deck = deck(newCards: 1)
-        var mode = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
         mode.perform(.skip)
 
         #expect(mode.session.isFinished)

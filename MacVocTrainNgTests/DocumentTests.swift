@@ -123,7 +123,7 @@ struct DocumentTests {
     }
 
     @Test func newParametersReplayMemoryInOneUndoableChange() throws {
-        let scheduler = Scheduler(learningOptions: LearningOptions())
+        let scheduler = Scheduler(learningOptions: LearningOptions(), calendar: .testing)
         let start = Date(timeIntervalSince1970: 1_791_216_000)
         var random = SeededRandom(seed: 1)
         let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
@@ -479,6 +479,7 @@ struct SessionViewModelTests {
     }
 
     @Test func sessionsAcrossTheStartOfAStudyDay() throws {
+        // Equals the calendar of the document, so the test holds in every time zone.
         let calendar = StudyCalendar()
         let day = CivilDate(year: 2026, month: 10, day: 6).dayNumber
         // 03:30, still the study day before.
@@ -499,7 +500,7 @@ struct SessionViewModelTests {
         // The interval counts from the study day before, so the card is due earlier
         // than it would be after a review at 04:30.
         var random = SeededRandom(seed: 0)  // unused without fuzzing
-        let interval = Scheduler(learningOptions: learningOptions).intervalDays(stability: state.stability, using: &random)
+        let interval = Scheduler(learningOptions: learningOptions, calendar: calendar).intervalDays(stability: state.stability, using: &random)
         #expect(state.due == calendar.start(ofDay: day - 1 + interval))
 
         clock.now = state.due.addingTimeInterval(-60)
