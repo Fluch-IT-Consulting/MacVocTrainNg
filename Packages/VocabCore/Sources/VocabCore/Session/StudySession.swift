@@ -43,12 +43,14 @@ public struct StudySession: Sendable {
     }
 
     /// How soon `selectCards` introduces a due card; the smallest comes first.
+    /// Due reviews go before new cards, so new cards only fill the rest of a session
+    /// and can't crowd out reviews whose recall probability keeps dropping.
     enum Urgency: Comparable {
         /// Cards in learning or relearning.
         case learning
-        case new
         /// Cards in the review phase, lowest probability of recall first.
         case review(recallBucket: Double)
+        case new
     }
 
     /// Recall probabilities are rounded down to steps of `1 / recallBuckets`, so
