@@ -25,25 +25,6 @@ public struct FSRSParameters: Hashable, Sendable {
     public subscript(index: Int) -> Double { weights[index] }
 }
 
-extension FSRSParameters: Codable {
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let weights = try container.decode([Double].self)
-        guard let parameters = FSRSParameters(weights) else {
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Expected \(Self.count) finite FSRS weights."
-            )
-        }
-        self = parameters
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(weights)
-    }
-}
-
 /// The FSRS-6 memory model: how stability and difficulty evolve with each review.
 ///
 /// This is a faithful port of the formulas in open-spaced-repetition/py-fsrs.

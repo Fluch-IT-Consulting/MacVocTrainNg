@@ -146,6 +146,20 @@ struct DeckFileTests {
         #expect(learningOptions.cardsPerSession == 1)
     }
 
+    @Test func rejectsInvalidValues() {
+        let parameters = """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
+             "learningOptions": {"parameters": [1, 2]}}
+            """
+        #expect(throws: DecodingError.self) { try DeckFile.decode(Data(parameters.utf8)) }
+
+        let day = """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {}, "cards": [],
+             "progress": [{"day": "2026-13-45", "bins": []}]}
+            """
+        #expect(throws: DecodingError.self) { try DeckFile.decode(Data(day.utf8)) }
+    }
+
     @Test func rejectsForeignAndFutureFiles() {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("{\"foo\": 1}".utf8)) }
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("not json".utf8)) }
