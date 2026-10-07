@@ -146,7 +146,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
-        let cards = ids.compactMap(deck.card(withID:)).filter { !$0.isNew || !$0.log.isEmpty }.map { card in
+        let cards = deck.cards.filter { ids.contains($0.id) && (!$0.isNew || !$0.log.isEmpty) }.map { card in
             var card = card
             card.resetLearningState()
             return (card, Int?.none)
@@ -203,20 +203,31 @@ final class VocabularyDocument: ReferenceFileDocument {
             deck.learningOptions = learningOptions
         }
 
-        let removalIndices = change.removals.compactMap(deck.index(of:)).sorted(by: >)
-        for index in removalIndices {
-            inverse.upserts.append((deck.cards.remove(at: index), index))
+        // Every step below passes over the cards once: a change may touch all of them.
+        if !change.removals.isEmpty {
+            let removals = Set(change.removals)
+            // In ascending order, so undo re-inserts each card at its old index.
+            inverse.upserts = deck.cards.enumerated().filter { removals.contains($0.element.id) }.map { ($0.element, $0.offset) }
+            deck.cards.removeAll { removals.contains($0.id) }
         }
-        inverse.upserts.reverse()  // re-insert in ascending order
 
+        var indices = Dictionary(deck.cards.enumerated().map { ($0.element.id, $0.offset) }) { first, _ in first }
+        var insertions: [(card: Card, index: Int)] = []
         for (card, position) in change.upserts {
-            if let index = deck.index(of: card.id) {
+            if let index = indices[card.id] {
                 inverse.upserts.append((deck.cards[index], nil))
                 deck.cards[index] = card
+            } else if let position {
+                insertions.append((card, position))
+                inverse.removals.append(card.id)
             } else {
-                deck.cards.insert(card, at: min(position ?? deck.cards.count, deck.cards.count))
+                indices[card.id] = deck.cards.count
+                deck.cards.append(card)
                 inverse.removals.append(card.id)
             }
+        }
+        if !insertions.isEmpty {
+            deck.cards = Self.inserting(insertions, into: deck.cards)
         }
 
         // Learning options alone move no card between the bins of a snapshot.
@@ -225,6 +236,24 @@ final class VocabularyDocument: ReferenceFileDocument {
         }
         self.deck = deck
         return inverse
+    }
+
+    /// Inserts cards at their indices in one pass. Only the inverse of removals inserts
+    /// at an index, in ascending order; each card lands where inserting the cards one
+    /// after another would put it.
+    private static func inserting(_ insertions: [(card: Card, index: Int)], into cards: [Card]) -> [Card] {
+        assert(zip(insertions, insertions.dropFirst()).allSatisfy { $0.index < $1.index })
+        var result: [Card] = []
+        result.reserveCapacity(cards.count + insertions.count)
+        var remaining = cards[...]
+        for (card, index) in insertions {
+            let count = min(index - result.count, remaining.count)
+            result.append(contentsOf: remaining.prefix(count))
+            remaining = remaining.dropFirst(count)
+            result.append(card)
+        }
+        result.append(contentsOf: remaining)
+        return result
     }
 }
 
