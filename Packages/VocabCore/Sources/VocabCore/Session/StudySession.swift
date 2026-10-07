@@ -1,7 +1,7 @@
 import Foundation
 
 /// A session over the due cards; its reviews change their learning state.
-public struct StudySession: Sendable {
+public struct StudySession: SessionMode {
     /// The state shared with practice. Only this type changes it.
     public private(set) var session: Session
 
@@ -39,19 +39,8 @@ public struct StudySession: Sendable {
         return scheduled
     }
 
-    /// Stops introducing new cards; only cards already asked are finished.
-    public mutating func finishUp() {
-        session.finishUp()
-    }
-
-    /// Drops the current card without recording a review, e.g. because it was deleted.
-    public mutating func skip() {
-        session.skip()
-    }
-
-    /// Ends the session immediately.
-    public mutating func stop() {
-        session.stop()
+    public mutating func perform(_ command: SessionCommand) {
+        session.perform(command)
     }
 
     /// Due cards in the order they should be introduced: cards in (re)learning

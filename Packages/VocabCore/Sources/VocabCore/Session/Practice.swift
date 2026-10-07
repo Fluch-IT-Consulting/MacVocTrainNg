@@ -1,7 +1,7 @@
 import Foundation
 
 /// A session over the mistakes of an earlier session; its reviews change no card.
-public struct Practice: Sendable {
+public struct Practice: SessionMode {
     /// The state shared with study sessions. Only this type changes it.
     public private(set) var session: Session
 
@@ -30,18 +30,7 @@ public struct Practice: Sendable {
         session.record(grade, isDone: isDone)
     }
 
-    /// Stops introducing new cards; only cards already asked are finished.
-    public mutating func finishUp() {
-        session.finishUp()
-    }
-
-    /// Drops the current card without recording a review, e.g. because it was deleted.
-    public mutating func skip() {
-        session.skip()
-    }
-
-    /// Ends the session immediately.
-    public mutating func stop() {
-        session.stop()
+    public mutating func perform(_ command: SessionCommand) {
+        session.perform(command)
     }
 }
