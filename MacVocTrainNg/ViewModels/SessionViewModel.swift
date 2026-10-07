@@ -83,15 +83,17 @@ final class SessionViewModel {
         let before = mode
         guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now) else { return }
 
-        // One undo step takes back the card and the session's place. Practice changes
-        // no card, but ⌘Z should still take back the last review instead of reaching a
-        // review of the earlier session.
-        undoManager?.beginUndoGrouping()
-        if case let .rescheduled(change) = outcome {
-            document.applyReview(change, undoManager: undoManager)
+        // One undo action takes back the card and the session's place: the document
+        // restores the card, then the session. Practice changes no card, but ⌘Z should
+        // still take back the last review instead of reaching a review of the earlier
+        // session.
+        let restore = sessionRestore(from: before, to: mode)
+        switch outcome {
+        case let .rescheduled(change):
+            document.applyReview(change, undoManager: undoManager, alongside: restore)
+        case .practiced:
+            registerUndo(restore, undoManager: undoManager)
         }
-        registerSessionUndo(from: before, to: mode, undoManager: undoManager)
-        undoManager?.endUndoGrouping()
 
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
         moveOn()
@@ -146,13 +148,21 @@ final class SessionViewModel {
         }
     }
 
-    /// Undo runs the actions of a group backwards, so undoing a review restores the
-    /// session before the document restores the card; `deckDidChange` then shows
-    /// the card as it was. Redo runs them the other way round.
-    private func registerSessionUndo(from before: SessionMode, to after: SessionMode, undoManager: UndoManager?) {
+    /// Brings back the session's place before a review on undo and after it on redo.
+    /// Holds the model weakly: the document's undo stack outlives a closed session.
+    private func sessionRestore(from before: SessionMode, to after: SessionMode) -> UndoCompanion {
+        UndoCompanion(
+            undo: { [weak self] in self?.restore(before) },
+            redo: { [weak self] in self?.restore(after) }
+        )
+    }
+
+    /// Registers `companion` as the undo action of a practice review, which changes no
+    /// card and so doesn't go through the document.
+    private func registerUndo(_ companion: UndoCompanion, undoManager: UndoManager?) {
         undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
-            model.restore(before)
-            model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
+            companion.undo()
+            model.registerUndo(companion.reversed, undoManager: undoManager)
         }
     }
 

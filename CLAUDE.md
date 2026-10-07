@@ -28,9 +28,9 @@ The active developer dir may be the Command Line Tools; prefix with
   options change only through `Deck.apply(_:day:)`: it returns the inverse change and keeps
   `progress` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
   log can't be set from outside it (tests reach the full `Card.init` via `@testable`).
-- Reviews are undoable: the document applies the change `SessionMode.grade` returns,
-  `SessionViewModel` registers the restore of its `Session` in the same undo group. The
-  document knows no sessions.
+- Reviews are undoable: the document applies the change `SessionMode.grade` returns and
+  runs the restore of the `Session`, an opaque `UndoCompanion`, in the same undo action,
+  after the card. The document knows no sessions.
 - The Xcode project uses synchronized folders: new files in `MacVocTrainNg/` or
   `MacVocTrainNgTests/` are picked up automatically.
 
