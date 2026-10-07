@@ -1,7 +1,8 @@
 import Foundation
 
-/// A session over the due cards; its reviews change their learning state.
-public struct StudySession: SessionMode {
+/// A session over the due cards; its reviews change their learning state. It runs
+/// as `SessionMode.study`.
+public struct StudySession: Sendable {
     /// The state shared with practice. Only this type changes it.
     public private(set) var session: Session
 
@@ -31,7 +32,7 @@ public struct StudySession: SessionMode {
     ///
     /// - Returns: The current card after the review, to be stored in the deck; `nil`
     ///   if the session is finished or `deck` doesn't hold the current card.
-    public mutating func review(_ grade: Grade, in deck: Deck, at now: Date) -> Card? {
+    mutating func review(_ grade: Grade, in deck: Deck, at now: Date) -> Card? {
         guard let id = session.currentCardID, let card = deck.card(withID: id) else { return nil }
         let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
         let scheduled = scheduler.review(card, grade: grade, at: now, using: &fuzzing)
@@ -39,7 +40,7 @@ public struct StudySession: SessionMode {
         return scheduled
     }
 
-    public mutating func perform(_ command: SessionCommand) {
+    mutating func perform(_ command: SessionCommand) {
         session.perform(command)
     }
 

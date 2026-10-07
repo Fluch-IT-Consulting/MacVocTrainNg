@@ -318,4 +318,45 @@ struct SessionTests {
         study.perform(.skip)
         #expect(study.session.isFinished)
     }
+
+    @Test func gradingInAStudySessionReschedulesTheCard() {
+        let deck = deck(newCards: 2)
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
+        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        let expected = study.review(.good, in: deck, at: now)!
+
+        #expect(mode.grade(.good, in: deck, at: now) == .rescheduled(expected))
+        #expect(mode.session.reviewCount == 1)
+    }
+
+    @Test func gradingInPracticeChangesNoCard() {
+        let deck = deck(newCards: 2)
+        var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), steps: 2, at: now, random: SeededRandom(seed: 1)))
+
+        #expect(mode.grade(.again, in: deck, at: now) == .practiced)
+        #expect(mode.session.reviewCount == 1)
+        #expect(mode.session.mistakeIDs.count == 1)
+    }
+
+    @Test func gradingACardTheDeckNoLongerHoldsRecordsNothing() {
+        var deck = deck(newCards: 2)
+        let ids = deck.cards.map(\.id)
+        var study = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
+        var practice = SessionMode.practice(Practice(practicing: ids, steps: 2, at: now, random: SeededRandom(seed: 1)))
+        deck.cards.removeAll { $0.id == study.session.currentCardID || $0.id == practice.session.currentCardID }
+
+        #expect(study.grade(.good, in: deck, at: now) == nil)
+        #expect(practice.grade(.good, in: deck, at: now) == nil)
+        #expect(study.session.reviewCount == 0)
+        #expect(practice.session.reviewCount == 0)
+    }
+
+    @Test func gradingAFinishedSessionRecordsNothing() {
+        let deck = deck(newCards: 1)
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, random: SeededRandom(seed: 1)))
+        mode.perform(.skip)
+
+        #expect(mode.session.isFinished)
+        #expect(mode.grade(.good, in: deck, at: now) == nil)
+    }
 }

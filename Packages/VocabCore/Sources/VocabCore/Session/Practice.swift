@@ -1,7 +1,8 @@
 import Foundation
 
 /// A session over the mistakes of an earlier session; its reviews change no card.
-public struct Practice: SessionMode {
+/// It runs as `SessionMode.practice`.
+public struct Practice: Sendable {
     /// The state shared with study sessions. Only this type changes it.
     public private(set) var session: Session
 
@@ -16,7 +17,7 @@ public struct Practice: SessionMode {
     }
 
     /// Records the review of the current card and moves on to the next one.
-    public mutating func record(_ grade: Grade) {
+    mutating func record(_ grade: Grade) {
         guard let id = session.currentCardID else { return }
         // Mistakes need steps like (re)learning cards in a study session;
         // other cards leave after one recall like cards in the review phase.
@@ -30,7 +31,7 @@ public struct Practice: SessionMode {
         session.record(grade, isDone: isDone)
     }
 
-    public mutating func perform(_ command: SessionCommand) {
+    mutating func perform(_ command: SessionCommand) {
         session.perform(command)
     }
 }
