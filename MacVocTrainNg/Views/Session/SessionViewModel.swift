@@ -105,24 +105,27 @@ final class SessionViewModel {
     func grade(_ grade: Grade, undoManager: UndoManager?) {
         guard stage != .finished, let card = currentCard else { return }
         let before = mode
+        var scheduled: Card?
 
         switch mode {
         case var .study(study):
-            guard let scheduled = study.review(grade, in: document.deck, at: document.clock.now) else { return }
+            guard let rescheduled = study.review(grade, in: document.deck, at: document.clock.now) else { return }
             mode = .study(study)
-            let after = mode
-            let hook = UndoHook(
-                forward: { [weak self] in self?.restore(after) },
-                backward: { [weak self] in self?.restore(before) }
-            )
-            document.applyReview(scheduled, undoManager: undoManager, hook: hook)
+            scheduled = rescheduled
         case var .practice(practice):
-            // Practice doesn't touch the cards, but ⌘Z should still take back the
-            // last review instead of reaching a review of the earlier session.
             practice.record(grade)
             mode = .practice(practice)
-            registerSessionUndo(from: before, to: mode, undoManager: undoManager)
         }
+
+        // One undo step takes back the card and the session's place. Practice changes
+        // no card, but ⌘Z should still take back the last review instead of reaching a
+        // review of the earlier session.
+        undoManager?.beginUndoGrouping()
+        if let scheduled {
+            document.applyReview(scheduled, undoManager: undoManager)
+        }
+        registerSessionUndo(from: before, to: mode, undoManager: undoManager)
+        undoManager?.endUndoGrouping()
 
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
         moveOn()
@@ -177,6 +180,9 @@ final class SessionViewModel {
         }
     }
 
+    /// Undo runs the actions of a group backwards, so undoing a review restores the
+    /// session before the document restores the card; `deckDidChange` then shows
+    /// the card as it was. Redo runs them the other way round.
     private func registerSessionUndo(from before: Mode, to after: Mode, undoManager: UndoManager?) {
         undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
             model.restore(before)
