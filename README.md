@@ -28,6 +28,23 @@ wieder, wenn du sie sonst vergessen würdest.
   wahlweise mit Reifegrad, Fälligkeit und Zahl der Abfragen
 - Deutsch und Englisch (folgt der Systemsprache)
 
+## Installation
+
+Mit [Homebrew](https://brew.sh), macOS 14 oder neuer:
+
+```bash
+brew install --cask fluch-it-consulting/tap/macvoctrain
+```
+
+`brew upgrade` hält die App aktuell. Jede Version liegt außerdem als DMG unter
+[Releases](https://github.com/Fluch-IT-Consulting/MacVocTrainNg/releases): öffnen und
+MacVocTrain in den Ordner *Programme* ziehen.
+
+Die App ist signiert, aber nicht notarisiert. Beim ersten Start blockiert macOS sie;
+erlauben lässt sie sich einmal unter *Systemeinstellungen → Datenschutz & Sicherheit →
+Dennoch öffnen*. Nach `brew upgrade` startet die neue Version ohne Rückfrage, eine neu
+geladene DMG muss dagegen jedes Mal erlaubt werden.
+
 ## Projektstruktur
 
 ```
@@ -111,11 +128,26 @@ Tools/make-release.sh
 ```
 
 erzeugt `build/release/MacVocTrain-<Version>.dmg`: ein Universal Binary (Apple Silicon und
-Intel) für macOS 14 oder neuer. Ohne Apple-Developer-Zertifikat ist die App nur ad hoc
-signiert. Empfänger müssen sie beim ersten Start einmal erlauben: *Systemeinstellungen →
-Datenschutz & Sicherheit → Dennoch öffnen*. Mit einer Developer ID (Apple Developer
-Program) signiert und notarisiert das Skript die App, dann startet sie ohne Warnung.
-Die Variablen dafür stehen im Kopf des Skripts.
+Intel) für macOS 14 oder neuer. Signiert wird mit dem Zertifikat aus
+`Config/Signing.local.xcconfig`, ohne die Datei ad hoc. Empfänger müssen die App beim
+ersten Start einmal erlauben (siehe Installation), ad hoc signiert nach jedem Update
+erneut. Mit einer Developer ID (Apple Developer Program) signiert und notarisiert das
+Skript die App, dann startet sie ohne Warnung. Die Variablen dafür stehen im Kopf des
+Skripts.
+
+Ein Release:
+
+1. `MARKETING_VERSION` anheben und per Pull Request nach `main` bringen.
+2. Auf dem aktuellen `main` hängt `Tools/make-release.sh --draft` die DMG an einen
+   Release-Entwurf `v<Version>`. Ad hoc signiert es dafür nicht.
+3. Den Entwurf auf GitHub prüfen und veröffentlichen. Das legt den Tag an, und der
+   Workflow `tap-bump.yml` hebt die Cask im Tap
+   [`fluch-it-consulting/tap`](https://github.com/Fluch-IT-Consulting/homebrew-tap) an.
+   Scheitert er, lässt er sich unter *Actions* mit dem Tag von Hand nachholen. Er braucht
+   einmalig einen Deploy Key, die Befehle stehen in seinem Kopf.
+
+Die Signatur eines Releases ist öffentlich: `codesign -dvv` zeigt Apple-ID und Team-ID
+des Zertifikats, mit dem es signiert ist.
 
 ## Lernalgorithmus
 
