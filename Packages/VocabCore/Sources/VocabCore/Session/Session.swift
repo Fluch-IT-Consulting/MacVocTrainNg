@@ -3,8 +3,8 @@ import Foundation
 /// What a study session and practice have in common: which cards remain, which
 /// one is asked, and how it went so far.
 ///
-/// The session only tracks card IDs. Only its mode, `StudySession` or `Practice`,
-/// changes it: the mode records reviews and decides when a card is done.
+/// The session only tracks card IDs. Only its mode (`SessionMode`) changes it: the
+/// mode records reviews and decides when a card is done.
 public struct Session: Sendable {
     public let id = UUID()
     public let startedAt: Date
@@ -29,7 +29,7 @@ public struct Session: Sendable {
     public var isFinished: Bool { currentCardID == nil }
     public var remainingCount: Int { queue.count }
     public var completedCount: Int { totalCount - queue.count }
-    /// Cards already asked that would still be finished by `finishUp()`.
+    /// Cards already asked that would still be finished by `SessionCommand.finishUp`.
     public var startedCount: Int { queue.startedCount }
 
     /// Counts the review of the current card and moves on to the next one.
@@ -49,8 +49,14 @@ public struct Session: Sendable {
         advance()
     }
 
-    /// Stops introducing new cards; only cards already asked are finished.
-    mutating func finishUp() {
+    mutating func perform(_ command: SessionCommand) {
+        switch command {
+        case .finishUp: finishUp()
+        case .skip: skip()
+        }
+    }
+
+    private mutating func finishUp() {
         let completed = completedCount
         queue.finishUp()
         totalCount = completed + queue.count
@@ -59,17 +65,11 @@ public struct Session: Sendable {
         }
     }
 
-    /// Drops the current card without recording a review, e.g. because it was deleted.
-    mutating func skip() {
+    private mutating func skip() {
         guard let id = currentCardID else { return }
         queue.remove(id)
         totalCount -= 1
         advance()
-    }
-
-    /// Ends the session immediately.
-    mutating func stop() {
-        currentCardID = nil
     }
 
     private mutating func advance() {
