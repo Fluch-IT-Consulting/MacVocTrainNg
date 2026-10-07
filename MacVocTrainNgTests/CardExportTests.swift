@@ -9,10 +9,9 @@ struct CardExportTests {
     let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!)
 
     private var studied: Card {
-        var card = Card(question: "kot", answer: "Katze", hint: "Tier")
         let due = calendar.start(ofDay: CivilDate(year: 2026, month: 10, day: 9).dayNumber)
-        card.learningState = LearningState(phase: .review, stability: 6, difficulty: 5, lastReview: due.addingTimeInterval(-6 * 86400), due: due, reviews: 4)
-        return card
+        let learningState = LearningState(phase: .review, stability: 6, difficulty: 5, lastReview: due.addingTimeInterval(-6 * 86400), due: due, reviews: 4)
+        return Card(question: "kot", answer: "Katze", hint: "Tier", learningState: learningState)
     }
 
     @Test func exportsQuestionAnswerAndHint() {

@@ -56,7 +56,7 @@ struct DeckOptionsView: View {
                 Section("Advanced") {
                     Toggle("Spread out intervals", isOn: $options.fuzzing)
                         .help("Varies intervals slightly so cards learned together don't always come back together.")
-                    Stepper(value: $options.maximumInterval, in: 30...36500, step: 30) {
+                    Stepper(value: $options.maximumInterval, in: LearningOptions.maximumIntervalRange, step: 30) {
                         LabeledContent("Longest interval", value: Format.days(Double(options.maximumInterval)))
                     }
                 }
@@ -99,7 +99,7 @@ private struct LimitField: View {
                 if let limit = value {
                     // A stepper rather than a text field: a text field only commits on
                     // Return, so clicking Save right after typing would lose the value.
-                    Stepper(value: Binding(get: { limit }, set: { value = $0 }), in: 1...9999, step: step) {
+                    Stepper(value: Binding(get: { limit }, set: { value = $0 }), in: LearningOptions.sessionLimitRange, step: step) {
                         Text(limit.formatted())
                             .monospacedDigit()
                     }

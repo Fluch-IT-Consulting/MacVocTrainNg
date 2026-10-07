@@ -90,6 +90,26 @@ struct DeckChangeTests {
         #expect(deck.progress.isEmpty)
     }
 
+    @Test func editingTextKeepsTheLearningState() throws {
+        let studied = studiedCard()
+        var deck = Deck(cards: [Card(question: "kot", answer: "Katze"), studied])
+
+        let change = try #require(DeckChange.editingText(of: studied.id, to: CardText(question: "dom", answer: "Haus / Heim", hint: "Gebäude")!, in: deck))
+        _ = deck.apply(change, day: 100)
+        let edited = try #require(deck.card(withID: studied.id))
+        #expect((edited.question, edited.answer, edited.hint) == ("dom", "Haus / Heim", "Gebäude"))
+        #expect(edited.learningState == studied.learningState)
+        #expect(edited.log == studied.log)
+        #expect(edited.created == studied.created)
+    }
+
+    @Test func editingTheSameTextOrAMissingCardChangesNothing() {
+        let card = Card(question: "dom", answer: "Haus")
+        let deck = Deck(cards: [card])
+        #expect(DeckChange.editingText(of: card.id, to: CardText(question: "dom ", answer: "Haus")!, in: deck) == nil)
+        #expect(DeckChange.editingText(of: UUID(), to: CardText(question: "kot", answer: "Katze")!, in: deck) == nil)
+    }
+
     @Test func resettingTakesOnlySelectedCardsThatWereStudied() throws {
         let studied = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: start, due: start))
         let new = Card(question: "kot", answer: "Katze")
@@ -129,8 +149,11 @@ struct DeckChangeTests {
 
     @Test func newParametersReplayMemoryOfCardsWithCompleteLog() throws {
         let studied = studiedCard()
-        var imported = Card(question: "kot", answer: "Katze")
-        imported.learningState = LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
+        let imported = Card(
+            question: "kot",
+            answer: "Katze",
+            learningState: LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
+        )
         var deck = Deck(cards: [studied, imported])
 
         var options = LearningOptions()

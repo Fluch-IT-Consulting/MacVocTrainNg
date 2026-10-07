@@ -82,14 +82,16 @@ struct CardTableTests {
         var random = SeededRandom(seed: 21)
         let words = ["dom", "Dom", "dzień", "dzien", "kot", "Kot", "a", "b", "żaba", "zebra", "10", "9"]
         func makeCard() -> Card {
-            var card = Card(question: words.randomElement(using: &random)!, answer: words.randomElement(using: &random)!)
+            let question = words.randomElement(using: &random)!
+            let answer = words.randomElement(using: &random)!
+            var learningState: LearningState?
             if Bool.random(using: &random) {
-                card.learningState = LearningState(
+                learningState = LearningState(
                     phase: .review, stability: .random(in: 0.5...300, using: &random), difficulty: 5,
                     lastReview: Date(), due: Date()
                 )
             }
-            return card
+            return Card(question: question, answer: answer, learningState: learningState)
         }
 
         var deck = (0..<40).map { _ in makeCard() }
@@ -105,8 +107,12 @@ struct CardTableTests {
                 case 2 where !deck.isEmpty:
                     let position = Int.random(in: deck.indices, using: &random)
                     let replacement = makeCard()
-                    deck[position].question = replacement.question
-                    deck[position].learningState = replacement.learningState
+                    deck[position] = Card(
+                        id: deck[position].id,
+                        question: replacement.question,
+                        answer: deck[position].answer,
+                        learningState: replacement.learningState
+                    )
                 default:
                     deck.append(makeCard())
                 }

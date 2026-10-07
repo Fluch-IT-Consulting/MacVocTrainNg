@@ -10,15 +10,14 @@ struct StatisticsFiguresTests {
     let now = ISO8601DateFormatter().date(from: "2026-10-06T12:00:00Z")!
 
     private func reviewCard(_ question: String, dueIn days: Double, stability: Double = 10) -> Card {
-        var card = Card(question: question, answer: "a")
-        card.learningState = LearningState(
+        let learningState = LearningState(
             phase: .review,
             stability: stability,
             difficulty: 5,
             lastReview: now.addingTimeInterval(-3 * 86400),
             due: now.addingTimeInterval(days * 86400)
         )
-        return card
+        return Card(question: question, answer: "a", learningState: learningState)
     }
 
     @Test func summaryFollowsCardsAndTime() {
@@ -38,10 +37,12 @@ struct StatisticsFiguresTests {
 
     @Test func summaryFollowsLearningOptions() {
         let figures = StatisticsFigures()
-        var deck = Deck(cards: [reviewCard("kot", dueIn: 5)])
-        let before = figures.summary(of: deck, at: now, calendar: calendar).averageRecallProbability
+        let cards = [reviewCard("kot", dueIn: 5)]
+        let before = figures.summary(of: Deck(cards: cards), at: now, calendar: calendar).averageRecallProbability
 
-        deck.learningOptions.parameters = FSRSParameters(FSRSParameters.default.weights.enumerated().map { $0 == 20 ? $1 * 2 : $1 })!
+        var learningOptions = LearningOptions()
+        learningOptions.parameters = FSRSParameters(FSRSParameters.default.weights.enumerated().map { $0 == 20 ? $1 * 2 : $1 })!
+        let deck = Deck(learningOptions: learningOptions, cards: cards)
         let after = figures.summary(of: deck, at: now, calendar: calendar).averageRecallProbability
         #expect(after == DeckStatistics.summary(of: deck, at: now, calendar: calendar).averageRecallProbability)
         #expect(after != before)
