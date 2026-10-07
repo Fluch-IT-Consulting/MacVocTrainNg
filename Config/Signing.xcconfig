@@ -1,0 +1,17 @@
+// Code signing for local builds of the app and its tests.
+//
+// Without further setup both are signed ad hoc. An ad-hoc signature changes with
+// every build, so macOS asks before each launch whether the new build may use the
+// sandbox container of the previous one; the app tests launch it as their host.
+//
+// To sign with a stable Apple Development certificate, create the untracked
+// Signing.local.xcconfig next to this file with your team ID:
+//
+//   CODE_SIGN_IDENTITY = Apple Development
+//   DEVELOPMENT_TEAM = <TEAMID>
+
+CODE_SIGN_IDENTITY = -
+CODE_SIGN_STYLE = Manual
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"
