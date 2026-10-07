@@ -14,7 +14,6 @@ import Foundation
 struct SessionQueue: Sendable {
     static let stagingSize = 25
     static let rotationSize = 10
-    static let pickWindow = 6
 
     private(set) var backlog: [Card.ID]
     private(set) var staging: [Card.ID] = []
@@ -39,7 +38,11 @@ struct SessionQueue: Sendable {
     mutating func next<R: RandomNumberGenerator>(using random: inout R) -> Card.ID? {
         fillRotation(using: &random)
         guard !rotation.isEmpty else { return nil }
-        let window = min(Self.pickWindow, (rotation.count + 1) / 2)
+        // Pick from the front half. The card just asked sits at the end, outside the
+        // window, and moves up one place per question: no card comes twice in a row
+        // while others are left, and an `.again` card returns only after at least
+        // `rotation.count - window` others.
+        let window = (rotation.count + 1) / 2
         let index = Int.random(in: 0..<window, using: &random)
         let id = rotation.remove(at: index)
         rotation.append(id)
