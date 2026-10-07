@@ -179,6 +179,23 @@ struct DeckChangeTests {
         #expect(deck.dueCount(at: due) == 2)
     }
 
+    @Test func recallProbabilityFollowsTheLearningOptions() throws {
+        let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!)
+        let learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: start, due: start)
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
+        // After as many days as the stability, every decay gives 90 %; later they differ.
+        let later = start.addingTimeInterval(20 * 86400)
+        var options = LearningOptions()
+        options.parameters = try #require(FSRSParameters(FSRSParameters.default.weights.enumerated().map { $0 == 20 ? $1 * 2 : $1 }))
+
+        let standard = try #require(Deck(cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
+        let custom = try #require(Deck(learningOptions: options, cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
+        #expect(standard < 0.9)
+        #expect(custom == Scheduler(learningOptions: options, calendar: calendar).recallProbability(of: learningState, at: later))
+        #expect(custom != standard)
+        #expect(Deck().recallProbability(of: Card(question: "kot", answer: "Katze"), at: later, calendar: calendar) == nil)
+    }
+
     @Test func cardsAreFoundByTheirQuestion() {
         let deck = Deck(cards: [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")])
         #expect(deck.cards(withQuestion: "dom").map(\.answer) == ["Haus"])
