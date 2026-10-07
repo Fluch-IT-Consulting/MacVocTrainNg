@@ -227,7 +227,7 @@ struct SessionTests {
         #expect(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4)).session.totalCount == 20)
     }
 
-    @Test func learningCardsAreIntroducedBeforeNewAndReviewCards() {
+    @Test func learningCardsAreIntroducedBeforeReviewAndNewCards() {
         var deck = deck(newCards: 30, reviewCards: 30)
         var relearning = Card(question: "x", answer: "y")
         relearning.learningState = LearningState(phase: .relearning, stability: 1, difficulty: 5, lastReview: now, due: now)
@@ -236,7 +236,17 @@ struct SessionTests {
         let order = StudySession.selectCards(from: deck, at: now, calendar: .testing, using: &random)
         #expect(order.first == relearning.id)
         let newIDs = Set(deck.cards.filter(\.isNew).map(\.id))
-        #expect(order.dropFirst().prefix(30).allSatisfy(newIDs.contains))
+        #expect(order.dropFirst().prefix(30).allSatisfy { !newIDs.contains($0) })
+        #expect(order.dropFirst(31).allSatisfy(newIDs.contains))
+    }
+
+    @Test func newCardsDoNotCrowdOutDueReviewCards() {
+        var deck = deck(newCards: 250, reviewCards: 40)
+        deck.learningOptions = LearningOptions()
+        var random = SeededRandom(seed: 8)
+        let selected = StudySession.selectCards(from: deck, at: now, calendar: .testing, using: &random)
+        #expect(selected.count == deck.learningOptions.cardsPerSession)
+        #expect(deck.cards.filter { !$0.isNew }.allSatisfy { selected.contains($0.id) })
     }
 
     @Test func finishUpEndsAfterStartedCards() {
