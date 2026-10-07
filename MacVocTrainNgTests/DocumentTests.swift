@@ -113,8 +113,13 @@ struct DocumentTests {
         _ = (willChange, didChange)
     }
 
+    @Test func theCalendarIsTheOneGiven() {
+        #expect(VocabularyDocument(calendar: .testing).calendar == .testing)
+        #expect(VocabularyDocument().calendar == StudyCalendar())
+    }
+
     @Test func changesUpdateTodaysSnapshot() {
-        let document = VocabularyDocument()
+        let document = VocabularyDocument(calendar: .testing)
         let undoManager = makeUndoManager()
         step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
         #expect(document.deck.progress.last?.day == document.calendar.dayNumber(for: Date()))
@@ -179,7 +184,7 @@ struct SessionViewModelTests {
         var learningOptions = LearningOptions()
         learningOptions.steps = steps
         learningOptions.fuzzing = false
-        return VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }))
+        return VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }), calendar: .testing)
     }
 
     @Test func correctResponseMovesOnAndCanBeUndone() throws {
@@ -305,7 +310,7 @@ struct SessionViewModelTests {
         // A long stability, so the fuzz has many days to choose from.
         let learningState = LearningState(phase: .learning, stability: 100, difficulty: 5, lastReview: now.addingTimeInterval(-100 * 86400), due: now)
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock)
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock, calendar: .testing)
         let undoManager = makeUndoManager()
         let model = SessionViewModel(document: document, autoAdvance: true)
 
@@ -495,8 +500,7 @@ struct SessionViewModelTests {
     }
 
     @Test func sessionsAcrossTheStartOfAStudyDay() throws {
-        // Equals the calendar of the document, so the test holds in every time zone.
-        let calendar = StudyCalendar()
+        let calendar = StudyCalendar.testing
         let day = CivilDate(year: 2026, month: 10, day: 6).dayNumber
         // 03:30, still the study day before.
         let clock = ManualClock(calendar.start(ofDay: day).addingTimeInterval(-30 * 60))
@@ -504,7 +508,7 @@ struct SessionViewModelTests {
         learningOptions.steps = 1
         learningOptions.fuzzing = false
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock)
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: calendar)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
         model.input = "Haus"

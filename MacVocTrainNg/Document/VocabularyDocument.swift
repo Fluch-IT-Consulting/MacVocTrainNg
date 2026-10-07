@@ -43,7 +43,9 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Sends after every change to `deck`, once it holds the new state. Observers
     /// other than views use this, see the type's documentation.
     let deckDidChange = PassthroughSubject<Void, Never>()
-    let calendar = StudyCalendar()
+    /// The study days of reviews, statistics and export. The machine's time zone,
+    /// unless a test passes a fixed one.
+    let calendar: StudyCalendar
     /// The time of reviews, of today's snapshot and of which cards are due.
     let clock: StudyClock
     /// The number of cards due now, kept up to date as time passes.
@@ -52,14 +54,16 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Thread-safe on its own, as saving uses it on a background thread.
     private let reviewLog = ReviewLogEncoder()
 
-    nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system) {
+    nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system, calendar: StudyCalendar = StudyCalendar()) {
         self.deck = deck
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
         self.clock = clock
+        self.calendar = calendar
     }
 
     nonisolated required init(configuration: ReadConfiguration) throws {
         clock = .system
+        calendar = StudyCalendar()
         let deck: Deck
         do {
             deck = try DeckFile.decode(configuration.file)
