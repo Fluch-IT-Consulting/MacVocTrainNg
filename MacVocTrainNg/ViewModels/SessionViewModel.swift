@@ -159,6 +159,11 @@ final class SessionViewModel {
 
     /// Registers `companion` as the undo action of a practice review, which changes no
     /// card and so doesn't go through the document.
+    ///
+    /// It lands on the document's undo manager all the same, so NSDocument counts it as
+    /// a change: the deck shows as edited and autosave writes it unchanged. Marking the
+    /// action discardable doesn't prevent that. Accepted, because without the undo
+    /// action ⌘Z would reach the last review of the earlier study session (#166).
     private func registerUndo(_ companion: UndoCompanion, undoManager: UndoManager?) {
         undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
             companion.undo()
