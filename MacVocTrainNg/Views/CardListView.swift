@@ -6,6 +6,7 @@ struct CardListView: View {
     @Environment(\.undoManager) private var undoManager
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
+    @State private var columns = TableColumnCustomization<CardRow>()
     @State private var searchText = ""
     @State private var showingInspector = false
     @State private var table = CardTable()
@@ -45,20 +46,29 @@ struct CardListView: View {
 
             Divider()
 
-            Table(rows, selection: $selection, sortOrder: $sortOrder) {
+            Table(rows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
                 TableColumn("Question", value: \.question)
+                    .customizationID("question")
                 TableColumn("Answer", value: \.answer)
+                    .customizationID("answer")
                 TableColumn("Hint", value: \.hint)
+                    .customizationID("hint")
                 TableColumn("Maturity", value: \.categoryRank) { row in
                     MaturityLabel(category: row.category)
                 }
                 .width(min: 90, ideal: 110)
+                .customizationID("maturity")
                 TableColumn("Due", value: \.dueSortKey) { row in
                     // Formatted per visible cell rather than for all rows up front.
                     DueText(due: row.due, now: now)
                 }
                 .width(min: 80, ideal: 110)
+                .customizationID("due")
             }
+            // A new sort order builds a new table: diffing the old order against the
+            // new one moves every row on its own and took about 10 s for 5830 cards
+            // (#168). The column widths live in `columns`, so they survive.
+            .id(sortOrder)
             .contextMenu(forSelectionType: Card.ID.self) { ids in
                 if !ids.isEmpty {
                     Button("Show Details") {
