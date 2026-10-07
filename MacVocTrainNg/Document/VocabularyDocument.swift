@@ -54,6 +54,8 @@ extension UndoManager {
 /// - Everything else, like `DueCardCounter` and `SessionViewModel`, subscribes to
 ///   `deckDidChange`. It sends after every change, once `deck` holds the new state.
 ///
+/// Why the document doesn't switch to Observation: `docs/adr/0003-dokument-bleibt-observableobject.md`.
+///
 /// The document lives on the main actor, so the compiler checks that the deck is only
 /// read and changed there. Initializers and the requirements of `ReferenceFileDocument`
 /// are `nonisolated`: SwiftUI creates and opens documents and writes snapshots to file
