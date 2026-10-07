@@ -181,6 +181,25 @@ struct DeckChangeTests {
         #expect(DeckChange.changingLearningOptions(LearningOptions(), in: deck, calendar: .testing) == nil)
     }
 
+    @Test func learningOptionsAreClampedToTheirRanges() throws {
+        var deck = Deck()
+        var options = LearningOptions()
+        options.steps = 0
+        options.targetRecall = 2
+
+        _ = deck.apply(try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: .testing)), day: 100)
+        #expect(deck.learningOptions.steps == 1)
+        #expect(deck.learningOptions.targetRecall == 0.97)
+    }
+
+    @Test func learningOptionsThatClampToTheCurrentOnesChangeNothing() {
+        var options = LearningOptions()
+        options.steps = 5
+        let deck = Deck(learningOptions: options)
+        options.steps = 6
+        #expect(DeckChange.changingLearningOptions(options, in: deck, calendar: .testing) == nil)
+    }
+
     @Test func learningOptionsWithoutNewParametersLeaveTheCards() throws {
         let studied = studiedCard()
         var deck = Deck(cards: [studied])

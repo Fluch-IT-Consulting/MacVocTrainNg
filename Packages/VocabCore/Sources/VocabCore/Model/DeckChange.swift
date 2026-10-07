@@ -60,10 +60,13 @@ extension DeckChange {
         return cards.isEmpty ? nil : DeckChange(upserts: cards)
     }
 
-    /// Sets the learning options of `deck`, or `nil` if they don't change. New FSRS
-    /// parameters also replay stability and difficulty of every card with a complete
-    /// review log (`Scheduler.replayingMemory(of:)`); due dates stay.
+    /// Sets the learning options of `deck`, clamped into the ranges they offer, or `nil`
+    /// if that doesn't change them. New FSRS parameters also replay stability and
+    /// difficulty of every card with a complete review log
+    /// (`Scheduler.replayingMemory(of:)`); due dates stay.
     public static func changingLearningOptions(_ learningOptions: LearningOptions, in deck: Deck, calendar: StudyCalendar) -> DeckChange? {
+        var learningOptions = learningOptions
+        learningOptions.sanitize()
         guard deck.learningOptions != learningOptions else { return nil }
         var replayed: [Card] = []
         if learningOptions.parameters != deck.learningOptions.parameters {

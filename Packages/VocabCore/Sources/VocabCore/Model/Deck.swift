@@ -1,6 +1,9 @@
 import Foundation
 
 /// Per-deck learning options.
+///
+/// A deck holds only values within the ranges below: `DeckFile` and
+/// `DeckChange.changingLearningOptions` clamp them with `sanitize()`.
 public struct LearningOptions: Hashable, Sendable {
     /// Recall probability at which a card becomes due again (FSRS "desired retention").
     public var targetRecall: Double = 0.9
@@ -27,8 +30,8 @@ public struct LearningOptions: Hashable, Sendable {
 }
 
 extension LearningOptions {
-    /// Clamps values from hand-edited or corrupt files into the ranges the learning
-    /// options offer.
+    /// Clamps values into the ranges the learning options offer, for options from
+    /// hand-edited or corrupt files and for new options set on a deck.
     mutating func sanitize() {
         if !targetRecall.isFinite { targetRecall = LearningOptions().targetRecall }
         targetRecall = targetRecall.clamped(to: Self.targetRecallRange)
