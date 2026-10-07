@@ -40,10 +40,20 @@ struct SessionViewTests {
         window.orderFront(nil)
     }
 
-    /// Lets SwiftUI update the window. Suspends instead of running the run loop
-    /// nested, so work the views hand to the main actor gets its turn as well.
-    private func settle() async throws {
-        try await Task.sleep(for: .milliseconds(250))
+    /// Lets SwiftUI update the window until `condition` holds, at most for `timeout`.
+    /// Suspends instead of running the run loop nested, so work the views hand to the
+    /// main actor gets its turn as well.
+    private func waitUntil(
+        _ comment: Comment,
+        timeout: Duration = .seconds(5),
+        sourceLocation: SourceLocation = #_sourceLocation,
+        _ condition: () -> Bool
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while !condition(), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        try #require(condition(), "Timed out waiting until \(comment)", sourceLocation: sourceLocation)
     }
 
     private var fieldEditor: NSTextView? {
@@ -61,33 +71,34 @@ struct SessionViewTests {
         for character in text {
             editor.insertText(String(character), replacementRange: editor.selectedRange())
         }
-        try await settle()
+        try await waitUntil("the model holds the response") { model.input == text }
+        // Return is an event of its own: the views finish handling the typing first.
+        // Pressed in the same turn, the review isn't what ⌘Z takes back.
+        await Task.yield()
         undoManager.beginUndoGrouping()
         editor.insertNewline(nil)
         undoManager.endUndoGrouping()
-        try await settle()
     }
 
     /// ⌘Z, sent along the responder chain like the menu item.
-    private func commandZ() async throws {
+    private func commandZ() throws {
         let responder = try #require(window.firstResponder)
         #expect(responder.tryToPerform(Selector(("undo:")), with: nil))
-        try await settle()
     }
 
     @Test func undoAfterContinuingAutomaticallyTakesBackTheReview() async throws {
-        try await settle()
         let first = try #require(model.currentCard)
-        let firstField = try #require(editedField, "the first response field has the focus")
+        try await waitUntil("the first response field has the focus") { editedField != nil }
+        let firstField = try #require(editedField)
         try await respond(first.answer)
+        try await waitUntil("the next response field has the focus") { editedField.map { $0 !== firstField } ?? false }
         #expect(document.card(withID: first.id)?.log.count == 1)
         #expect(model.currentCard?.id != first.id)
-        let nextField = try #require(editedField, "the next response field has the focus")
-        #expect(nextField !== firstField)
-        #expect(nextField.window === window)
+        #expect(editedField?.window === window)
 
         // Before #9 the first ⌘Z took back the typing of the previous response.
-        try await commandZ()
+        try commandZ()
+        try await waitUntil("the review is taken back") { model.currentCard?.id == first.id }
         #expect(document.card(withID: first.id)?.log.isEmpty == true)
         #expect(model.currentCard?.id == first.id)
         #expect(model.input.isEmpty)
