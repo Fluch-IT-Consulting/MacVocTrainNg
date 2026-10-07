@@ -209,6 +209,128 @@ struct SessionViewModelTests {
         #expect(model.session.id == session)
     }
 
+    /// What undo and redo of a review must bring back. The cards rather than the deck:
+    /// undo records today's snapshot again instead of restoring the old one.
+    private struct Place: Equatable {
+        var cards: [Card]
+        var currentCardID: Card.ID?
+        var completedCount: Int
+        var reviewCount: Int
+        var stage: SessionViewModel.Stage
+
+        @MainActor init(_ model: SessionViewModel) {
+            cards = model.document.deck.cards
+            currentCardID = model.currentCard?.id
+            completedCount = model.session.completedCount
+            reviewCount = model.session.reviewCount
+            stage = model.stage
+        }
+    }
+
+    /// Each undo and redo registers the opposite step anew; the stack must stay in order.
+    @Test func severalReviewsAreUndoneAndRedoneOneByOne() throws {
+        let document = makeDocument(cards: 3)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        var places = [Place(model)]
+        for _ in 0..<3 {
+            model.input = try #require(model.currentCard).answer
+            step(undoManager) { model.submit(undoManager: undoManager) }
+            places.append(Place(model))
+        }
+        #expect(model.isFinished)
+
+        for place in places.dropLast().reversed() {
+            undoManager.undo()
+            #expect(Place(model) == place)
+        }
+        #expect(!undoManager.canUndo)
+
+        for place in places.dropFirst() {
+            undoManager.redo()
+            #expect(Place(model) == place)
+        }
+        #expect(!undoManager.canRedo)
+    }
+
+    @Test func undoingTheReviewThatFinishedTheSessionAsksAgain() throws {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        let card = try #require(model.currentCard)
+        model.input = card.answer
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        #expect(model.isFinished)
+
+        undoManager.undo()
+        #expect(model.stage == .asking)
+        #expect(model.currentCard == card)
+
+        undoManager.redo()
+        #expect(model.isFinished)
+    }
+
+    /// The fuzz of intervals belongs to the session's value: after undo, the same grade
+    /// gives the same due date.
+    @Test func undoingAReviewInLearningRestoresStepAndFuzz() throws {
+        let now = Date(timeIntervalSince1970: 1_791_216_000)
+        var learningOptions = LearningOptions()
+        learningOptions.steps = 2
+        learningOptions.fuzzing = true
+        // A long stability, so the fuzz has many days to choose from.
+        let learningState = LearningState(phase: .learning, stability: 100, difficulty: 5, lastReview: now.addingTimeInterval(-100 * 86400), due: now)
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+
+        model.input = "Haus"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        #expect(document.card(withID: card.id)?.learningState?.step == 1)
+        #expect(model.currentCard?.id == card.id)  // stays in the session
+
+        model.input = "Haus"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        let reviewed = try #require(document.card(withID: card.id)?.learningState)
+        #expect(reviewed.phase == .review)
+        #expect(model.isFinished)
+
+        undoManager.undo()
+        undoManager.undo()
+        #expect(document.card(withID: card.id) == card)
+        undoManager.redo()
+        #expect(document.card(withID: card.id)?.learningState?.step == 1)
+        #expect(model.currentCard?.learningState?.step == 1)
+
+        model.input = "Haus"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        #expect(document.card(withID: card.id)?.learningState == reviewed)
+    }
+
+    @Test func aNewReviewAfterUndoDropsTheRedo() throws {
+        let document = makeDocument(cards: 2)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        let first = try #require(model.currentCard)
+        model.input = first.answer
+        step(undoManager) { model.submit(undoManager: undoManager) }
+
+        undoManager.undo()
+        #expect(model.currentCard == first)
+        model.input = "wrong"
+        model.submit(undoManager: undoManager)
+        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        #expect(!undoManager.canRedo)
+        #expect(document.card(withID: first.id)?.log.map(\.grade) == [.again])
+        #expect(model.session.mistakeIDs == [first.id])
+
+        undoManager.undo()
+        #expect(document.card(withID: first.id)?.isNew == true)
+        #expect(model.currentCard == first)
+        #expect(model.session.mistakeIDs.isEmpty)
+        #expect(!undoManager.canUndo)
+    }
+
     @Test func wrongResponseAsksForGrade() throws {
         let document = makeDocument(cards: 2, steps: 2)
         let undoManager = makeUndoManager()
