@@ -69,6 +69,14 @@ public struct Deck: Hashable, Sendable {
         cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
     }
 
+    /// The probability of recalling `card` at `now` with the deck's learning options,
+    /// see `Scheduler.recallProbability(of:at:)`; `nil` for a new card.
+    public func recallProbability(of card: Card, at now: Date, calendar: StudyCalendar) -> Double? {
+        card.learningState.map {
+            Scheduler(learningOptions: learningOptions, calendar: calendar).recallProbability(of: $0, at: now)
+        }
+    }
+
     /// Cards with the same question as `question`, see `CardText.key(forQuestion:)`.
     public func cards(withQuestion question: String) -> [Card] {
         let key = CardText.key(forQuestion: question)

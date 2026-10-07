@@ -77,7 +77,9 @@ private struct CardDetail: View {
                     LabeledContent("Stability", value: Format.days(learningState.stability))
                     LabeledContent("Difficulty", value: learningState.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")
                     TimelineView(.everyMinute) { _ in
-                        LabeledContent("Recall Probability", value: Format.percent(recallProbability(learningState)))
+                        if let probability = document.deck.recallProbability(of: card, at: document.clock.now, calendar: document.calendar) {
+                            LabeledContent("Recall Probability", value: Format.percent(probability))
+                        }
                     }
                     LabeledContent("Reviews", value: learningState.reviews.formatted())
                     LabeledContent("Lapses", value: learningState.lapses.formatted())
@@ -115,11 +117,6 @@ private struct CardDetail: View {
             hint = card.hint
         }
         .onDisappear(perform: commit)
-    }
-
-    private func recallProbability(_ learningState: LearningState) -> Double {
-        Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
-            .recallProbability(of: learningState, at: document.clock.now)
     }
 
     /// Writes edited text back to the document as one undoable change.
