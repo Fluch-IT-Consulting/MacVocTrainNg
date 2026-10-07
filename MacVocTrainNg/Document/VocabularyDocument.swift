@@ -47,6 +47,13 @@ extension UndoManager {
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes.
 ///
+/// Who wants to hear of changes to the deck uses one of two ways, depending on what
+/// it is:
+/// - Views watch the document with `@ObservedObject`. `objectWillChange` sends before
+///   every change, as SwiftUI expects.
+/// - Everything else, like `DueCardCounter` and `SessionViewModel`, subscribes to
+///   `deckDidChange`. It sends after every change, once `deck` holds the new state.
+///
 /// The document lives on the main actor, so the compiler checks that the deck is only
 /// read and changed there. Initializers and the requirements of `ReferenceFileDocument`
 /// are `nonisolated`: SwiftUI creates and opens documents and writes snapshots to file
@@ -62,8 +69,8 @@ final class VocabularyDocument: ReferenceFileDocument {
         willSet { objectWillChange.send() }
         didSet { deckDidChange.send() }
     }
-    /// Sends after every change to `deck`, once it holds the new state.
-    /// `objectWillChange` sends before the change.
+    /// Sends after every change to `deck`, once it holds the new state. Observers
+    /// other than views use this, see the type's documentation.
     let deckDidChange = PassthroughSubject<Void, Never>()
     let calendar = StudyCalendar()
     /// The time of reviews, of today's snapshot and of which cards are due.
