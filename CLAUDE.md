@@ -57,6 +57,9 @@ issue type; commit titles `typ(#n): Satz` (German), ending with `Teil von #n`; t
 body closes the issue (`Closes #n`). Merge by rebase. Assign the issue before starting
 and don't take over issues assigned to someone else.
 
+Exception: a small change to code comments alone skips the issue. It still gets a branch
+`task/<slug>` and a pull request; commit title `docs: Satz`, without `Teil von` or `Closes`.
+
 ### Issue tracker
 
 GitHub issues in `Fluch-IT-Consulting/MacVocTrainNg`, via the `gh` CLI.
