@@ -67,6 +67,20 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
 oder pro Aufruf `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` voranstellen.
 
+Ohne weitere Einrichtung signiert Xcode App und Tests ad hoc. Diese Signatur ändert
+sich mit jedem Build, deshalb fragt macOS vor jedem Start, ob die neue Version auf die
+Daten der vorigen zugreifen darf; die App-Tests starten die App jedes Mal. Abhilfe ist
+ein Apple-Development-Zertifikat (Xcode → Settings → Accounts, ein kostenloses Personal
+Team reicht) und daneben eine lokale, nicht eingecheckte `Config/Signing.local.xcconfig`:
+
+```
+CODE_SIGN_IDENTITY = Apple Development
+DEVELOPMENT_TEAM = <Team-ID>
+```
+
+Die Team-ID steht im Zertifikat (Schlüsselbundverwaltung, Feld „Organisationseinheit“).
+Nach dem Wechsel fragt macOS ein letztes Mal.
+
 Den Import mit einer echten alten Datei prüfen:
 
 ```bash
