@@ -13,7 +13,7 @@ public struct Scheduler: Sendable {
     public var learningOptions: LearningOptions
     public var calendar: StudyCalendar
 
-    public init(learningOptions: LearningOptions, calendar: StudyCalendar = StudyCalendar()) {
+    public init(learningOptions: LearningOptions, calendar: StudyCalendar) {
         self.learningOptions = learningOptions
         self.calendar = calendar
     }

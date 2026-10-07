@@ -6,7 +6,7 @@ import VocabCore
 
 @MainActor
 struct StatisticsFiguresTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!)
+    let calendar = StudyCalendar.testing
     let now = ISO8601DateFormatter().date(from: "2026-10-06T12:00:00Z")!
 
     private func reviewCard(_ question: String, dueIn days: Double, stability: Double = 10) -> Card {

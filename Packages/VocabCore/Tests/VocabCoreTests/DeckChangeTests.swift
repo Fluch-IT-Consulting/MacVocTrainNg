@@ -7,7 +7,7 @@ struct DeckChangeTests {
 
     /// A card reviewed three times, so its log reaches back to its first review.
     private func studiedCard() -> Card {
-        let scheduler = Scheduler(learningOptions: LearningOptions())
+        let scheduler = Scheduler(learningOptions: LearningOptions(), calendar: .testing)
         var random = SeededRandom(seed: 1)
         return [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
             scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
@@ -178,7 +178,7 @@ struct DeckChangeTests {
 
     @Test func unchangedLearningOptionsChangeNothing() {
         let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
-        #expect(DeckChange.changingLearningOptions(LearningOptions(), in: deck, calendar: StudyCalendar()) == nil)
+        #expect(DeckChange.changingLearningOptions(LearningOptions(), in: deck, calendar: .testing) == nil)
     }
 
     @Test func learningOptionsWithoutNewParametersLeaveTheCards() throws {
@@ -187,7 +187,7 @@ struct DeckChangeTests {
         var options = LearningOptions()
         options.steps = 3
 
-        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: StudyCalendar()))
+        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: .testing))
         _ = deck.apply(change, day: 100)
         #expect(deck.learningOptions == options)
         #expect(deck.cards == [studied])
@@ -207,7 +207,7 @@ struct DeckChangeTests {
         var weights = FSRSParameters.default.weights
         weights[8] = 1.2
         options.parameters = try #require(FSRSParameters(weights))
-        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: StudyCalendar()))
+        let change = try #require(DeckChange.changingLearningOptions(options, in: deck, calendar: .testing))
         _ = deck.apply(change, day: 100)
 
         let replayed = try #require(deck.cards[0].learningState)
@@ -227,7 +227,7 @@ struct DeckChangeTests {
     }
 
     @Test func recallProbabilityFollowsTheLearningOptions() throws {
-        let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!)
+        let calendar = StudyCalendar.testing
         let learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: start, due: start)
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         // After as many days as the stability, every decay gives 90 %; later they differ.

@@ -4,7 +4,7 @@ import Testing
 @testable import VocabCore
 
 struct SchedulerTests {
-    let calendar = StudyCalendar(timeZone: TimeZone(identifier: "Europe/Berlin")!, rolloverHour: 4)
+    let calendar = StudyCalendar.testing
     /// 2026-10-05 18:00 in Berlin.
     let now = Date(timeIntervalSince1970: 1_791_216_000)
 
@@ -121,8 +121,8 @@ struct SchedulerTests {
         learningOptions.fuzzing = false
         learningOptions.maximumInterval = 30
         var random = SeededRandom(seed: 1)
-        #expect(Scheduler(learningOptions: learningOptions).intervalDays(stability: 500, using: &random) == 30)
-        #expect(Scheduler(learningOptions: learningOptions).intervalDays(stability: 0.01, using: &random) == 1)
+        #expect(Scheduler(learningOptions: learningOptions, calendar: calendar).intervalDays(stability: 500, using: &random) == 30)
+        #expect(Scheduler(learningOptions: learningOptions, calendar: calendar).intervalDays(stability: 0.01, using: &random) == 1)
     }
 
     @Test(arguments: [3, 10, 50, 400])
