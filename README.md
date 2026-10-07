@@ -70,7 +70,7 @@ oder pro Aufruf `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` voran
 Den Import mit einer echten alten Datei prüfen:
 
 ```bash
-cd Packages/VocabCore && MVT_SAMPLE=~/Private/polska.mvt swift test --filter importsRealDocument
+cd Packages/VocabCore && MVT_SAMPLE=~/Vokabeln/Beispiel.mvt swift test --filter importsRealDocument
 ```
 
 Formatierung mit swift-format (liegt Xcode bei, Einstellungen in `.swift-format`);
@@ -181,3 +181,12 @@ swift Tools/make-app-icon.swift
 Im Debug-Build öffnet das Startargument `-debugScreen statistics|study|options` direkt
 die jeweilige Ansicht (praktisch für Screenshots), `-debugSave YES` sichert alle
 geöffneten Stapel kurz nach dem Öffnen (prüft den echten Speicherweg).
+
+## Lizenz
+
+MIT, siehe [`LICENSE`](LICENSE). Das FSRS-Modell ist aus
+[py-fsrs](https://github.com/open-spaced-repetition/py-fsrs) (MIT) portiert, der Optimierer
+aus [fsrs-rs](https://github.com/open-spaced-repetition/fsrs-rs) (BSD 3-Clause); ihre
+Lizenztexte stehen in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Die App zeigt alle
+drei im Über-Fenster (`MacVocTrainNg/Resources/Credits.html`); wer dort Code von außen
+ergänzt, trägt seine Lizenz in beiden Dateien nach.
