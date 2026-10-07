@@ -19,6 +19,12 @@ struct AddCardForm: View {
     @State private var answer = ""
     @State private var hint = ""
     @FocusState private var focus: Field?
+    /// Counts Return presses; `onChange` submits. SwiftUI on macOS renews a field's
+    /// submit action only when the field's text changes, so Return in a hint field that
+    /// stayed empty runs the action of the first render, where `undoManager` was still
+    /// `nil`: the card was added without undo, and the document wasn't marked as changed.
+    /// Setting state works from any copy of the view; `onChange` runs the current one.
+    @State private var submitRequests = 0
 
     /// `nil` until question and answer are filled in.
     private var text: CardText? { CardText(question: question, answer: answer, hint: hint) }
@@ -28,18 +34,17 @@ struct AddCardForm: View {
             HStack(spacing: 8) {
                 TextField("Question", text: $question)
                     .focused($focus, equals: .question)
-                    .onSubmit { submit() }
                 TextField("Answer", text: $answer, prompt: Text("Answer (alternatives separated by /)"))
                     .focused($focus, equals: .answer)
-                    .onSubmit { submit() }
                 TextField("Hint", text: $hint, prompt: Text("Hint (optional)"))
                     .focused($focus, equals: .hint)
-                    .onSubmit { submit() }
                     .frame(maxWidth: 200)
                 Button("Add") { submit(fromButton: true) }
                     .disabled(text == nil)
             }
             .textFieldStyle(.roundedBorder)
+            .onSubmit { submitRequests += 1 }
+            .onChange(of: submitRequests) { submit() }
 
             if let duplicate = document.deck.cards(withQuestion: question).first {
                 Label("Already in this deck: \(duplicate.question) → \(duplicate.answer)", systemImage: "exclamationmark.triangle")
