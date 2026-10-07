@@ -16,30 +16,6 @@ final class SessionViewModel {
         case finished
     }
 
-    /// The running session; its type decides how a review is recorded.
-    enum Mode {
-        case study(StudySession)
-        case practice(Practice)
-
-        var session: Session {
-            switch self {
-            case let .study(study): study.session
-            case let .practice(practice): practice.session
-            }
-        }
-
-        mutating func perform(_ command: SessionCommand) {
-            switch self {
-            case var .study(study):
-                study.perform(command)
-                self = .study(study)
-            case var .practice(practice):
-                practice.perform(command)
-                self = .practice(practice)
-            }
-        }
-    }
-
     /// The card reviewed last, shown below the current one.
     struct PreviousReview: Equatable {
         var question: String
@@ -50,7 +26,8 @@ final class SessionViewModel {
     let document: VocabularyDocument
     /// Move on right after a correct response instead of asking for a grade.
     let autoAdvance: Bool
-    private(set) var mode: Mode
+    /// The running session; its mode decides how a review is recorded.
+    private(set) var mode: SessionMode
     private(set) var stage: Stage
     /// The card being asked, as the deck holds it now. Undoing an edit of the card
     /// during the session shows up here.
@@ -104,23 +81,13 @@ final class SessionViewModel {
     func grade(_ grade: Grade, undoManager: UndoManager?) {
         guard stage != .finished, let card = currentCard else { return }
         let before = mode
-        var scheduled: Card?
-
-        switch mode {
-        case var .study(study):
-            guard let rescheduled = study.review(grade, in: document.deck, at: document.clock.now) else { return }
-            mode = .study(study)
-            scheduled = rescheduled
-        case var .practice(practice):
-            practice.record(grade)
-            mode = .practice(practice)
-        }
+        guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now) else { return }
 
         // One undo step takes back the card and the session's place. Practice changes
         // no card, but ⌘Z should still take back the last review instead of reaching a
         // review of the earlier session.
         undoManager?.beginUndoGrouping()
-        if let scheduled {
+        if case let .rescheduled(scheduled) = outcome {
             document.applyReview(scheduled, undoManager: undoManager)
         }
         registerSessionUndo(from: before, to: mode, undoManager: undoManager)
@@ -182,7 +149,7 @@ final class SessionViewModel {
     /// Undo runs the actions of a group backwards, so undoing a review restores the
     /// session before the document restores the card; `deckDidChange` then shows
     /// the card as it was. Redo runs them the other way round.
-    private func registerSessionUndo(from before: Mode, to after: Mode, undoManager: UndoManager?) {
+    private func registerSessionUndo(from before: SessionMode, to after: SessionMode, undoManager: UndoManager?) {
         undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
             model.restore(before)
             model.registerSessionUndo(from: after, to: before, undoManager: undoManager)
@@ -190,7 +157,7 @@ final class SessionViewModel {
     }
 
     /// Called by undo/redo of a review.
-    private func restore(_ snapshot: Mode) {
+    private func restore(_ snapshot: SessionMode) {
         guard snapshot.session.id == session.id else { return }  // a different session by now
         mode = snapshot
         previous = nil
