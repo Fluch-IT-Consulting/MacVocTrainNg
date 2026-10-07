@@ -132,10 +132,11 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     /// Stores a card rescheduled after a review in a study session, with the change
-    /// `SessionMode.grade(_:in:at:)` returns. The session registers its own undo for
-    /// its place, see `SessionViewModel.grade`.
-    func applyReview(_ change: DeckChange, undoManager: UndoManager?) {
-        perform(change, actionName: String(localized: "Review"), undoManager: undoManager)
+    /// `SessionMode.grade(_:in:at:)` returns. Undo and redo of the review run `companion`
+    /// right after the card, in the same undo action; the session brings back its place
+    /// with it, see `SessionViewModel.grade`.
+    func applyReview(_ change: DeckChange, undoManager: UndoManager?, alongside companion: UndoCompanion) {
+        perform(change, actionName: String(localized: "Review"), undoManager: undoManager, alongside: companion)
     }
 
     /// Changes the learning options, see `DeckChange.changingLearningOptions(_:in:calendar:)`.
@@ -146,13 +147,16 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     // MARK: - Undo machinery
 
-    /// Applies `change` and registers its inverse as the undo action.
-    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?) {
+    /// Applies `change` and registers its inverse as the undo action. The undo action
+    /// runs `companion` once the deck holds the inverse; the redo action it registers
+    /// runs the companion reversed.
+    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?, alongside companion: UndoCompanion? = nil) {
         var deck = deck
         let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
         self.deck = deck
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
-            document.perform(inverse, actionName: actionName, undoManager: undoManager)
+            document.perform(inverse, actionName: actionName, undoManager: undoManager, alongside: companion?.reversed)
+            companion?.undo()
         }
     }
 }

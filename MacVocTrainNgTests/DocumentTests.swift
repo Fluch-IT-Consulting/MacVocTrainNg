@@ -175,6 +175,38 @@ struct DocumentTests {
         document.updateLearningOptions(LearningOptions(), undoManager: undoManager)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
     }
+
+    /// Undo and redo of a review run its companion once the deck holds the card as it
+    /// was before or after the review (#164).
+    @Test func reviewUndoRunsItsCompanionAfterTheCard() {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
+        let undoManager = makeUndoManager()
+        var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
+        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now) else {
+            Issue.record("A study session reschedules the card.")
+            return
+        }
+        let calls = CompanionCalls()
+        let companion = UndoCompanion(
+            undo: { calls.entries.append("undo \(document.card(withID: card.id)?.log.count ?? -1)") },
+            redo: { calls.entries.append("redo \(document.card(withID: card.id)?.log.count ?? -1)") }
+        )
+        step(undoManager) { document.applyReview(change, undoManager: undoManager, alongside: companion) }
+        #expect(calls.entries.isEmpty)
+
+        undoManager.undo()
+        #expect(!undoManager.canUndo)
+        undoManager.redo()
+        undoManager.undo()
+        #expect(calls.entries == ["undo 0", "redo 1", "undo 0"])
+    }
+}
+
+/// The calls of an `UndoCompanion` in a test.
+@MainActor
+private final class CompanionCalls {
+    var entries: [String] = []
 }
 
 @MainActor
