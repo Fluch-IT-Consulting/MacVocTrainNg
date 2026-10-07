@@ -1,7 +1,7 @@
 import Foundation
 
 /// Per-deck learning options.
-public struct LearningOptions: Codable, Hashable, Sendable {
+public struct LearningOptions: Hashable, Sendable {
     /// Recall probability at which a card becomes due again (FSRS "desired retention").
     public var targetRecall: Double = 0.9
     /// Upper bound for review intervals in days.
@@ -24,28 +24,6 @@ public struct LearningOptions: Codable, Hashable, Sendable {
 }
 
 extension LearningOptions {
-    private enum CodingKeys: String, CodingKey {
-        case targetRecall, maximumInterval, steps, cardsPerSession, newCardsPerSession
-        case caseSensitive, fuzzing, parameters
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let defaults = LearningOptions()
-        targetRecall = try container.decodeIfPresent(Double.self, forKey: .targetRecall) ?? defaults.targetRecall
-        maximumInterval = try container.decodeIfPresent(Int.self, forKey: .maximumInterval) ?? defaults.maximumInterval
-        steps = try container.decodeIfPresent(Int.self, forKey: .steps) ?? defaults.steps
-        cardsPerSession =
-            container.contains(.cardsPerSession)
-            ? try container.decodeIfPresent(Int.self, forKey: .cardsPerSession)
-            : defaults.cardsPerSession
-        newCardsPerSession = try container.decodeIfPresent(Int.self, forKey: .newCardsPerSession)
-        caseSensitive = try container.decodeIfPresent(Bool.self, forKey: .caseSensitive) ?? defaults.caseSensitive
-        fuzzing = try container.decodeIfPresent(Bool.self, forKey: .fuzzing) ?? defaults.fuzzing
-        parameters = try container.decodeIfPresent(FSRSParameters.self, forKey: .parameters) ?? defaults.parameters
-        sanitize()
-    }
-
     /// Clamps values from hand-edited or corrupt files into usable ranges.
     mutating func sanitize() {
         if !targetRecall.isFinite { targetRecall = LearningOptions().targetRecall }
@@ -55,24 +33,11 @@ extension LearningOptions {
         cardsPerSession = cardsPerSession.map { max(1, $0) }
         newCardsPerSession = newCardsPerSession.map { max(0, $0) }
     }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(targetRecall, forKey: .targetRecall)
-        try container.encode(maximumInterval, forKey: .maximumInterval)
-        try container.encode(steps, forKey: .steps)
-        // Written as null when unlimited, so a missing key can mean "default".
-        try container.encode(cardsPerSession, forKey: .cardsPerSession)
-        try container.encode(newCardsPerSession, forKey: .newCardsPerSession)
-        try container.encode(caseSensitive, forKey: .caseSensitive)
-        try container.encode(fuzzing, forKey: .fuzzing)
-        try container.encode(parameters, forKey: .parameters)
-    }
 }
 
 /// A collection of cards together with its learning options and progress, stored
 /// as one package (see `DeckFile`).
-public struct Deck: Codable, Hashable, Sendable {
+public struct Deck: Hashable, Sendable {
     public var learningOptions: LearningOptions
     public var cards: [Card]
     /// One daily snapshot per study day on which the deck changed, oldest first.

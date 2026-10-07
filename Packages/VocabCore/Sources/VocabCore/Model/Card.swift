@@ -14,7 +14,7 @@ public enum Grade: Int, Codable, Sendable, CaseIterable, Comparable {
 }
 
 /// Where a card currently is in its learning life cycle.
-public enum LearningPhase: String, Codable, Sendable {
+public enum LearningPhase: Sendable {
     /// After the first review, until the card has collected enough steps.
     case learning
     /// Learned; scheduled by FSRS in whole study days.
@@ -25,7 +25,7 @@ public enum LearningPhase: String, Codable, Sendable {
 
 /// What the app knows about the learner's recall of a card: FSRS stability and
 /// difficulty plus its phase and schedule.
-public struct LearningState: Codable, Hashable, Sendable {
+public struct LearningState: Hashable, Sendable {
     public var phase: LearningPhase
     /// Steps collected since entering (re)learning. Unused in `.review`.
     public var step: Int
@@ -60,7 +60,7 @@ public struct LearningState: Codable, Hashable, Sendable {
 }
 
 /// One review in a study session.
-public struct ReviewLogEntry: Codable, Hashable, Sendable {
+public struct ReviewLogEntry: Hashable, Sendable {
     public var date: Date
     public var grade: Grade
 
@@ -119,33 +119,5 @@ public struct Card: Identifiable, Hashable, Sendable {
     public mutating func resetLearningState() {
         learningState = nil
         log = []
-    }
-}
-
-/// Encodes a card without its review log, which `ReviewLogEncoder` stores apart.
-extension Card: Codable {
-    private enum CodingKeys: String, CodingKey {
-        case id, question, answer, hint, created, learningState
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        question = try container.decode(String.self, forKey: .question)
-        answer = try container.decode(String.self, forKey: .answer)
-        hint = try container.decodeIfPresent(String.self, forKey: .hint) ?? ""
-        created = try container.decodeIfPresent(Date.self, forKey: .created) ?? Date(timeIntervalSince1970: 0)
-        learningState = try container.decodeIfPresent(LearningState.self, forKey: .learningState)
-        log = []
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(question, forKey: .question)
-        try container.encode(answer, forKey: .answer)
-        if !hint.isEmpty { try container.encode(hint, forKey: .hint) }
-        try container.encode(created, forKey: .created)
-        try container.encodeIfPresent(learningState, forKey: .learningState)
     }
 }

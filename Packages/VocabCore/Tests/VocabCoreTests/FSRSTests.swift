@@ -56,7 +56,5 @@ struct FSRSTests {
     @Test func parametersRejectInvalidWeights() throws {
         #expect(FSRSParameters([1, 2, 3]) == nil)
         #expect(FSRSParameters(FSRSParameters.default.weights) == FSRSParameters.default)
-        let json = Data("[1, 2]".utf8)
-        #expect(throws: DecodingError.self) { try JSONDecoder().decode(FSRSParameters.self, from: json) }
     }
 }

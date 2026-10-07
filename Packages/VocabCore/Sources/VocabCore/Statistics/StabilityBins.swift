@@ -86,23 +86,3 @@ public struct DailySnapshot: Hashable, Sendable {
 
     public var total: Int { bins.reduce(0, +) }
 }
-
-extension DailySnapshot: Codable {
-    private enum CodingKeys: String, CodingKey { case day, bins }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let text = try container.decode(String.self, forKey: .day)
-        guard let date = CivilDate(isoString: text) else {
-            throw DecodingError.dataCorruptedError(forKey: .day, in: container, debugDescription: "Invalid date \(text)")
-        }
-        day = date.dayNumber
-        bins = try container.decode([Int].self, forKey: .bins)
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(CivilDate(dayNumber: day).isoString, forKey: .day)
-        try container.encode(bins, forKey: .bins)
-    }
-}
