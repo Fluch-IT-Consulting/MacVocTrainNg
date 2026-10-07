@@ -23,7 +23,8 @@ The active developer dir may be the Command Line Tools; prefix with
 - `MacVocTrainNg/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
   marks the document dirty. Don't mutate `deck` elsewhere.
-- Reviews are undoable; `UndoHook` restores the `Session` alongside the card.
+- Reviews are undoable: the document stores the card, `SessionViewModel` registers
+  the restore of its `Session` in the same undo group. The document knows no sessions.
 - The Xcode project uses synchronized folders: new files in `MacVocTrainNg/` or
   `MacVocTrainNgTests/` are picked up automatically.
 
