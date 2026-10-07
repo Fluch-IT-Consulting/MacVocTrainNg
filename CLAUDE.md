@@ -13,6 +13,8 @@ The active developer dir may be the Command Line Tools; prefix with
 - Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
   (config in `.swift-format`); `format -i` instead of `lint --strict` fixes the layout.
   Name the paths: `build/` and `.build/` contain generated Swift files.
+- Signing: `Config/Signing.xcconfig` signs ad hoc; the untracked
+  `Config/Signing.local.xcconfig` sets the team. No team ID in tracked files.
 
 ## Architecture
 
