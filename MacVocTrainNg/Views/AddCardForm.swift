@@ -41,7 +41,7 @@ struct AddCardForm: View {
             }
             .textFieldStyle(.roundedBorder)
 
-            if let duplicate = document.cards(withQuestion: question).first {
+            if let duplicate = document.deck.cards(withQuestion: question).first {
                 Label("Already in this deck: \(duplicate.question) → \(duplicate.answer)", systemImage: "exclamationmark.triangle")
                     .font(.callout)
                     .foregroundStyle(.secondary)

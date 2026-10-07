@@ -16,7 +16,7 @@ final class DueCardCounter {
 
     init(document: VocabularyDocument) {
         self.document = document
-        count = document.dueCount()
+        count = document.deck.dueCount(at: document.clock.now)
         document.deckDidChange
             .sink { [weak self] in self?.refresh() }
             .store(in: &subscriptions)
@@ -28,7 +28,7 @@ final class DueCardCounter {
 
     /// Counts the due cards at the time of the document's clock.
     func refresh() {
-        let count = document.dueCount()
+        let count = document.deck.dueCount(at: document.clock.now)
         if count != self.count {
             self.count = count
         }

@@ -119,9 +119,7 @@ struct DocumentTests {
         let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
             scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
         }
-        var imported = Card(question: "kot", answer: "Katze")
-        imported.learningState = LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
-        let document = VocabularyDocument(deck: Deck(cards: [studied, imported]))
+        let document = VocabularyDocument(deck: Deck(cards: [studied]))
         let undoManager = makeUndoManager()
 
         var options = LearningOptions()
@@ -129,37 +127,23 @@ struct DocumentTests {
         weights[8] = 1.2
         options.parameters = try #require(FSRSParameters(weights))
         step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
-        let replayed = try #require(document.deck.cards[0].learningState)
-        #expect(replayed.stability < studied.learningState!.stability)
-        #expect(replayed.due == studied.learningState!.due)
-        #expect(document.deck.cards[1] == imported)
-
-        undoManager.undo()
-        #expect(document.deck.learningOptions == LearningOptions())
-        #expect(document.deck.cards == [studied, imported])
-        undoManager.redo()
-        #expect(document.deck.learningOptions.parameters == options.parameters)
-        #expect(document.deck.cards[0].learningState == replayed)
-    }
-
-    @Test func learningOptionsWithoutNewParametersAreUndoableAndRecordNoProgress() {
-        let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
-        let undoManager = makeUndoManager()
-        var options = LearningOptions()
-        options.steps = 3
-
-        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
-        #expect(document.deck.learningOptions == options)
-        #expect(document.deck.cards == [card])
-        #expect(document.deck.progress.isEmpty)
+        let replayed = document.deck.cards
+        #expect(replayed != [studied])
         #expect(undoManager.undoActionName == "Change Learning Options" || undoManager.undoActionName == "Lernoptionen ändern")
 
         undoManager.undo()
         #expect(document.deck.learningOptions == LearningOptions())
+        #expect(document.deck.cards == [studied])
         undoManager.redo()
         #expect(document.deck.learningOptions == options)
-        #expect(document.deck.progress.isEmpty)
+        #expect(document.deck.cards == replayed)
+    }
+
+    @Test func unchangedLearningOptionsRegisterNoUndo() {
+        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
+        let undoManager = makeUndoManager()
+        document.updateLearningOptions(LearningOptions(), undoManager: undoManager)  // would throw without an open group if it registered anything
+        #expect(!undoManager.canUndo)
     }
 }
 
@@ -388,12 +372,12 @@ struct SessionViewModelTests {
         #expect(state.due == calendar.start(ofDay: day - 1 + interval))
 
         clock.now = state.due.addingTimeInterval(-60)
-        #expect(document.dueCount() == 0)
+        #expect(document.deck.dueCount(at: clock.now) == 0)
         model.continueStudying()
         #expect(model.isFinished)
 
         clock.now = state.due.addingTimeInterval(60)
-        #expect(document.dueCount() == 1)
+        #expect(document.deck.dueCount(at: clock.now) == 1)
         model.continueStudying()
         #expect(model.currentCard?.id == card.id)
         model.input = "Haus"

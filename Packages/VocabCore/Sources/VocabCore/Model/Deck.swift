@@ -59,6 +59,18 @@ public struct Deck: Hashable, Sendable {
         index(of: id).map { cards[$0] }
     }
 
+    /// The number of cards due at `date`.
+    public func dueCount(at date: Date) -> Int {
+        cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
+    }
+
+    /// Cards with the same question as `question`, see `CardText.key(forQuestion:)`.
+    public func cards(withQuestion question: String) -> [Card] {
+        let key = CardText.key(forQuestion: question)
+        guard !key.isEmpty else { return [] }
+        return cards.filter { CardText.key(forQuestion: $0.question) == key }
+    }
+
     /// Records the current distribution of cards as the snapshot for `day`.
     mutating func updateProgress(day: Int) {
         let snapshot = DailySnapshot(day: day, bins: StabilityBins.histogram(of: cards))
