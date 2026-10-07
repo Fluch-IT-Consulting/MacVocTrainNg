@@ -127,8 +127,9 @@ struct DocumentTests {
     @Test func newParametersReplayMemoryInOneUndoableChange() throws {
         let scheduler = Scheduler(learningOptions: LearningOptions())
         let start = Date(timeIntervalSince1970: 1_791_216_000)
+        var random = SeededRandom(seed: 1)
         let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
-            scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0))
+            scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
         }
         var imported = Card(question: "kot", answer: "Katze")
         imported.learningState = LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
