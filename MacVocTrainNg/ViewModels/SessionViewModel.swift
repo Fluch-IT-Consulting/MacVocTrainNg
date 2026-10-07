@@ -87,8 +87,8 @@ final class SessionViewModel {
         // no card, but ⌘Z should still take back the last review instead of reaching a
         // review of the earlier session.
         undoManager?.beginUndoGrouping()
-        if case let .rescheduled(scheduled) = outcome {
-            document.applyReview(scheduled, undoManager: undoManager)
+        if case let .rescheduled(change) = outcome {
+            document.applyReview(change, undoManager: undoManager)
         }
         registerSessionUndo(from: before, to: mode, undoManager: undoManager)
         undoManager?.endUndoGrouping()

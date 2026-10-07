@@ -2,6 +2,10 @@ import Foundation
 
 /// One change to a deck: cards to replace or add, cards to remove and new learning
 /// options. `Deck.apply(_:day:)` makes it and returns the change that reverts it.
+///
+/// Only VocabCore builds changes: outside it, the factory methods below and
+/// `SessionMode.grade(_:in:at:)` are the only way. So the app can't set a card's
+/// learning state or log on its own.
 public struct DeckChange: Sendable {
     /// Cards to replace (matched by ID) or insert at the given index (appended if `nil`).
     /// Only the inverse of removals inserts at an index.
@@ -12,7 +16,7 @@ public struct DeckChange: Sendable {
 
     /// - Parameter upserts: Cards that replace the cards with the same ID; cards with a
     ///   new ID are appended.
-    public init(upserts: [Card] = [], removals: [Card.ID] = [], learningOptions: LearningOptions? = nil) {
+    init(upserts: [Card] = [], removals: [Card.ID] = [], learningOptions: LearningOptions? = nil) {
         self.upserts = upserts.map { ($0, nil) }
         self.removals = removals
         self.learningOptions = learningOptions
@@ -20,6 +24,20 @@ public struct DeckChange: Sendable {
 }
 
 extension DeckChange {
+    /// Appends `cards` to `deck`. Only new cards without a log whose ID `deck` doesn't
+    /// hold yet are added, so adding never replaces a card; `nil` if that leaves none.
+    public static func adding(_ cards: [Card], to deck: Deck) -> DeckChange? {
+        var ids = Set(deck.cards.map(\.id))
+        let added = cards.filter { $0.isNew && $0.log.isEmpty && ids.insert($0.id).inserted }
+        return added.isEmpty ? nil : DeckChange(upserts: added)
+    }
+
+    /// Removes the cards with `ids` from `deck`; `nil` if `deck` holds none of them.
+    public static func removing(_ ids: Set<Card.ID>, from deck: Deck) -> DeckChange? {
+        let removals = deck.cards.map(\.id).filter(ids.contains)
+        return removals.isEmpty ? nil : DeckChange(removals: removals)
+    }
+
     /// Replaces question, answer and hint of the card with `id` in `deck` by `text`,
     /// keeping its learning state; `nil` if `deck` doesn't hold it or the text stays.
     public static func editingText(of id: Card.ID, to text: CardText, in deck: Deck) -> DeckChange? {

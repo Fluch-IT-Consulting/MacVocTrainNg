@@ -1,5 +1,5 @@
 import Foundation
-import VocabCore
+@testable import VocabCore
 
 extension Card {
     /// A card created at a fixed date, for tests that don't care when.
