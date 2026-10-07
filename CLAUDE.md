@@ -35,6 +35,8 @@ The active developer dir may be the Command Line Tools; prefix with
 
 - New user-facing strings: add the German translation to
   `MacVocTrainNg/Resources/Localizable.xcstrings` (Xcode may not run to sync it).
+- Code ported from another project: add its license to `THIRD_PARTY_NOTICES.md` and
+  `MacVocTrainNg/Resources/Credits.html` (the About window).
 - Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
   validated one-hue ordinal ramp, keep it that way.
 - A deck is a package (`deck.json` + `reviews.jsonl`, see `DeckFile`); its keys are the

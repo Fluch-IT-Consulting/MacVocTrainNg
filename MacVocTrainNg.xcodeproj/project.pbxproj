@@ -292,7 +292,7 @@
 				INFOPLIST_FILE = MacVocTrainNg/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MacVocTrain;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2013-2026 Martin Fluch";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2013–2026 Martin Fluch";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -321,7 +321,7 @@
 				INFOPLIST_FILE = MacVocTrainNg/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MacVocTrain;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2013-2026 Martin Fluch";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2013–2026 Martin Fluch";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
