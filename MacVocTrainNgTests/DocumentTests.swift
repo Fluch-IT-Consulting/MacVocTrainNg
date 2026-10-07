@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import Observation
 import Testing
@@ -92,6 +93,19 @@ struct DocumentTests {
         let undoManager = makeUndoManager()
         document.update(card, undoManager: undoManager)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
+    }
+
+    @Test func changesAreAnnouncedBeforeAndReportedAfter() {
+        let document = VocabularyDocument()
+        let undoManager = makeUndoManager()
+        var events: [String] = []
+        let willChange = document.objectWillChange.sink { events.append("will \(document.deck.cards.count)") }
+        let didChange = document.deckDidChange.sink { events.append("did \(document.deck.cards.count)") }
+
+        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        undoManager.undo()
+        #expect(events == ["will 0", "did 1", "will 1", "did 0"])
+        _ = (willChange, didChange)
     }
 
     @Test func changesUpdateTodaysSnapshot() {
