@@ -76,16 +76,18 @@ struct SessionTests {
 
     /// Plays a session to the end, grading every card with `grading`.
     func play(_ study: inout StudySession, deck: inout Deck, grading: (Card) -> Grade) -> Int {
-        let scheduler = Scheduler(learningOptions: deck.learningOptions)
         var steps = 0
         while let id = study.session.currentCardID, steps < 10_000 {
-            let index = deck.index(of: id)!
-            let grade = grading(deck.cards[index])
-            deck.cards[index] = scheduler.review(deck.cards[index], grade: grade, at: now)
-            study.record(grade, scheduledCard: deck.cards[index])
+            review(&study, deck: &deck, grading(deck.card(withID: id)!))
             steps += 1
         }
         return steps
+    }
+
+    /// Reviews the current card and stores it in `deck`, like the app does.
+    func review(_ study: inout StudySession, deck: inout Deck, _ grade: Grade) {
+        let card = study.review(grade, in: deck, at: now)!
+        deck.cards[deck.index(of: card.id)!] = card
     }
 
     @Test func newCardsNeedAllSteps() {
@@ -126,6 +128,49 @@ struct SessionTests {
         #expect(deck.card(withID: mistake)?.learningState?.lapses == 1)
     }
 
+    @Test func reviewReturnsTheCurrentCardScheduled() {
+        let deck = deck(newCards: 3)
+        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        let id = study.session.currentCardID!
+        let card = study.review(.good, in: deck, at: now)!
+        let expected = Scheduler(learningOptions: deck.learningOptions).review(deck.card(withID: id)!, grade: .good, at: now)
+        #expect(card == expected)
+        #expect(study.session.reviewCount == 1)
+    }
+
+    @Test func cardLeavesOnlyInReviewPhase() {
+        var deck = deck(newCards: 1)
+        deck.learningOptions.steps = 2
+        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        review(&study, deck: &deck, .good)
+        #expect(deck.cards[0].learningState?.phase == .learning)
+        #expect(!study.session.isFinished)
+        review(&study, deck: &deck, .good)
+        #expect(deck.cards[0].learningState?.phase == .review)
+        #expect(study.session.isFinished)
+    }
+
+    @Test func reviewUsesTheLearningOptionsOfTheDeckPassed() {
+        var deck = deck(newCards: 1)
+        deck.learningOptions.steps = 3
+        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        review(&study, deck: &deck, .good)
+        deck.learningOptions.steps = 2
+        review(&study, deck: &deck, .good)
+        #expect(deck.cards[0].learningState?.phase == .review)
+        #expect(study.session.isFinished)
+    }
+
+    @Test func reviewWithoutCurrentCardChangesNothing() {
+        var deck = deck(newCards: 2)
+        var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
+        deck.cards.removeAll { $0.id == study.session.currentCardID }
+        #expect(study.review(.good, in: deck, at: now) == nil)
+        #expect(study.session.reviewCount == 0)
+        study.session.stop()
+        #expect(study.review(.good, in: deck, at: now) == nil)
+    }
+
     @Test func onlyDueCardsAreSelected() {
         var deck = deck(newCards: 2, reviewCards: 2)
         deck.cards[3].learningState?.due = now.addingTimeInterval(86400)
@@ -163,11 +208,8 @@ struct SessionTests {
     @Test func finishUpEndsAfterStartedCards() {
         var deck = deck(newCards: 40)
         var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 6))
-        let scheduler = Scheduler(learningOptions: deck.learningOptions)
         for _ in 0..<3 {
-            let index = deck.index(of: study.session.currentCardID!)!
-            deck.cards[index] = scheduler.review(deck.cards[index], grade: .good, at: now)
-            study.record(.good, scheduledCard: deck.cards[index])
+            review(&study, deck: &deck, .good)
         }
         let started = study.session.startedCount
         let completed = study.session.completedCount

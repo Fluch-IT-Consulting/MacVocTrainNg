@@ -108,9 +108,7 @@ final class SessionViewModel {
 
         switch mode {
         case var .study(study):
-            let scheduler = Scheduler(learningOptions: document.deck.learningOptions, calendar: document.calendar)
-            let scheduled = scheduler.review(card, grade: grade, at: document.clock.now)
-            study.record(grade, scheduledCard: scheduled)
+            guard let scheduled = study.review(grade, in: document.deck, at: document.clock.now) else { return }
             mode = .study(study)
             let after = mode
             let hook = UndoHook(
