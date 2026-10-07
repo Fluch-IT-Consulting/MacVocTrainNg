@@ -113,6 +113,15 @@ struct DocumentTests {
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }
 
+    /// The first save of a new deck takes the snapshot on a background thread.
+    @Test func snapshotOffTheMainThreadHoldsTheLatestChange() async throws {
+        let document = VocabularyDocument()
+        let undoManager = makeUndoManager()
+        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        let snapshot = try await Task.detached { try document.snapshot(contentType: .vocabularyDeck) }.value
+        #expect(snapshot == document.deck)
+    }
+
     @Test func newParametersReplayMemoryInOneUndoableChange() throws {
         let scheduler = Scheduler(learningOptions: LearningOptions())
         let start = Date(timeIntervalSince1970: 1_791_216_000)
