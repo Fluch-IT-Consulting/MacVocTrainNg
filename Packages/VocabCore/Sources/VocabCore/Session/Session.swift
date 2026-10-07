@@ -3,8 +3,8 @@ import Foundation
 /// What a study session and practice have in common: which cards remain, which
 /// one is asked, and how it went so far.
 ///
-/// The session only tracks card IDs. Reviews are recorded through the session's
-/// mode, `StudySession` or `Practice`, which decides when a card is done.
+/// The session only tracks card IDs. Only its mode, `StudySession` or `Practice`,
+/// changes it: the mode records reviews and decides when a card is done.
 public struct Session: Sendable {
     public let id = UUID()
     public let startedAt: Date
@@ -50,7 +50,7 @@ public struct Session: Sendable {
     }
 
     /// Stops introducing new cards; only cards already asked are finished.
-    public mutating func finishUp() {
+    mutating func finishUp() {
         let completed = completedCount
         queue.finishUp()
         totalCount = completed + queue.count
@@ -60,7 +60,7 @@ public struct Session: Sendable {
     }
 
     /// Drops the current card without recording a review, e.g. because it was deleted.
-    public mutating func skip() {
+    mutating func skip() {
         guard let id = currentCardID else { return }
         queue.remove(id)
         totalCount -= 1
@@ -68,7 +68,7 @@ public struct Session: Sendable {
     }
 
     /// Ends the session immediately.
-    public mutating func stop() {
+    mutating func stop() {
         currentCardID = nil
     }
 

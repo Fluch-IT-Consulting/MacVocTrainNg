@@ -22,21 +22,31 @@ final class SessionViewModel {
         case practice(Practice)
 
         var session: Session {
-            get {
-                switch self {
-                case let .study(study): study.session
-                case let .practice(practice): practice.session
-                }
+            switch self {
+            case let .study(study): study.session
+            case let .practice(practice): practice.session
             }
-            set {
-                switch self {
-                case var .study(study):
-                    study.session = newValue
-                    self = .study(study)
-                case var .practice(practice):
-                    practice.session = newValue
-                    self = .practice(practice)
-                }
+        }
+
+        mutating func finishUp() {
+            switch self {
+            case var .study(study):
+                study.finishUp()
+                self = .study(study)
+            case var .practice(practice):
+                practice.finishUp()
+                self = .practice(practice)
+            }
+        }
+
+        mutating func skip() {
+            switch self {
+            case var .study(study):
+                study.skip()
+                self = .study(study)
+            case var .practice(practice):
+                practice.skip()
+                self = .practice(practice)
             }
         }
     }
@@ -133,7 +143,7 @@ final class SessionViewModel {
 
     /// Only finishes the cards already asked.
     func finishUp() {
-        mode.session.finishUp()
+        mode.finishUp()
         moveOn()
     }
 
@@ -159,7 +169,7 @@ final class SessionViewModel {
         questionNumber += 1
         // Cards deleted meanwhile can't be asked.
         while let id = session.currentCardID, document.card(withID: id) == nil {
-            mode.session.skip()
+            mode.skip()
         }
         refreshCurrentCard()
         stage = session.isFinished ? .finished : .asking

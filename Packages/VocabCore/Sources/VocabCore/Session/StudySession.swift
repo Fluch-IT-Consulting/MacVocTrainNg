@@ -2,8 +2,8 @@ import Foundation
 
 /// A session over the due cards; its reviews change their learning state.
 public struct StudySession: Sendable {
-    /// The state shared with practice; `finishUp()`, `skip()` and `stop()` act on it.
-    public var session: Session
+    /// The state shared with practice. Only this type changes it.
+    public private(set) var session: Session
 
     private let calendar: StudyCalendar
 
@@ -29,6 +29,21 @@ public struct StudySession: Sendable {
         let scheduled = scheduler.review(card, grade: grade, at: now)
         session.record(grade, isDone: scheduled.learningState?.phase == .review)
         return scheduled
+    }
+
+    /// Stops introducing new cards; only cards already asked are finished.
+    public mutating func finishUp() {
+        session.finishUp()
+    }
+
+    /// Drops the current card without recording a review, e.g. because it was deleted.
+    public mutating func skip() {
+        session.skip()
+    }
+
+    /// Ends the session immediately.
+    public mutating func stop() {
+        session.stop()
     }
 
     /// Due cards in the order they should be introduced: cards in (re)learning
