@@ -14,3 +14,6 @@ Packages/*/Package.resolved
 
 # Cargo
 Tools/fsrs-reference/target/
+
+# Local code signing, see Config/Signing.xcconfig
+Config/Signing.local.xcconfig
