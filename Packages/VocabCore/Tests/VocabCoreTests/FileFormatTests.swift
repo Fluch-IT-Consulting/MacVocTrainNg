@@ -26,6 +26,26 @@ struct DeckFileTests {
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: deck)) == deck)
     }
 
+    /// A `deck.json` of version 3 as the app writes it, with every kind of value.
+    @Test func fixedDeckReadsAndWritesBackUnchanged() throws {
+        let url = try #require(Bundle.module.url(forResource: "Resources/deck-v3", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let deck = try DeckFile.decode(data)
+
+        #expect(deck.cards.map(\.question) == ["dom", "pies", "kot"])
+        #expect(deck.cards[0].hint == "Substantiv")
+        #expect(deck.cards[0].created == date.addingTimeInterval(-7 * 86400))
+        #expect(deck.cards[1].learningState?.phase == .relearning)
+        #expect(deck.cards[1].learningState?.due == date.addingTimeInterval(600))
+        #expect(deck.cards[2].isNew)
+        #expect(deck.learningOptions.cardsPerSession == nil)
+        #expect(deck.learningOptions.newCardsPerSession == 15)
+        #expect(deck.learningOptions.parameters == .default)
+        #expect(deck.progress.map(\.day) == [CivilDate(isoString: "2026-10-04")!.dayNumber, CivilDate(isoString: "2026-10-05")!.dayNumber])
+
+        #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == String(decoding: data, as: UTF8.self))
+    }
+
     @Test func packageHoldsDeckAndReviewLogSeparately() throws {
         let deck = sampleDeck()
         let wrapper = try DeckFile.fileWrapper(for: deck)
