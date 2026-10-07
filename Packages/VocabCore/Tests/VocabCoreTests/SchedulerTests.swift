@@ -143,3 +143,11 @@ struct SchedulerTests {
         #expect(Scheduler.fuzzed(interval: 2, maximum: 100, using: &random) == 2)
     }
 }
+
+extension Scheduler {
+    /// Reviews with a fixed random source; the tests here schedule without fuzzing.
+    fileprivate func review(_ card: Card, grade: Grade, at now: Date) -> Card {
+        var random = SeededRandom(seed: 0)
+        return review(card, grade: grade, at: now, using: &random)
+    }
+}

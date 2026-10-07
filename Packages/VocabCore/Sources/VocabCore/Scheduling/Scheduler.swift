@@ -20,6 +20,7 @@ public struct Scheduler: Sendable {
 
     public var fsrs: FSRS { FSRS(parameters: learningOptions.parameters) }
 
+    /// The card after a review with `grade`; `random` fuzzes its interval if enabled.
     public func review<R: RandomNumberGenerator>(_ card: Card, grade: Grade, at now: Date, using random: inout R) -> Card {
         let previous = card.learningState
         let elapsedDays = previous.map { self.elapsedDays(since: $0, at: now) } ?? 0
@@ -72,11 +73,6 @@ public struct Scheduler: Sendable {
         )
         updated.log.append(ReviewLogEntry(date: now, grade: grade))
         return updated
-    }
-
-    public func review(_ card: Card, grade: Grade, at now: Date) -> Card {
-        var random = SystemRandomNumberGenerator()
-        return review(card, grade: grade, at: now, using: &random)
     }
 
     /// The card with stability and difficulty replayed from its review log with the

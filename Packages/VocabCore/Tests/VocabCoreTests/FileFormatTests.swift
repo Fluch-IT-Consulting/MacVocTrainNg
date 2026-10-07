@@ -259,8 +259,9 @@ struct LegacyImporterTests {
         #expect(deck.cards[2].answer == "answer of known")
         // Reviews before the import are missing from the log, also after the next one.
         let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
+        var random = SeededRandom(seed: 1)
         for card in deck.cards.dropFirst() {
-            #expect(!scheduler.review(card, grade: .good, at: now).hasCompleteLog)
+            #expect(!scheduler.review(card, grade: .good, at: now, using: &random).hasCompleteLog)
         }
     }
 

@@ -133,9 +133,40 @@ struct SessionTests {
         var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 1))
         let id = study.session.currentCardID!
         let card = study.review(.good, in: deck, at: now)!
-        let expected = Scheduler(learningOptions: deck.learningOptions).review(deck.card(withID: id)!, grade: .good, at: now)
+        var random = SeededRandom(seed: 1)
+        let expected = Scheduler(learningOptions: deck.learningOptions).review(deck.card(withID: id)!, grade: .good, at: now, using: &random)
         #expect(card == expected)
         #expect(study.session.reviewCount == 1)
+    }
+
+    @Test func sameSeedGivesSameDueDatesWithFuzzing() {
+        var deck = deck(newCards: 0, reviewCards: 20)
+        deck.learningOptions.fuzzing = true
+        func dueDates(seed: UInt64) -> [Card.ID: Date] {
+            var deck = deck
+            var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: seed))
+            _ = play(&study, deck: &deck) { _ in .good }
+            return Dictionary(uniqueKeysWithValues: deck.cards.map { ($0.id, $0.learningState!.due) })
+        }
+        #expect(dueDates(seed: 3) == dueDates(seed: 3))
+        // The fuzz is real: another seed spreads the intervals differently.
+        #expect(dueDates(seed: 3) != dueDates(seed: 4))
+    }
+
+    @Test func fuzzingDoesNotChangeTheOrder() {
+        let reviewDeck = deck(newCards: 0, reviewCards: 20)
+        func order(fuzzing: Bool) -> [Card.ID] {
+            var deck = reviewDeck
+            deck.learningOptions.fuzzing = fuzzing
+            var study = StudySession(deck: deck, at: now, random: SeededRandom(seed: 3))
+            var asked: [Card.ID] = []
+            _ = play(&study, deck: &deck) { card in
+                asked.append(card.id)
+                return .good
+            }
+            return asked
+        }
+        #expect(order(fuzzing: true) == order(fuzzing: false))
     }
 
     @Test func cardLeavesOnlyInReviewPhase() {
