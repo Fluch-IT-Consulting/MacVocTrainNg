@@ -44,7 +44,7 @@ public enum CardImporter {
                 result.skippedRows += 1
                 continue
             }
-            let card = Card(question: text.question, answer: text.answer, hint: text.hint, created: created)
+            let card = Card(text: text, created: created)
             let key = CardText.key(forQuestion: card.question)
             let row = index + 1
             let duplicate: Duplicate? = inDeck.contains(key) ? .inDeck : inFile[key].map { .inFile(row: $0) }

@@ -78,8 +78,7 @@ struct DocumentTests {
         let document = VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager()
 
-        var edited = card
-        edited.answer = "Haus / Heim"
+        let edited = card.withAnswer("Haus / Heim")
         step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus / Heim")!, undoManager: undoManager) }
         #expect(document.deck.cards[0] == edited)
         step(undoManager) { document.resetLearningState(of: [card.id], undoManager: undoManager) }
@@ -129,7 +128,7 @@ struct DocumentTests {
     @Test func snapshotSavesReadableDeck() throws {
         // The file stores dates with second precision.
         let created = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus", created: created)]))
+        let document = VocabularyDocument(deck: Deck(cards: [Card(text: CardText(question: "dom", answer: "Haus")!, created: created)]))
         let snapshot = try document.snapshot(contentType: .vocabularyDeck)
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }

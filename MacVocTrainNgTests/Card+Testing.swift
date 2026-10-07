@@ -21,4 +21,11 @@ extension Card {
             log: log
         )
     }
+
+    /// The card with another answer, as an edit would leave it.
+    func withAnswer(_ answer: String) -> Card {
+        var card = self
+        card.answer = answer
+        return card
+    }
 }
