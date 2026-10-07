@@ -64,9 +64,7 @@ struct AddCardForm: View {
             focus = CardText.trimmed(question).isEmpty ? .question : .answer
             return
         }
-        let card = Card(question: text.question, answer: text.answer, hint: text.hint, created: document.clock.now)
-        document.add(card, undoManager: undoManager)
-        onAdd(card.id)
+        onAdd(document.add(text, undoManager: undoManager))
         question = ""
         answer = ""
         hint = ""

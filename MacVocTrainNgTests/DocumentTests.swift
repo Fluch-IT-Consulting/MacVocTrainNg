@@ -28,19 +28,35 @@ private final class ChangeCount: @unchecked Sendable {
 
 @MainActor
 struct DocumentTests {
-    @Test func addingIsUndoable() {
+    @Test func addingIsUndoable() throws {
         let document = VocabularyDocument()
         let undoManager = makeUndoManager()
-        let card = Card(question: "dom", answer: "Haus")
 
-        step(undoManager) { document.add(card, undoManager: undoManager) }
+        var id: Card.ID?
+        step(undoManager) { id = document.add(CardText(question: " dom", answer: "Haus ", hint: "Gebäude")!, undoManager: undoManager) }
+        let card = try #require(document.deck.cards.first)
         #expect(document.deck.cards == [card])
+        #expect(card.id == id)
+        #expect([card.question, card.answer, card.hint] == ["dom", "Haus", "Gebäude"])
+        #expect(card.isNew)
         #expect(undoManager.undoActionName == "Add Card" || undoManager.undoActionName == "Karte hinzufügen")
 
         undoManager.undo()
         #expect(document.deck.cards.isEmpty)
         undoManager.redo()
         #expect(document.deck.cards == [card])
+    }
+
+    @Test func addedCardsAreCreatedByTheDocumentsClock() {
+        let clock = ManualClock(Date(timeIntervalSince1970: 1_700_000_000))
+        let document = VocabularyDocument(clock: clock.studyClock)
+
+        let first = document.add(CardText(question: "dom", answer: "Haus")!, undoManager: nil)
+        #expect(document.card(withID: first)?.created == clock.now)
+
+        clock.now.addTimeInterval(3600)
+        let second = document.add(CardText(question: "kot", answer: "Katze")!, undoManager: nil)
+        #expect(document.card(withID: second)?.created == clock.now)
     }
 
     @Test func importIsOneUndoableChange() {
@@ -91,7 +107,7 @@ struct DocumentTests {
         let willChange = document.objectWillChange.sink { events.append("will \(document.deck.cards.count)") }
         let didChange = document.deckDidChange.sink { events.append("did \(document.deck.cards.count)") }
 
-        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
         undoManager.undo()
         #expect(events == ["will 0", "did 1", "will 1", "did 0"])
         _ = (willChange, didChange)
@@ -100,7 +116,7 @@ struct DocumentTests {
     @Test func changesUpdateTodaysSnapshot() {
         let document = VocabularyDocument()
         let undoManager = makeUndoManager()
-        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
         #expect(document.deck.progress.last?.day == document.calendar.dayNumber(for: Date()))
         #expect(document.deck.progress.last?.total == 1)
     }
@@ -117,7 +133,7 @@ struct DocumentTests {
     @Test func snapshotOffTheMainThreadHoldsTheLatestChange() async throws {
         let document = VocabularyDocument()
         let undoManager = makeUndoManager()
-        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
         let snapshot = try await Task.detached { try document.snapshot(contentType: .vocabularyDeck) }.value
         #expect(snapshot == document.deck)
     }
@@ -443,7 +459,7 @@ struct SessionViewModelTests {
         let current = try #require(model.currentCard)
         step(undoManager) {
             document.delete([current.id], undoManager: undoManager)
-            document.add(Card(question: "kot", answer: "Katze"), undoManager: undoManager)
+            document.add(CardText(question: "kot", answer: "Katze")!, undoManager: undoManager)
         }
         #expect(document.deck.cards.count == 2)
         #expect(model.currentCard != nil)
@@ -536,7 +552,7 @@ struct SessionViewModelTests {
         let undoManager = makeUndoManager()
         #expect(document.dueCards.count == 0)
 
-        step(undoManager) { document.add(Card(question: "dom", answer: "Haus"), undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
         #expect(document.dueCards.count == 1)
         undoManager.undo()
         #expect(document.dueCards.count == 0)
@@ -557,7 +573,7 @@ struct SessionViewModelTests {
         dueCards.refresh()
         #expect(changes.value == 0)
 
-        document.add(Card(question: "kot", answer: "Katze"), undoManager: nil)
+        document.add(CardText(question: "kot", answer: "Katze")!, undoManager: nil)
         #expect(changes.value == 1)
     }
 }

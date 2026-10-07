@@ -93,10 +93,15 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     // MARK: - Changes
 
-    /// Appends a new card, see `DeckChange.adding(_:to:)`.
-    func add(_ card: Card, undoManager: UndoManager?) {
-        guard let change = DeckChange.adding([card], to: deck) else { return }
-        perform(change, actionName: String(localized: "Add Card"), undoManager: undoManager)
+    /// Appends a new card with `text`, created now by the document's clock, see
+    /// `DeckChange.adding(_:to:)`. Returns the ID of the new card.
+    @discardableResult
+    func add(_ text: CardText, undoManager: UndoManager?) -> Card.ID {
+        let card = Card(question: text.question, answer: text.answer, hint: text.hint, created: clock.now)
+        if let change = DeckChange.adding([card], to: deck) {
+            perform(change, actionName: String(localized: "Add Card"), undoManager: undoManager)
+        }
+        return card.id
     }
 
     /// Appends cards from an import as one change, see `DeckChange.adding(_:to:)`.
