@@ -43,36 +43,47 @@ public struct StudySession: SessionMode {
         session.perform(command)
     }
 
-    /// Due cards in the order they should be introduced: cards in (re)learning
-    /// first, then new cards, then reviews with the lowest probability of recall.
-    /// At most `cardsPerSession` cards are selected.
+    /// How soon `selectCards` introduces a due card; the smallest comes first.
+    enum Urgency: Comparable {
+        /// Cards in learning or relearning.
+        case learning
+        case new
+        /// Cards in the review phase, lowest probability of recall first.
+        case review(recallBucket: Double)
+    }
+
+    /// Recall probabilities are rounded down to steps of `1 / recallBuckets`, so
+    /// review cards of similar urgency get mixed.
+    static let recallBuckets = 50.0
+
+    /// Due cards in the order of their `Urgency`, cards of the same urgency at
+    /// random. At most `cardsPerSession` cards are selected.
     static func selectCards(from deck: Deck, at now: Date, calendar: StudyCalendar, using random: inout SeededRandom) -> [Card.ID] {
         let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
         var newCardsLeft = deck.learningOptions.newCardsPerSession ?? Int.max
-        var candidates: [(id: Card.ID, priority: Double, tieBreak: UInt64)] = []
+        var candidates: [(id: Card.ID, urgency: Urgency, tieBreak: UInt64)] = []
 
         for card in deck.cards where card.isDue(at: now) {
-            let priority: Double
+            let urgency: Urgency
             if let learningState = card.learningState {
                 if learningState.phase == .review {
                     let r = scheduler.recallProbability(of: learningState, at: now)
-                    // Coarse buckets so cards of similar urgency get mixed.
-                    priority = (r * 50).rounded(.down) / 50
+                    urgency = .review(recallBucket: (r * recallBuckets).rounded(.down))
                 } else {
-                    priority = -2
+                    urgency = .learning
                 }
             } else {
                 guard newCardsLeft > 0 else { continue }
                 newCardsLeft -= 1
-                priority = -1
+                urgency = .new
             }
-            candidates.append((card.id, priority, random.next()))
+            candidates.append((card.id, urgency, random.next()))
         }
 
         let ordered =
             candidates
-            .sorted { ($0.priority, $0.tieBreak) < ($1.priority, $1.tieBreak) }
+            .sorted { ($0.urgency, $0.tieBreak) < ($1.urgency, $1.tieBreak) }
             .map(\.id)
-        return Array(ordered.prefix(max(1, deck.learningOptions.cardsPerSession ?? Int.max)))
+        return Array(ordered.prefix(deck.learningOptions.cardsPerSession ?? Int.max))
     }
 }
