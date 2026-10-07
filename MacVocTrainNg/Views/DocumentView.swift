@@ -4,7 +4,7 @@ import VocabCore
 /// The content of a document window: the card list or the statistics, or a
 /// session that temporarily takes over the whole window.
 struct DocumentView: View {
-    enum Screen: Hashable {
+    enum Screen: String {
         case cards
         case statistics
     }
@@ -13,7 +13,8 @@ struct DocumentView: View {
     /// Where the document is saved; `nil` until it is saved for the first time.
     var fileURL: URL?
     @Environment(\.undoManager) private var undoManager
-    @State private var screen: Screen = .cards
+    /// Survives quitting when the window is restored; the session doesn't.
+    @SceneStorage("screen") private var screen: Screen = .cards
     @State private var session: SessionViewModel?
     @State private var showingOptions = false
     @State private var importPreview: CardImport.Preview?
