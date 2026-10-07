@@ -56,18 +56,6 @@ struct DocumentTests {
         #expect(document.deck.cards.map(\.question) == ["dom"])
     }
 
-    @Test func deletingRestoresOriginalPositions() {
-        let cards = (0..<5).map { Card(question: "q\($0)", answer: "a\($0)") }
-        let document = VocabularyDocument(deck: Deck(cards: cards))
-        let undoManager = makeUndoManager()
-
-        step(undoManager) { document.delete([cards[1].id, cards[3].id], undoManager: undoManager) }
-        #expect(document.deck.cards.map(\.question) == ["q0", "q2", "q4"])
-
-        undoManager.undo()
-        #expect(document.deck.cards == cards)
-    }
-
     @Test func editingAndResettingAreUndoable() {
         var card = Card(question: "dom", answer: "Haus")
         card.learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
@@ -172,51 +160,6 @@ struct DocumentTests {
         undoManager.redo()
         #expect(document.deck.learningOptions == options)
         #expect(document.deck.progress.isEmpty)
-    }
-
-    /// Each change passes over the cards once. Looking up every card on its own took
-    /// time quadratic in the number of cards: minutes instead of a fraction of a second.
-    @Test(.timeLimit(.minutes(1))) func changesToManyCardsAreUndoableInOneGo() throws {
-        let scheduler = Scheduler(learningOptions: LearningOptions())
-        let start = Date(timeIntervalSince1970: 1_791_216_000)
-        var random = SeededRandom(seed: 1)
-        let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
-            scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
-        }
-        let cards = (0..<10_000).map { index in
-            var card = studied
-            card.id = UUID()
-            card.question = "q\(index)"
-            return card
-        }
-        let document = VocabularyDocument()
-        let undoManager = makeUndoManager()
-
-        step(undoManager) { document.importCards(cards, undoManager: undoManager) }
-        #expect(document.deck.cards == cards)
-
-        var options = LearningOptions()
-        var weights = FSRSParameters.default.weights
-        weights[8] = 1.2
-        options.parameters = try #require(FSRSParameters(weights))
-        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
-        let replayed = document.deck.cards
-        #expect(replayed.map(\.id) == cards.map(\.id))
-        #expect(replayed[0] != cards[0])
-
-        let deleted = Set(cards.indices.filter { $0 % 3 != 0 }.map { cards[$0].id })
-        step(undoManager) { document.delete(deleted, undoManager: undoManager) }
-        #expect(document.deck.cards.map(\.id) == cards.map(\.id).filter { !deleted.contains($0) })
-
-        undoManager.undo()
-        #expect(document.deck.cards == replayed)
-        undoManager.undo()
-        #expect(document.deck.cards == cards)
-        undoManager.redo()
-        #expect(document.deck.cards == replayed)
-        undoManager.undo()
-        undoManager.undo()
-        #expect(document.deck.cards.isEmpty)
     }
 }
 

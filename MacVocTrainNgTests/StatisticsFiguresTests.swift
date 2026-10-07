@@ -31,7 +31,7 @@ struct StatisticsFiguresTests {
         let later = now.addingTimeInterval(2 * 86400)
         #expect(figures.summary(of: deck, at: later, calendar: calendar).dueNow == 2)
 
-        deck.cards.append(reviewCard("pies", dueIn: 3))
+        deck = Deck(cards: deck.cards + [reviewCard("pies", dueIn: 3)])
         #expect(figures.summary(of: deck, at: later, calendar: calendar).total == 3)
         #expect(figures.summary(of: deck, at: later, calendar: calendar) == DeckStatistics.summary(of: deck, at: later, calendar: calendar))
     }

@@ -95,18 +95,18 @@ final class VocabularyDocument: ReferenceFileDocument {
     // MARK: - Changes
 
     func add(_ card: Card, undoManager: UndoManager?) {
-        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Add Card"), undoManager: undoManager)
+        perform(DeckChange(upserts: [card]), actionName: String(localized: "Add Card"), undoManager: undoManager)
     }
 
     /// Appends cards from an import as one change.
     func importCards(_ cards: [Card], undoManager: UndoManager?) {
         guard !cards.isEmpty else { return }
-        perform(DeckChange(upserts: cards.map { ($0, nil) }), actionName: String(localized: "Import Cards"), undoManager: undoManager)
+        perform(DeckChange(upserts: cards), actionName: String(localized: "Import Cards"), undoManager: undoManager)
     }
 
     func update(_ card: Card, actionName: String = String(localized: "Edit Card"), undoManager: UndoManager?) {
         guard deck.card(withID: card.id) != card else { return }
-        perform(DeckChange(upserts: [(card, nil)]), actionName: actionName, undoManager: undoManager)
+        perform(DeckChange(upserts: [card]), actionName: actionName, undoManager: undoManager)
     }
 
     func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
@@ -119,7 +119,7 @@ final class VocabularyDocument: ReferenceFileDocument {
         let cards = deck.cards.filter { ids.contains($0.id) && (!$0.isNew || !$0.log.isEmpty) }.map { card in
             var card = card
             card.resetLearningState()
-            return (card, Int?.none)
+            return card
         }
         guard !cards.isEmpty else { return }
         perform(DeckChange(upserts: cards), actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
@@ -128,102 +128,35 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Stores a card rescheduled after a review in a study session. The session
     /// registers its own undo for its place, see `SessionViewModel.grade`.
     func applyReview(_ card: Card, undoManager: UndoManager?) {
-        perform(DeckChange(upserts: [(card, nil)]), actionName: String(localized: "Review"), undoManager: undoManager)
+        perform(DeckChange(upserts: [card]), actionName: String(localized: "Review"), undoManager: undoManager)
     }
 
     /// Changes the learning options. New FSRS parameters also replay stability and
     /// difficulty of every card with a complete review log; due dates stay.
     func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
         guard deck.learningOptions != learningOptions else { return }
-        var change = DeckChange(learningOptions: learningOptions)
+        var replayed: [Card] = []
         if learningOptions.parameters != deck.learningOptions.parameters {
             let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
-            change.upserts = deck.cards.compactMap { card -> (Card, Int?)? in
+            replayed = deck.cards.compactMap { card in
                 guard let replayed = scheduler.replayingMemory(of: card), replayed != card else { return nil }
-                return (replayed, nil)
+                return replayed
             }
         }
+        let change = DeckChange(upserts: replayed, learningOptions: learningOptions)
         perform(change, actionName: String(localized: "Change Learning Options"), undoManager: undoManager)
     }
 
     // MARK: - Undo machinery
 
-    private struct DeckChange {
-        /// Cards to replace (matched by ID) or insert at the given index (appended if `nil`).
-        var upserts: [(card: Card, index: Int?)] = []
-        var removals: [Card.ID] = []
-        /// New learning options; `nil` keeps them.
-        var learningOptions: LearningOptions?
-    }
-
+    /// Applies `change` and registers its inverse as the undo action.
     private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?) {
-        let inverse = apply(change)
+        var deck = deck
+        let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
+        self.deck = deck
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
             document.perform(inverse, actionName: actionName, undoManager: undoManager)
         }
-    }
-
-    /// Applies `change` and returns the change that reverts it.
-    private func apply(_ change: DeckChange) -> DeckChange {
-        var deck = deck
-        var inverse = DeckChange()
-
-        if let learningOptions = change.learningOptions {
-            inverse.learningOptions = deck.learningOptions
-            deck.learningOptions = learningOptions
-        }
-
-        // Every step below passes over the cards once: a change may touch all of them.
-        if !change.removals.isEmpty {
-            let removals = Set(change.removals)
-            // In ascending order, so undo re-inserts each card at its old index.
-            inverse.upserts = deck.cards.enumerated().filter { removals.contains($0.element.id) }.map { ($0.element, $0.offset) }
-            deck.cards.removeAll { removals.contains($0.id) }
-        }
-
-        var indices = Dictionary(deck.cards.enumerated().map { ($0.element.id, $0.offset) }) { first, _ in first }
-        var insertions: [(card: Card, index: Int)] = []
-        for (card, position) in change.upserts {
-            if let index = indices[card.id] {
-                inverse.upserts.append((deck.cards[index], nil))
-                deck.cards[index] = card
-            } else if let position {
-                insertions.append((card, position))
-                inverse.removals.append(card.id)
-            } else {
-                indices[card.id] = deck.cards.count
-                deck.cards.append(card)
-                inverse.removals.append(card.id)
-            }
-        }
-        if !insertions.isEmpty {
-            deck.cards = Self.inserting(insertions, into: deck.cards)
-        }
-
-        // Learning options alone move no card between the bins of a snapshot.
-        if !change.upserts.isEmpty || !change.removals.isEmpty {
-            deck.updateProgress(day: calendar.dayNumber(for: clock.now))
-        }
-        self.deck = deck
-        return inverse
-    }
-
-    /// Inserts cards at their indices in one pass. Only the inverse of removals inserts
-    /// at an index, in ascending order; each card lands where inserting the cards one
-    /// after another would put it.
-    private static func inserting(_ insertions: [(card: Card, index: Int)], into cards: [Card]) -> [Card] {
-        assert(zip(insertions, insertions.dropFirst()).allSatisfy { $0.index < $1.index })
-        var result: [Card] = []
-        result.reserveCapacity(cards.count + insertions.count)
-        var remaining = cards[...]
-        for (card, index) in insertions {
-            let count = min(index - result.count, remaining.count)
-            result.append(contentsOf: remaining.prefix(count))
-            remaining = remaining.dropFirst(count)
-            result.append(card)
-        }
-        result.append(contentsOf: remaining)
-        return result
     }
 }
 
