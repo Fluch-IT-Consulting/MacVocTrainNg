@@ -1298,6 +1298,16 @@
         }
       }
     },
+    "Press ⌥⌘Q to do the opposite once.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit ⌥⌘Q gilt beim Beenden einmal das Gegenteil."
+          }
+        }
+      }
+    },
     "Previous:": {
       "localizations": {
         "de": {
@@ -1414,6 +1424,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bleibt weniger als 4 Tage im Gedächtnis"
+          }
+        }
+      }
+    },
+    "Reopen the decks that were open when you quit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Start die zuletzt geöffneten Stapel öffnen"
           }
         }
       }
