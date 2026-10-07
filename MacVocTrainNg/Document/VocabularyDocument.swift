@@ -2,6 +2,7 @@ import Combine
 import SwiftUI
 import UniformTypeIdentifiers
 import VocabCore
+import os
 
 /// The SwiftUI document of one deck.
 ///
@@ -20,8 +21,9 @@ import VocabCore
 /// The document lives on the main actor, so the compiler checks that the deck is only
 /// read and changed there. Initializers and the requirements of `ReferenceFileDocument`
 /// are `nonisolated`: SwiftUI creates and opens documents and writes snapshots to file
-/// wrappers off the main actor. Apart from the initializers, only `snapshot` reads
-/// `deck`, and it checks that it runs on the main actor.
+/// wrappers off the main actor. `snapshot` doesn't read `deck`: NSDocument takes it on
+/// a background thread when a new deck is saved for the first time, while the main
+/// thread waits for it. It reads `savedDeck` instead, a copy behind a lock.
 @MainActor
 final class VocabularyDocument: ReferenceFileDocument {
     nonisolated static var readableContentTypes: [UTType] { [.vocabularyDeck] }
@@ -30,8 +32,14 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// main actor. `objectWillChange` sends just like it would.
     private(set) var deck: Deck {
         willSet { objectWillChange.send() }
-        didSet { deckDidChange.send() }
+        didSet {
+            savedDeck.withLock { [deck] in $0 = deck }
+            deckDidChange.send()
+        }
     }
+    /// The deck for `snapshot`, which may run on any thread. Kept equal to `deck`;
+    /// a copy costs little, as `Deck` copies its storage only on write.
+    private let savedDeck: OSAllocatedUnfairLock<Deck>
     /// Sends after every change to `deck`, once it holds the new state. Observers
     /// other than views use this, see the type's documentation.
     let deckDidChange = PassthroughSubject<Void, Never>()
@@ -46,11 +54,13 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system) {
         self.deck = deck
+        savedDeck = OSAllocatedUnfairLock(initialState: deck)
         self.clock = clock
     }
 
     nonisolated required init(configuration: ReadConfiguration) throws {
         clock = .system
+        let deck: Deck
         do {
             deck = try DeckFile.decode(configuration.file)
         } catch let DeckFile.Error.damagedReviewLog(line) {
@@ -62,11 +72,13 @@ final class VocabularyDocument: ReferenceFileDocument {
         } catch {
             throw CocoaError(.fileReadCorruptFile)
         }
+        self.deck = deck
+        savedDeck = OSAllocatedUnfairLock(initialState: deck)
     }
 
-    /// SwiftUI takes snapshots on the main thread; this traps if it ever doesn't.
+    /// Runs on the main thread or, for the first save of a new deck, on a background thread.
     nonisolated func snapshot(contentType: UTType) throws -> Deck {
-        MainActor.assumeIsolated { deck }
+        savedDeck.withLock { $0 }
     }
 
     nonisolated func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
