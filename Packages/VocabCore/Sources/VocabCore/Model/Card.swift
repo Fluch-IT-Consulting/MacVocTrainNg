@@ -71,14 +71,17 @@ public struct ReviewLogEntry: Hashable, Sendable {
 }
 
 /// A question with its answer and an optional hint, asked from question to answer.
+///
+/// ID and creation date come with the card and stay; every other change goes through
+/// `DeckChange`.
 public struct Card: Identifiable, Hashable, Sendable {
-    public var id: UUID
+    public let id: UUID
     /// The texts follow the rule of `CardText`; only `DeckChange.editingText` changes them.
     public internal(set) var question: String
     public internal(set) var answer: String
     /// Optional hint shown together with the question.
     public internal(set) var hint: String
-    public var created: Date
+    public let created: Date
     /// `nil` while the card has never been studied. Only `Scheduler` and
     /// `DeckChange` change it.
     public internal(set) var learningState: LearningState?
