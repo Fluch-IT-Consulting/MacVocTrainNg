@@ -1,0 +1,41 @@
+# Builds the app and runs all tests, core and app, on every pull request (#13), and
+# lints with swift-format like the local check before a pull request.
+#
+# Xcode is pinned to the version the project is developed with: a newer swift-format
+# may judge the same code differently, and the check would fail without a change.
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same pull request makes the running check obsolete.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Lint
+        run: |
+          xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests \
+            Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
+
+      # Signed ad hoc (Config/Signing.xcconfig): the runner has no certificate.
+      # Runs after a failed lint too, so one push reports both.
+      - name: Build and test
+        if: ${{ !cancelled() }}
+        run: |
+          xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg \
+            -destination platform=macOS test
