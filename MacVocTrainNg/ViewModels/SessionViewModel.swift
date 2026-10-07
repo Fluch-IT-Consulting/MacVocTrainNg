@@ -108,7 +108,7 @@ final class SessionViewModel {
     func practiceMistakes() {
         let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
         guard !ids.isEmpty else { return }
-        mode = .practice(Practice(practicing: ids, steps: document.deck.learningOptions.steps, at: document.clock.now))
+        mode = .practice(Practice(practicing: ids, at: document.clock.now))
         previous = nil
         moveOn()
     }
