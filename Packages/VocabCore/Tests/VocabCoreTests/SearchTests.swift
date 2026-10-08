@@ -29,6 +29,28 @@ struct CardSearchIndexTests {
         #expect(index.positions(matching: "dzień") == [0])
     }
 
+    @Test func ignoresStrokes() {
+        let index = CardSearchIndex(cards: [Card(question: "łóżko", answer: "Bett"), Card(question: "Łóżko", answer: "Bett")])
+        #expect(index.positions(matching: "lozko") == [0, 1])
+        #expect(index.positions(matching: "LOZKO") == [0, 1])
+    }
+
+    /// Letters that have no canonical decomposition, in lower and upper case, and
+    /// their plain spelling.
+    @Test(arguments: [
+        ("ł", "Ł", "l"), ("ø", "Ø", "o"), ("đ", "Đ", "d"), ("ħ", "Ħ", "h"), ("æ", "Æ", "ae"), ("œ", "Œ", "oe"),
+    ])
+    func foldsLettersWithoutDecomposition(lower: String, upper: String, plain: String) {
+        let index = CardSearchIndex(cards: [
+            Card(question: "x\(lower)y", answer: "Tag"),
+            Card(question: "x\(upper)y", answer: "Tag"),
+            Card(question: "x\(plain)y", answer: "Tag"),
+        ])
+        for query in ["x\(lower)y", "x\(upper)y", "x\(plain)y", "X\(plain.uppercased())Y"] {
+            #expect(index.positions(matching: query) == [0, 1, 2], "query \(query)")
+        }
+    }
+
     @Test func blankQueryMatchesEverything() {
         let index = CardSearchIndex(cards: cards)
         #expect(index.positions(matching: "") == [0, 1, 2])
