@@ -8,17 +8,11 @@ struct ParametersSection: View {
     let cards: [Card]
     let calendar: StudyCalendar
 
-    @State private var reviewCount: Int
+    /// Counted once per opening of the sheet, not in `init`: the parent rebuilds this
+    /// view on every change to the options, and counting goes through the whole log.
+    @State private var reviewCount: Int?
     @State private var state = ComputationState.idle
     @State private var task: Task<Void, Never>?
-
-    init(options: Binding<LearningOptions>, cards: [Card], calendar: StudyCalendar) {
-        _options = options
-        self.cards = cards
-        self.calendar = calendar
-        let optimizer = FSRSOptimizer(cards: cards, learningOptions: options.wrappedValue, calendar: calendar)
-        _reviewCount = State(initialValue: optimizer.reviewCount)
-    }
 
     private enum ComputationState {
         case idle
@@ -38,10 +32,15 @@ struct ParametersSection: View {
     var body: some View {
         Section {
             LabeledContent("Current parameters", value: options.parameters == .default ? String(localized: "Default") : String(localized: "Custom"))
-            if reviewCount < FSRSOptimizer.minimumReviewCount {
-                LabeledContent("Usable reviews", value: "\(reviewCount) / \(FSRSOptimizer.minimumReviewCount)")
-            } else {
-                LabeledContent("Usable reviews", value: reviewCount.formatted())
+                // On a row that is always there, whatever the count.
+                .task { await countReviews() }
+            switch reviewCount {
+            case nil:
+                LabeledContent("Usable reviews", value: "")
+            case let count? where count < FSRSOptimizer.minimumReviewCount:
+                LabeledContent("Usable reviews", value: "\(count) / \(FSRSOptimizer.minimumReviewCount)")
+            case let count?:
+                LabeledContent("Usable reviews", value: count.formatted())
                 computation
             }
             if options.parameters != .default {
@@ -54,7 +53,7 @@ struct ParametersSection: View {
         } footer: {
             VStack(alignment: .leading, spacing: 6) {
                 Text("FSRS starts with parameters averaged over many learners. Computed from this deck's review log, they fit your memory, so cards need fewer reviews for the same target recall. Cards keep their due dates; new intervals apply from their next review.")
-                if reviewCount < FSRSOptimizer.minimumReviewCount {
+                if let reviewCount, reviewCount < FSRSOptimizer.minimumReviewCount {
                     Text("Computing needs \(FSRSOptimizer.minimumReviewCount) usable reviews: reviews on a later study day than the previous review of the same card.")
                 }
             }
@@ -113,6 +112,17 @@ struct ParametersSection: View {
 
     private static func loss(_ value: Double) -> String {
         value.formatted(.number.precision(.fractionLength(4)))
+    }
+
+    private func countReviews() async {
+        // The form may create the row again after scrolling it out of view.
+        guard reviewCount == nil else { return }
+        let cards = cards
+        let calendar = calendar
+        let options = options
+        reviewCount = await Task.detached(priority: .userInitiated) {
+            FSRSOptimizer(cards: cards, learningOptions: options, calendar: calendar).reviewCount
+        }.value
     }
 
     private func start() {
