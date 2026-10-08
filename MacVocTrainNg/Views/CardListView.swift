@@ -22,7 +22,7 @@ struct CardListView: View {
         }
         .searchable(text: $searchText, prompt: "Search cards")
         .inspector(isPresented: $showingInspector) {
-            CardInspector(document: document, selection: selection)
+            CardInspector(document: document, selection: selection, onDelete: delete)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .toolbar {
@@ -151,6 +151,8 @@ struct CardListView: View {
         table.rows(of: document.deck.cards, sortedBy: sortOrder, matching: searchText)
     }
 
+    /// Context menu, delete key and inspector all delete through here, so the selection
+    /// loses the cards too: `Table` keeps the IDs of removed rows selected (#184).
     private func delete(_ ids: Set<Card.ID>) {
         document.delete(ids)
         selection.subtract(ids)

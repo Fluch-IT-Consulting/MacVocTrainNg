@@ -5,6 +5,8 @@ import VocabCore
 struct CardInspector: View {
     @ObservedObject var document: VocabularyDocument
     var selection: Set<Card.ID>
+    /// Deletes cards and takes them out of the selection, which belongs to the card list.
+    var onDelete: (Set<Card.ID>) -> Void
 
     var body: some View {
         Group {
@@ -19,7 +21,7 @@ struct CardInspector: View {
                         document.resetLearningState(of: selection)
                     }
                     Button("Delete", role: .destructive) {
-                        document.delete(selection)
+                        onDelete(selection)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
