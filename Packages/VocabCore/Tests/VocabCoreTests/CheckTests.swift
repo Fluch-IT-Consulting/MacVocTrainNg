@@ -28,6 +28,19 @@ struct ResponseCheckerTests {
         #expect(checker.check(" / ", against: "Haus") == .wrong)
     }
 
+    @Test func separatorOnlyAnswerIsOneLiteralAlternative() {
+        #expect(ResponseChecker.alternatives(of: " / ") == ["/"])
+        #expect(ResponseChecker.alternatives(of: " ") == [])
+        #expect(checker.check("/", against: "/") == .correct)
+        #expect(checker.check("  /  ", against: "/") == .correct)
+        #expect(checker.check("Haus", against: "/") == .wrong)
+        #expect(checker.check("", against: "/") == .wrong)
+    }
+
+    @Test func separatorOnlyResponseStaysWrongForAnswerWithAlternatives() {
+        #expect(checker.check("/", against: "Haus / Gebäude") == .wrong)
+    }
+
     @Test func caseMattersOnlyWhenRequested() {
         #expect(checker.check("haus", against: "Haus") == .almostCorrect)
         #expect(ResponseChecker(caseSensitive: false).check("haus", against: "Haus") == .correct)

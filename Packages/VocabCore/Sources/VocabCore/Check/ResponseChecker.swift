@@ -3,7 +3,8 @@ import Foundation
 /// Compares a response with the answer of a card.
 ///
 /// An answer may consist of several alternatives separated by `/`, e.g.
-/// `"Haus / Gebäude"`. The order of alternatives does not matter. Whitespace
+/// `"Haus / Gebäude"`. The order of alternatives does not matter. An answer made
+/// only of separators and whitespace is one literal alternative. Whitespace
 /// differences and Unicode composition (e.g. a precomposed "ą" versus "a" plus
 /// a combining ogonek) are ignored; diacritics themselves are not.
 public struct ResponseChecker: Sendable {
@@ -36,10 +37,17 @@ public struct ResponseChecker: Sendable {
     }
 
     /// Splits an answer into normalised, non-empty alternatives.
+    ///
+    /// A text with no alternative left, such as `"/"` or `"/ /"`, is a single literal
+    /// alternative, so the answer `"/"` accepts the response `"/"`. Only a text of
+    /// whitespace has no alternatives.
     public static func alternatives(of text: String) -> [String] {
-        text.split(separator: separator)
+        let parts = text.split(separator: separator)
             .map { normalize(String($0)) }
             .filter { !$0.isEmpty }
+        guard parts.isEmpty else { return parts }
+        let whole = normalize(text)
+        return whole.isEmpty ? [] : [whole]
     }
 
     static func normalize(_ text: String) -> String {
