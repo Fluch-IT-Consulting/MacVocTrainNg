@@ -8,7 +8,6 @@ struct CardListView: View {
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var columnCustomization = TableColumnCustomization<CardRow>()
     @FocusState private var tableIsFocused: Bool
-    @State private var refocusTable = false
     @State private var searchText = ""
     @State private var showingInspector = false
     @State private var table = CardTable()
@@ -78,16 +77,6 @@ struct CardListView: View {
             // The column widths live in `columnCustomization`, and the focus moves over
             // through `sortOrderKeepingFocus`.
             .id(sortOrder)
-            .onChange(of: tableIsFocused) { _, isFocused in
-                // The new table can take the focus only after the old one has given it
-                // up, and only on the next turn of the run loop.
-                if !isFocused && refocusTable {
-                    refocusTable = false
-                    DispatchQueue.main.async {
-                        tableIsFocused = true
-                    }
-                }
-            }
             .contextMenu(forSelectionType: Card.ID.self) { ids in
                 if !ids.isEmpty {
                     Button("Show Details") {
@@ -133,16 +122,27 @@ struct CardListView: View {
         }
     }
 
-    /// Sets the sort order and hands the focus of the old table to the new one, see
-    /// `onChange(of: tableIsFocused)`. A focused search field keeps its focus.
+    /// Sets the sort order and hands the focus of the old table to the new one. A focused
+    /// search field keeps its focus.
+    ///
+    /// `tableIsFocused` is read only here, never in `body`: a view that reads it is
+    /// rebuilt while a click moves the focus into the table, and the table then loses
+    /// that click instead of selecting the row (#171).
     private var sortOrderKeepingFocus: Binding<[KeyPathComparator<CardRow>]> {
         Binding {
             sortOrder
         } set: { newOrder in
             // The same order builds no new table, so there is no focus to hand over.
             guard newOrder != sortOrder else { return }
-            refocusTable = tableIsFocused
+            let tableWasFocused = tableIsFocused
             sortOrder = newOrder
+            // The new table can take the focus only on the next turn of the run loop,
+            // after the old one has given it up.
+            if tableWasFocused {
+                DispatchQueue.main.async {
+                    tableIsFocused = true
+                }
+            }
         }
     }
 
