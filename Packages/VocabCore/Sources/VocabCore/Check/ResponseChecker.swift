@@ -71,7 +71,8 @@ public struct ResponseChecker: Sendable {
     }
 
     /// Damerau–Levenshtein distance (optimal string alignment): swapped neighbours count as one typo.
+    /// Compares exactly; `isClose` lowercases both sides beforehand.
     static func editDistance(_ a: [Character], _ b: [Character]) -> Int {
-        Alignment(response: a, expected: b).distance
+        Alignment(response: a, expected: b, caseSensitive: true).distance
     }
 }

@@ -15,8 +15,11 @@ public enum ResponseDiff {
     /// alternative of the answer is paired with the alternative of the response that is close
     /// to it and aligned like the typo check (`Alignment`). Both characters of a swapped pair
     /// count as wrong; extra characters of the response mark nothing. Separators, whitespace
-    /// and alternatives the response has nothing for are never marked.
-    public static func segments(response: String, expected: String) -> [Segment] {
+    /// and alternatives the response has nothing for are never marked. Pass the
+    /// `caseSensitive` of the `ResponseChecker` that checked the response: without it, a
+    /// character typed only in another case is not marked. The segments keep the case of
+    /// `expected` either way.
+    public static func segments(response: String, expected: String, caseSensitive: Bool) -> [Segment] {
         let answer = Array(expected.precomposedStringWithCanonicalMapping)
         guard !answer.isEmpty else { return [] }
         let given = ResponseChecker.alternatives(of: response)
@@ -28,9 +31,9 @@ public enum ResponseDiff {
             .map(trimmed)
             .filter { !$0.isEmpty }
         var mismatches = [Bool](repeating: false, count: answer.count)
-        for (partIndex, givenIndex) in pairs(given, parts.map { ResponseChecker.normalize(String($0)) }) {
+        for (partIndex, givenIndex) in pairs(given, parts.map { ResponseChecker.normalize(String($0)) }, caseSensitive: caseSensitive) {
             let part = parts[partIndex]
-            let operations = Alignment(response: Array(given[givenIndex]), expected: Array(part)).operations
+            let operations = Alignment(response: Array(given[givenIndex]), expected: Array(part), caseSensitive: caseSensitive).operations
             for (offset, operation) in zip(part.indices, operations) {
                 mismatches[offset] = operation != .match && !answer[offset].isWhitespace
             }
@@ -40,11 +43,13 @@ public enum ResponseDiff {
 
     /// Pairs alternatives of the answer (keys) with alternatives of the response (values) that
     /// `ResponseChecker` accepts as close, closest pairs first; each alternative is used once.
-    static func pairs(_ given: [String], _ expected: [String]) -> [Int: Int] {
+    /// The distance minds case only if `caseSensitive`.
+    static func pairs(_ given: [String], _ expected: [String], caseSensitive: Bool) -> [Int: Int] {
         var candidates: [(distance: Int, expected: Int, given: Int)] = []
         for (g, response) in given.enumerated() {
             for (e, answer) in expected.enumerated() where ResponseChecker.isClose(response, answer) {
-                candidates.append((Alignment(response: Array(response), expected: Array(answer)).distance, e, g))
+                let alignment = Alignment(response: Array(response), expected: Array(answer), caseSensitive: caseSensitive)
+                candidates.append((alignment.distance, e, g))
             }
         }
         candidates.sort { ($0.distance, $0.expected, $0.given) < ($1.distance, $1.expected, $1.given) }

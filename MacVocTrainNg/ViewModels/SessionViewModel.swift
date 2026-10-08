@@ -66,10 +66,21 @@ final class SessionViewModel {
         return result.suggestedGrade
     }
 
+    /// The answer with what an almost correct response got wrong marked; `nil` for any
+    /// other stage or result. Minds case only where the check did.
+    var highlightedAnswer: [ResponseDiff.Segment]? {
+        guard case let .feedback(.almostCorrect, response) = stage, let card = currentCard else { return nil }
+        return ResponseDiff.segments(response: response, expected: card.answer, caseSensitive: checker.caseSensitive)
+    }
+
+    /// Checks responses with the deck's learning options.
+    private var checker: ResponseChecker {
+        ResponseChecker(caseSensitive: document.deck.learningOptions.caseSensitive)
+    }
+
     /// Checks the response. An empty response counts as "I don't know".
     func submit(undoManager: UndoManager?) {
         guard stage == .asking, let card = currentCard else { return }
-        let checker = ResponseChecker(caseSensitive: document.deck.learningOptions.caseSensitive)
         let result = checker.check(input, against: card.answer)
         if result == .correct, autoAdvance {
             grade(.good, undoManager: undoManager)

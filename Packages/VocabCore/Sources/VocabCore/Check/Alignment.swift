@@ -17,10 +17,15 @@ struct Alignment {
     /// `table[i][j]` is the distance between the first `i` characters of the response
     /// and the first `j` characters of the answer.
     private let table: [[Int]]
-    private let response: [Character]
-    private let expected: [Character]
+    /// The characters as compared: lowercased one by one unless case-sensitive, so
+    /// the operations still line up with the characters of the answer.
+    private let response: [String]
+    private let expected: [String]
 
-    init(response: [Character], expected: [Character]) {
+    init(response: [Character], expected: [Character], caseSensitive: Bool) {
+        let fold: (Character) -> String = caseSensitive ? { String($0) } : { $0.lowercased() }
+        let response = response.map(fold)
+        let expected = expected.map(fold)
         self.response = response
         self.expected = expected
         var table = [[Int]](repeating: [Int](repeating: 0, count: expected.count + 1), count: response.count + 1)
@@ -74,6 +79,6 @@ struct Alignment {
 
 /// True if the last two of the first `i` response characters are the last two of the
 /// first `j` answer characters, swapped.
-private func isTransposition(_ i: Int, _ j: Int, _ response: [Character], _ expected: [Character]) -> Bool {
+private func isTransposition(_ i: Int, _ j: Int, _ response: [String], _ expected: [String]) -> Bool {
     i > 1 && j > 1 && response[i - 1] == expected[j - 2] && response[i - 2] == expected[j - 1]
 }
