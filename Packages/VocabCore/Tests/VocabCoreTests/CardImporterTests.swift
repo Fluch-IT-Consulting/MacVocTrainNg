@@ -15,13 +15,11 @@ struct CardImporterTests {
         #expect(result.candidates.map(\.card.answer) == ["Haus", "Katze"])
         #expect(result.candidates.map(\.card.hint) == ["", "Tier"])
         #expect(result.candidates.allSatisfy { $0.card.isNew && $0.card.created == created })
-        #expect(result.candidates.map(\.row) == [1, 2])
     }
 
     @Test func skipsHeaderAndIncompleteRows() {
         let result = candidates([["Question", "Answer"], ["dom", ""], ["nur eine Spalte"], ["", "Haus"], ["kot", "Katze"]], header: true)
         #expect(result.candidates.map(\.card.question) == ["kot"])
-        #expect(result.candidates.map(\.row) == [5])
         #expect(result.skippedRows == 3)
     }
 
@@ -34,6 +32,17 @@ struct CardImporterTests {
     @Test func marksDuplicates() {
         let existing = [Card(question: "Dom ", answer: "Haus")]
         let result = candidates([["dom", "Heim"], ["kot", "Katze"], ["KOT", "Kater"], ["pies", "Hund"], ["Kot ", "Kocur"]], existing: existing)
-        #expect(result.candidates.map(\.duplicate) == [.inDeck, nil, .inFile(row: 2), nil, .inFile(row: 2)])
+        let kot = CardImporter.Duplicate.inFile(question: "kot", answer: "Katze")
+        #expect(result.candidates.map(\.duplicate) == [.inDeck, nil, kot, nil, kot])
+    }
+
+    /// Header, skipped and empty rows don't shift the reference to the earlier card (#188).
+    @Test func duplicateInFileNamesTheEarlierCard() {
+        let file = Data("Question;Answer\ndom;Haus\nmysz;\n\nkot;Katze\nKot;Kater\n".utf8)
+        let rows = DelimitedText.decode(file).rows
+        let result = CardImporter.candidates(from: rows, existing: [], isHeader: { $0 == ["Question", "Answer"] }, created: created)
+        #expect(result.candidates.map(\.card.question) == ["dom", "kot", "Kot"])
+        #expect(result.skippedRows == 1)
+        #expect(result.candidates.map(\.duplicate) == [nil, nil, .inFile(question: "kot", answer: "Katze")])
     }
 }

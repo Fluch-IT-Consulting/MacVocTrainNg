@@ -284,12 +284,12 @@
         }
       }
     },
-    "Already in row %lld": {
+    "Already earlier in the file: %@ → %@": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Schon in Zeile %lld"
+            "value": "Schon weiter oben: %1$@ → %2$@"
           }
         }
       }

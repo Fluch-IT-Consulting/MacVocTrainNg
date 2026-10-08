@@ -38,8 +38,8 @@ struct ImportPreviewView: View {
                     switch candidate.duplicate {
                     case .inDeck:
                         Label("Already in this deck", systemImage: "exclamationmark.triangle")
-                    case let .inFile(row):
-                        Label("Already in row \(row)", systemImage: "exclamationmark.triangle")
+                    case let .inFile(question, answer):
+                        Label("Already earlier in the file: \(question) → \(answer)", systemImage: "exclamationmark.triangle")
                     case nil:
                         EmptyView()
                     }
