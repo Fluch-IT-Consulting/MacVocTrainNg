@@ -29,9 +29,11 @@ enum LegacyImport {
         savePanel.directoryURL = source.deletingLastPathComponent()
         savePanel.nameFieldStringValue = source.deletingPathExtension().lastPathComponent
         savePanel.message = String(localized: "Save the imported deck with \(deck.cards.count) cards.")
+        // The panel holds its delegate weakly, and an optimized build may release a local
+        // after its last use, before the panel runs (#236).
         let validator = SavePanelValidator()
         savePanel.delegate = validator
-        guard savePanel.runModal() == .OK, let target = savePanel.url else { return }
+        guard withExtendedLifetime(validator, { savePanel.runModal() }) == .OK, let target = savePanel.url else { return }
 
         // The panel has checked already; this is in case it didn't.
         if let error = openDeckError(at: target) {
