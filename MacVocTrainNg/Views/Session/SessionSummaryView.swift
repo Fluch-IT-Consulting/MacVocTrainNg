@@ -46,7 +46,7 @@ struct SessionSummaryView: View {
                 GridRow {
                     Text("Time")
                         .foregroundStyle(.secondary)
-                    Text(Duration.seconds(model.document.clock.now.timeIntervalSince(session.startedAt)).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2)))
+                    Text(Duration.seconds(session.duration).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2)))
                 }
             }
             .font(.title3)

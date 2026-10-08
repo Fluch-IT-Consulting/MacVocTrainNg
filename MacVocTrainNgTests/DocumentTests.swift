@@ -375,6 +375,30 @@ struct SessionViewModelTests {
         #expect(model.isFinished)
     }
 
+    /// The summary shows the time up to the last review, however long it stays open (#185).
+    @Test func durationStaysTheSameAfterTheSessionEnds() throws {
+        let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
+        var learningOptions = LearningOptions()
+        learningOptions.steps = 1
+        let deck = Deck(learningOptions: learningOptions, cards: [Card(question: "dom", answer: "Haus")])
+        let document = VocabularyDocument(deck: deck, clock: clock.studyClock, calendar: .testing)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+
+        clock.now.addTimeInterval(30)
+        model.input = "Haus"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        #expect(model.isFinished)
+        #expect(model.session.duration == 30)
+
+        clock.now.addTimeInterval(5 * 3600)
+        undoManager.undo()
+        #expect(model.stage == .asking)
+        undoManager.redo()
+        #expect(model.isFinished)
+        #expect(model.session.duration == 30)
+    }
+
     /// The fuzz of intervals belongs to the session's value: after undo, the same grade
     /// gives the same due date.
     @Test func undoingAReviewInLearningRestoresStepAndFuzz() throws {

@@ -34,7 +34,7 @@ public struct StudySession: Sendable {
         guard card.id == session.currentCardID else { return nil }
         let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
         let scheduled = scheduler.review(card, grade: grade, at: now, using: &fuzzing)
-        session.record(grade, isDone: scheduled.learningState?.phase == .review)
+        session.record(grade, isDone: scheduled.learningState?.phase == .review, at: now)
         return scheduled
     }
 

@@ -14,8 +14,8 @@ public struct Practice: Sendable {
         session = Session(cardIDs: cardIDs.shuffled(using: &random), startedAt: now, random: random)
     }
 
-    /// Records the review of the current card and moves on to the next one.
-    mutating func record(_ grade: Grade, with learningOptions: LearningOptions) {
+    /// Records the review of the current card at `now` and moves on to the next one.
+    mutating func record(_ grade: Grade, with learningOptions: LearningOptions, at now: Date) {
         guard let id = session.currentCardID else { return }
         // Mistakes need steps like (re)learning cards in a study session;
         // other cards leave after one recall like cards in the review phase.
@@ -26,7 +26,7 @@ public struct Practice: Sendable {
             mistakeSteps[id] = cardSteps.count
             isDone = cardSteps.areEnough
         }
-        session.record(grade, isDone: isDone)
+        session.record(grade, isDone: isDone, at: now)
     }
 
     mutating func perform(_ command: SessionCommand) {

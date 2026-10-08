@@ -91,9 +91,9 @@ struct SessionTests {
     }
 
     /// Reviews the current card and stores it in `deck`, like `SessionMode` and the app do.
-    func review(_ study: inout StudySession, deck: inout Deck, _ grade: Grade) {
+    func review(_ study: inout StudySession, deck: inout Deck, _ grade: Grade, at time: Date? = nil) {
         let current = deck.card(withID: study.session.currentCardID!)!
-        let card = study.review(grade, of: current, with: deck.learningOptions, at: now)!
+        let card = study.review(grade, of: current, with: deck.learningOptions, at: time ?? now)!
         deck.cards[deck.index(of: card.id)!] = card
     }
 
@@ -277,10 +277,10 @@ struct SessionTests {
         let options = learningOptions(steps: 2)
         var practice = Practice(practicing: ids, at: now, random: SeededRandom(seed: 1))
         let target = practice.session.currentCardID!
-        practice.record(.again, with: options)
+        practice.record(.again, with: options, at: now)
         var reviews = 1
         while !practice.session.isFinished {
-            practice.record(.good, with: options)
+            practice.record(.good, with: options, at: now)
             reviews += 1
         }
         // target needs 2 steps after its again, the other card one.
@@ -291,42 +291,42 @@ struct SessionTests {
     @Test func practiceHardKeepsStepAfterAgain() {
         let options = learningOptions(steps: 2)
         var practice = Practice(practicing: [UUID()], at: now, random: SeededRandom(seed: 1))
-        practice.record(.again, with: options)
-        practice.record(.hard, with: options)
-        practice.record(.hard, with: options)
+        practice.record(.again, with: options, at: now)
+        practice.record(.hard, with: options, at: now)
+        practice.record(.hard, with: options, at: now)
         #expect(!practice.session.isFinished)
-        practice.record(.good, with: options)
-        practice.record(.hard, with: options)
+        practice.record(.good, with: options, at: now)
+        practice.record(.hard, with: options, at: now)
         #expect(!practice.session.isFinished)
-        practice.record(.good, with: options)
+        practice.record(.good, with: options, at: now)
         #expect(practice.session.isFinished)
     }
 
     @Test func practiceAgainResetsSteps() {
         let options = learningOptions(steps: 2)
         var practice = Practice(practicing: [UUID()], at: now, random: SeededRandom(seed: 1))
-        practice.record(.again, with: options)
-        practice.record(.good, with: options)
-        practice.record(.again, with: options)
-        practice.record(.good, with: options)
+        practice.record(.again, with: options, at: now)
+        practice.record(.good, with: options, at: now)
+        practice.record(.again, with: options, at: now)
+        practice.record(.good, with: options, at: now)
         #expect(!practice.session.isFinished)
-        practice.record(.good, with: options)
+        practice.record(.good, with: options, at: now)
         #expect(practice.session.isFinished)
     }
 
     @Test func practiceEasyEndsCardAfterAgain() {
         let options = learningOptions(steps: 3)
         var practice = Practice(practicing: [UUID()], at: now, random: SeededRandom(seed: 1))
-        practice.record(.again, with: options)
-        practice.record(.easy, with: options)
+        practice.record(.again, with: options, at: now)
+        practice.record(.easy, with: options, at: now)
         #expect(practice.session.isFinished)
     }
 
     @Test func practiceEndsCardWithoutAgainAfterAnyRecall() {
         let options = learningOptions(steps: 2)
         var practice = Practice(practicing: [UUID(), UUID()], at: now, random: SeededRandom(seed: 1))
-        practice.record(.hard, with: options)
-        practice.record(.hard, with: options)
+        practice.record(.hard, with: options, at: now)
+        practice.record(.hard, with: options, at: now)
         #expect(practice.session.isFinished)
     }
 
@@ -339,6 +339,36 @@ struct SessionTests {
         #expect(study.session.currentCardID != skipped)
         study.perform(.skip)
         #expect(study.session.isFinished)
+    }
+
+    /// A session ends with its last review, also if its other cards are skipped (#185).
+    @Test func studySessionLastsUntilItsLastReview() {
+        var deck = deck(newCards: 0, reviewCards: 2)
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
+        #expect(study.session.duration == 0)
+        review(&study, deck: &deck, .good, at: now.addingTimeInterval(20))
+        #expect(study.session.duration == 20)
+        review(&study, deck: &deck, .good, at: now.addingTimeInterval(45))
+        #expect(study.session.isFinished)
+        #expect(study.session.duration == 45)
+
+        deck = self.deck(newCards: 0, reviewCards: 2)
+        var skipped = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
+        review(&skipped, deck: &deck, .good, at: now.addingTimeInterval(20))
+        skipped.perform(.skip)
+        #expect(skipped.session.isFinished)
+        #expect(skipped.session.duration == 20)
+    }
+
+    @Test func practiceLastsUntilItsLastReview() {
+        let deck = deck(newCards: 2)
+        var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), at: now, random: SeededRandom(seed: 1)))
+        #expect(mode.session.duration == 0)
+        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(20))
+        #expect(mode.session.duration == 20)
+        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(45))
+        #expect(mode.session.isFinished)
+        #expect(mode.session.duration == 45)
     }
 
     @Test func gradingInAStudySessionReschedulesTheCard() throws {
