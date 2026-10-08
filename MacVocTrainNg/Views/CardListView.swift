@@ -7,6 +7,8 @@ struct CardListView: View {
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var columnCustomization = TableColumnCustomization<CardRow>()
+    /// Read only in `sortOrderKeepingFocus`, never in `body`: the table would lose the
+    /// click that moves the focus into it (#171).
     @FocusState private var tableIsFocused: Bool
     @State private var searchText = ""
     @State private var showingInspector = false
