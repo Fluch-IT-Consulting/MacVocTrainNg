@@ -18,3 +18,7 @@ Tools/fsrs-reference/target/
 
 # Local code signing, see Config/Signing.xcconfig
 Config/Signing.local.xcconfig
+
+# Claude Code worktrees and the runs of Tools/agent-loop.sh
+.claude/worktrees/
+.claude/agent-runs/

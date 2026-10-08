@@ -65,6 +65,11 @@ Exception: a small change to code comments alone skips the issue. It still gets 
 GitHub issues in `Fluch-IT-Consulting/MacVocTrainNg`, via the `gh` CLI.
 See `docs/agents/issue-tracker.md`.
 
+### Unattended agents
+
+`Tools/agent-loop.sh` works through the `ready-for-agent` issues, one pull request each.
+See `docs/agents/afk-loop.md`; the agent's prompt is `docs/agents/afk-prompt.md`.
+
 ### Triage labels
 
 The five standard roles, label equals role name. See `docs/agents/triage-labels.md`.
