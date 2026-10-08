@@ -73,17 +73,17 @@ struct ResponseCheckerTests {
 
 struct ResponseDiffTests {
     @Test func marksMissingCharacters() {
-        let segments = ResponseDiff.segments(response: "dzien", expected: "dzień")
+        let segments = ResponseDiff.segments(response: "dzien", expected: "dzień", caseSensitive: true)
         #expect(segments.map(\.text) == ["dzie", "ń"])
         #expect(segments.map(\.isMismatch) == [false, true])
     }
 
     @Test func emptyResponseMarksNothing() {
-        #expect(ResponseDiff.segments(response: "", expected: "Haus / Gebäude") == [.init(text: "Haus / Gebäude", isMismatch: false)])
+        #expect(ResponseDiff.segments(response: "", expected: "Haus / Gebäude", caseSensitive: true) == [.init(text: "Haus / Gebäude", isMismatch: false)])
     }
 
     @Test func identicalResponseHasNoMismatch() {
-        #expect(ResponseDiff.segments(response: "Haus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
+        #expect(ResponseDiff.segments(response: "Haus", expected: "Haus", caseSensitive: true) == [.init(text: "Haus", isMismatch: false)])
     }
 
     @Test(arguments: [
@@ -92,36 +92,59 @@ struct ResponseDiffTests {
         ("Wumble", ["Wumb", "el"], [false, true]),
     ])
     func transpositionMarksBothCharacters(response: String, texts: [String], mismatches: [Bool]) {
-        let segments = ResponseDiff.segments(response: response, expected: "Wumbel")
+        let segments = ResponseDiff.segments(response: response, expected: "Wumbel", caseSensitive: true)
         #expect(segments.map(\.text) == texts)
         #expect(segments.map(\.isMismatch) == mismatches)
     }
 
     @Test func extraCharacterMarksNothing() {
-        #expect(ResponseDiff.segments(response: "Hauus", expected: "Haus") == [.init(text: "Haus", isMismatch: false)])
+        #expect(ResponseDiff.segments(response: "Hauus", expected: "Haus", caseSensitive: true) == [.init(text: "Haus", isMismatch: false)])
     }
 
     @Test func substitutionMarksOnlyTheWrongCharacter() {
-        let segments = ResponseDiff.segments(response: "haus", expected: "Haus")
+        let segments = ResponseDiff.segments(response: "haus", expected: "Haus", caseSensitive: true)
         #expect(segments.map(\.text) == ["H", "aus"])
         #expect(segments.map(\.isMismatch) == [true, false])
     }
 
     @Test func alternativesInAnyOrderMarkOnlyTheTypo() {
-        let segments = ResponseDiff.segments(response: "Gebäude / Hasu", expected: "Haus / Gebäude")
+        let segments = ResponseDiff.segments(response: "Gebäude / Hasu", expected: "Haus / Gebäude", caseSensitive: true)
         #expect(segments.map(\.text) == ["Ha", "us", " / Gebäude"])
         #expect(segments.map(\.isMismatch) == [false, true, false])
     }
 
     @Test func alternativeWithoutResponseIsNotMarked() {
-        let segments = ResponseDiff.segments(response: "Hasu", expected: "Haus / Gebäude")
+        let segments = ResponseDiff.segments(response: "Hasu", expected: "Haus / Gebäude", caseSensitive: true)
         #expect(segments.map(\.text) == ["Ha", "us", " / Gebäude"])
         #expect(segments.map(\.isMismatch) == [false, true, false])
     }
 
     @Test func eachAlternativeIsPairedOnce() {
         // "Hause" is close to both; the exact "Haus" claims "Haus", leaving "Hause" for "Hausen".
-        #expect(ResponseDiff.pairs(["Hause", "Haus"], ["Haus", "Hausen"]) == [0: 1, 1: 0])
-        #expect(ResponseDiff.pairs(["Auto"], ["Haus", "Gebäude"]) == [:])
+        #expect(ResponseDiff.pairs(["Hause", "Haus"], ["Haus", "Hausen"], caseSensitive: true) == [0: 1, 1: 0])
+        #expect(ResponseDiff.pairs(["Auto"], ["Haus", "Gebäude"], caseSensitive: true) == [:])
+    }
+
+    @Test(arguments: [
+        ("wumbl", ["Wumb", "e", "l"], [false, true, false]),
+        ("wumbele", ["Wumbel"], [false]),
+        ("WUBMEL", ["Wu", "mb", "el"], [false, true, false]),
+    ])
+    func withoutCaseSensitivityCaseMarksNothing(response: String, texts: [String], mismatches: [Bool]) {
+        let segments = ResponseDiff.segments(response: response, expected: "Wumbel", caseSensitive: false)
+        #expect(segments.map(\.text) == texts)
+        #expect(segments.map(\.isMismatch) == mismatches)
+    }
+
+    @Test func withCaseSensitivityCaseIsMarked() {
+        let segments = ResponseDiff.segments(response: "wumbl", expected: "Wumbel", caseSensitive: true)
+        #expect(segments.map(\.text) == ["W", "umb", "e", "l"])
+        #expect(segments.map(\.isMismatch) == [true, false, true, false])
+    }
+
+    @Test func pairingIgnoresCaseOnlyWithoutCaseSensitivity() {
+        // Without case sensitivity "haus" is "Haus" exactly and claims it, leaving "Hause" for "Hausen".
+        #expect(ResponseDiff.pairs(["Hause", "haus"], ["Haus", "Hausen"], caseSensitive: false) == [0: 1, 1: 0])
+        #expect(ResponseDiff.pairs(["Hause", "haus"], ["Haus", "Hausen"], caseSensitive: true) == [0: 0])
     }
 }

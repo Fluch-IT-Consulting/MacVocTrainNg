@@ -509,6 +509,21 @@ struct SessionViewModelTests {
         #expect(document.deck.cards[0].log.map(\.grade) == [.good])
     }
 
+    @Test(arguments: [false, true])
+    func highlightingFollowsTheCaseSensitivityOfTheDeck(caseSensitive: Bool) {
+        var learningOptions = LearningOptions()
+        learningOptions.caseSensitive = caseSensitive
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [Card(question: "Ding", answer: "Wumbel")]))
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        #expect(model.highlightedAnswer == nil)
+
+        model.input = "wumbl"
+        model.submit(undoManager: nil)
+        #expect(model.stage == .feedback(.almostCorrect, response: "wumbl"))
+        let marked = model.highlightedAnswer?.filter(\.isMismatch).map(\.text)
+        #expect(marked == (caseSensitive ? ["W", "e"] : ["e"]))
+    }
+
     @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() {
         let document = makeDocument(cards: 1)
         let model = SessionViewModel(document: document, autoAdvance: false)

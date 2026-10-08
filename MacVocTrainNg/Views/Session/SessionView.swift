@@ -100,7 +100,7 @@ struct SessionView: View {
 
             Group {
                 if case let .feedback(result, response) = model.stage {
-                    FeedbackView(result: result, response: response, expected: card.answer) { grade in
+                    FeedbackView(result: result, response: response, expected: card.answer, highlightedAnswer: model.highlightedAnswer) { grade in
                         model.grade(grade, undoManager: undoManager)
                     }
                 } else {
@@ -133,6 +133,8 @@ private struct FeedbackView: View {
     var result: CheckResult
     var response: String
     var expected: String
+    /// The answer with the differences marked, for almost correct responses.
+    var highlightedAnswer: [ResponseDiff.Segment]?
     var onGrade: (Grade) -> Void
 
     var body: some View {
@@ -195,8 +197,8 @@ private struct FeedbackView: View {
 
     /// The answer; for almost correct responses with the differences highlighted.
     private var answerText: Text {
-        guard result == .almostCorrect else { return Text(expected) }
-        return ResponseDiff.segments(response: response, expected: expected).reduce(Text(verbatim: "")) { text, segment in
+        guard let highlightedAnswer else { return Text(expected) }
+        return highlightedAnswer.reduce(Text(verbatim: "")) { text, segment in
             if segment.isMismatch {
                 return text + Text(segment.text).bold().underline().foregroundColor(Grade.again.color)
             }
