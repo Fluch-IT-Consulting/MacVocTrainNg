@@ -62,7 +62,7 @@ private struct CardDetail: View {
                 TextField("Hint", text: $hint, axis: .vertical)
                     .focused($focus, equals: .hint)
             }
-            .onSubmit(commit)
+            .onSubmit(endEdit)
 
             Section("Learning State") {
                 if let learningState = card.learningState {
@@ -107,28 +107,49 @@ private struct CardDetail: View {
             }
         }
         .formStyle(.grouped)
+        .onChange(of: [question, answer, hint]) {
+            write()
+        }
         .onChange(of: focus) { oldValue, _ in
-            if oldValue != nil { commit() }
+            if oldValue != nil { endEdit() }
         }
-        .onChange(of: card) { _, card in
-            // Show changes made elsewhere, e.g. by undo.
-            question = card.question
-            answer = card.answer
-            hint = card.hint
+        .onChange(of: [card.question, card.answer, card.hint]) {
+            // Show changes made elsewhere, e.g. by undo. Changes of the learning state
+            // leave the fields alone, so they keep what is being typed (#175).
+            showText(of: card, unlessTyped: true)
         }
-        .onDisappear(perform: commit)
+        .onDisappear {
+            document.endTextEdit(of: card.id)
+        }
     }
 
-    /// Writes edited text back to the document as one undoable change.
-    private func commit() {
-        guard question != card.question || answer != card.answer || hint != card.hint,
-            let current = document.card(withID: card.id)
-        else { return }
-        guard let text = CardText(question: question, answer: answer, hint: hint) else {
-            question = current.question
-            answer = current.answer
+    /// Writes the text in the fields to the deck as it is typed, so it is there when
+    /// the deck is saved, closed or the app quits (#175). The document makes one
+    /// undo action of an edit, see `VocabularyDocument.editText(of:to:)`. A text the
+    /// deck doesn't take, like an empty question, stays in the fields only.
+    private func write() {
+        guard let text = CardText(question: question, answer: answer, hint: hint) else { return }
+        document.editText(of: card.id, to: text)
+    }
+
+    /// Ends the edit when a field loses the focus or Return is pressed: the next one
+    /// is an undo action of its own. The fields show the text as the deck took it,
+    /// trimmed, or the last one it took if they hold one it doesn't.
+    private func endEdit() {
+        document.endTextEdit(of: card.id)
+        if let current = document.card(withID: card.id) {
+            showText(of: current, unlessTyped: false)
+        }
+    }
+
+    /// Shows the text of `card` in the fields. With `unlessTyped`, fields that the deck
+    /// would take as the text of `card` stay as typed, with a trailing space for example.
+    private func showText(of card: Card, unlessTyped: Bool) {
+        if unlessTyped, CardText(question: question, answer: answer, hint: hint) == CardText(question: card.question, answer: card.answer, hint: card.hint) {
             return
         }
-        document.editText(of: card.id, to: text)
+        question = card.question
+        answer = card.answer
+        hint = card.hint
     }
 }

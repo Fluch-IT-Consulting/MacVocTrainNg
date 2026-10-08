@@ -1,3 +1,4 @@
+import AppKit
 import Testing
 
 /// Tests that show views in real windows. They run one at a time: while one window
@@ -20,4 +21,18 @@ func waitUntil(
         try await Task.sleep(for: .milliseconds(10))
     }
     try #require(condition(), "Timed out waiting until \(comment)", sourceLocation: sourceLocation)
+}
+
+/// Gives the window the undo manager a document window gets from its document.
+@MainActor
+final class DocumentWindowDelegate: NSObject, NSWindowDelegate {
+    let undoManager: UndoManager
+
+    init(undoManager: UndoManager) {
+        self.undoManager = undoManager
+    }
+
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
+        undoManager
+    }
 }
