@@ -18,6 +18,16 @@ import Foundation
 /// Versions 1 (a single JSON file with the log inside each card) and 2 (the package
 /// with the keys before the glossary of #23) date from before the first release and
 /// are no longer read.
+///
+/// When `currentVersion` goes up: a missing key takes its default, so a newer app
+/// version reads an older deck of the same version. The other way round, an older
+/// app version reads a newer deck of the same version without complaint, skips the
+/// keys it doesn't know and drops them on the next save, as it rebuilds the package
+/// from just `deck.json` and `reviews.jsonl`. So a new key in `deck.json`, a new
+/// field in the lines of `reviews.jsonl` or a new file in the package comes without
+/// a new version only if an older app version may silently lose it. Otherwise
+/// `currentVersion` goes up, and older app versions reject the deck as
+/// `unsupportedVersion`. Incompatible changes always raise it.
 public enum DeckFile {
     public static let format = "com.mfluch.voctrain.deck"
     public static let currentVersion = 3
@@ -130,7 +140,8 @@ extension DeckFile {
         }
     }
 
-    /// Missing keys take the default, so options added later need no new version.
+    /// Missing keys take the default. Whether a new option needs a new format
+    /// version is up to the rule in `DeckFile`.
     private struct OptionsRecord: Codable {
         var targetRecall: Double
         var maximumInterval: Int
