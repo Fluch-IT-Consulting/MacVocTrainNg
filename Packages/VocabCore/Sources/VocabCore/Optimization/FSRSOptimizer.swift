@@ -131,7 +131,7 @@ public struct FSRSOptimizer: Sendable {
         return weights
     }
 
-    /// Keeps each weight in the range of fsrs-rs (`parameter_clipper.rs`).
+    /// Keeps each weight in its range (`FSRSParameters.ranges`).
     private func clip(_ w: inout [Double]) {
         // With several relearning steps, a lapse followed by that many same-day reviews
         // must not end above the stability before the lapse.
@@ -139,14 +139,9 @@ public struct FSRSOptimizer: Sendable {
             relearningSteps > 1
             ? min(2, sqrt(max(0.01, -(log(w[11]) + log(pow(2, w[13]) - 1) + w[14] * 0.3) / Double(relearningSteps))))
             : 2
-        let s = FSRS.minimumStability...InitialStability.maximum
-        let ranges: [ClosedRange<Double>] = [
-            s, s, s, s,
-            FSRS.difficultyRange,
-            0.001...4, 0.001...4, 0.001...0.75, 0...4.5, 0...0.8, 0.001...3.5, 0.001...5, 0.001...0.25,
-            0.001...0.9, 0...4, 0...1, 1...6,
-            0...sameDayCeiling, 0...sameDayCeiling, 0.01...0.8, 0.1...0.8,
-        ]
+        var ranges = FSRSParameters.ranges
+        ranges[17] = 0...sameDayCeiling
+        ranges[18] = 0...sameDayCeiling
         for i in w.indices {
             w[i] = w[i].clamped(to: ranges[i])
         }

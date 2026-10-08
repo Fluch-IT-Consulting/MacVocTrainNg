@@ -57,4 +57,11 @@ struct FSRSTests {
         #expect(FSRSParameters([1, 2, 3]) == nil)
         #expect(FSRSParameters(FSRSParameters.default.weights) == FSRSParameters.default)
     }
+
+    @Test func defaultParametersAreWithinTheirRanges() {
+        #expect(FSRSParameters.default.indexOutOfRange == nil)
+        var weights = FSRSParameters.default.weights
+        weights[7] = 0.8
+        #expect(FSRSParameters(weights)?.indexOutOfRange == 7)
+    }
 }

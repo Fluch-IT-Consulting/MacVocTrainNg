@@ -42,6 +42,16 @@ public enum DeckFile {
         case outdatedVersion(Int)
         /// A line of `reviews.jsonl` could not be read (1-based).
         case damagedReviewLog(line: Int)
+        /// `reviews.jsonl` is missing, although a card has been reviewed.
+        case missingReviewLog
+        /// A line of `reviews.jsonl` belongs to no card of the deck (1-based).
+        case reviewsOfUnknownCard(line: Int)
+        /// The review log of a card is longer than its count of reviews.
+        case reviewLogTooLong(question: String)
+        /// Several cards have the ID of the card with this question.
+        case duplicateCardID(question: String)
+        /// A weight of the FSRS parameters is outside its range (0-based, as in w0…w20).
+        case parameterOutOfRange(index: Int)
     }
 
     // MARK: - Writing
@@ -69,6 +79,11 @@ public enum DeckFile {
     // MARK: - Reading
 
     /// Reads a package.
+    ///
+    /// Rejects a review log that doesn't fit the cards, as the app never writes one:
+    /// it is missing although a card was reviewed, has lines of unknown cards, or is
+    /// longer than a card's count of reviews. A shorter one is fine; cards imported
+    /// from MacVocTrain 1 lack the reviews before the import.
     public static func decode(_ wrapper: FileWrapper) throws -> Deck {
         guard wrapper.isDirectory else {
             // Only version 1 was a single file; its header reports it as outdated.
@@ -81,11 +96,19 @@ public enum DeckFile {
         var deck = try decode(deckData)
         if let reviews = wrapper.fileWrappers?[reviewsFileName]?.regularFileContents {
             try ReviewLogEncoder.attach(reviews, to: &deck.cards)
+        } else if deck.cards.contains(where: { ($0.learningState?.reviews ?? 0) > 0 }) {
+            throw Error.missingReviewLog
+        }
+        if let card = deck.cards.first(where: { $0.log.count > ($0.learningState?.reviews ?? 0) }) {
+            throw Error.reviewLogTooLong(question: card.question)
         }
         return deck
     }
 
     /// Reads the `deck.json` of a package, without the review log.
+    ///
+    /// Rejects duplicate card IDs and FSRS parameters outside their ranges; clamps
+    /// learning options and learning states into theirs.
     public static func decode(_ data: Data) throws -> Deck {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -113,8 +136,8 @@ public enum DeckFile {
 // MARK: - Records
 
 /// The records of `deck.json`, one property per key. They convert from and to the
-/// domain types; checking the values is left to those (`FSRSParameters(_:)`,
-/// `LearningOptions.sanitize()`).
+/// domain types and check the values on the way in, with the ranges of those
+/// (`FSRSParameters.ranges`, `LearningOptions.sanitize()`, `LearningState.sanitize()`).
 extension DeckFile {
     private struct Envelope: Codable {
         var format: String
@@ -132,7 +155,12 @@ extension DeckFile {
         }
 
         func deck() throws -> Deck {
-            Deck(
+            // `Deck.apply` and `ReviewLogEncoder` rely on unique IDs.
+            var ids = Set<UUID>()
+            if let duplicate = cards.first(where: { !ids.insert($0.id).inserted }) {
+                throw DeckFile.Error.duplicateCardID(question: duplicate.question)
+            }
+            return Deck(
                 learningOptions: try learningOptions.learningOptions(),
                 cards: cards.map(\.card),
                 progress: try progress.map { try $0.snapshot() }
@@ -166,6 +194,9 @@ extension DeckFile {
         func learningOptions() throws -> LearningOptions {
             guard let parameters = FSRSParameters(parameters) else {
                 throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Expected \(FSRSParameters.count) finite FSRS weights."))
+            }
+            if let index = parameters.indexOutOfRange {
+                throw DeckFile.Error.parameterOutOfRange(index: index)
             }
             var options = LearningOptions()
             options.targetRecall = targetRecall
@@ -294,7 +325,7 @@ extension DeckFile {
         }
 
         var learningState: LearningState {
-            LearningState(
+            var state = LearningState(
                 phase: phase.learningPhase,
                 step: step,
                 stability: stability,
@@ -304,6 +335,8 @@ extension DeckFile {
                 reviews: reviews,
                 lapses: lapses
             )
+            state.sanitize()
+            return state
         }
     }
 

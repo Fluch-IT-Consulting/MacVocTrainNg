@@ -13,12 +13,39 @@ struct DeckFileTests {
         learningOptions.cardsPerSession = nil
         var card = Card(question: "dom", answer: "Haus / Gebäude", hint: "Substantiv", created: date)
         card.learningState = LearningState(phase: .review, step: 0, stability: 12.5, difficulty: 4.2, lastReview: date, due: date.addingTimeInterval(86400), reviews: 3, lapses: 1)
+        // One review short, like a card imported from MacVocTrain 1 with a learning state.
         card.log = [ReviewLogEntry(date: date.addingTimeInterval(-86400), grade: .again), ReviewLogEntry(date: date, grade: .hard)]
         return Deck(learningOptions: learningOptions, cards: [card, Card(question: "kot", answer: "Katze", created: date)], progress: [DailySnapshot(day: 20_000, bins: [1, 1])])
     }
 
     func file(_ wrapper: FileWrapper, _ name: String) -> String {
         String(decoding: wrapper.fileWrappers![name]!.regularFileContents!, as: UTF8.self)
+    }
+
+    /// The package of `deck` with `lines` appended to its `reviews.jsonl`.
+    func package(of deck: Deck, appendingReviews lines: [String]) throws -> FileWrapper {
+        let wrapper = try DeckFile.fileWrapper(for: deck)
+        let reviews = file(wrapper, DeckFile.reviewsFileName) + lines.map { $0 + "\n" }.joined()
+        wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
+        wrapper.addRegularFile(withContents: Data(reviews.utf8), preferredFilename: DeckFile.reviewsFileName)
+        return wrapper
+    }
+
+    func reviewLine(of id: Card.ID) -> String {
+        "{\"card\":\"\(id.uuidString)\",\"date\":1791216000,\"grade\":3}"
+    }
+
+    /// A `deck.json` with one card whose learning state has the given values.
+    func deckJSON(step: Int = 0, stability: Double = 12.5, difficulty: Double = 5, reviews: Int = 1, lapses: Int = 0, parameters: [Double] = FSRSParameters.default.weights) -> Data {
+        let learningState = """
+            {"phase": "review", "step": \(step), "stability": \(stability), "difficulty": \(difficulty),
+             "lastReview": "2026-10-05T16:00:00Z", "due": "2026-10-06T02:00:00Z", "reviews": \(reviews), "lapses": \(lapses)}
+            """
+        let json = """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "learningOptions": {"parameters": \(parameters)},
+             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "learningState": \(learningState)}]}
+            """
+        return Data(json.utf8)
     }
 
     @Test func packageRoundTripPreservesEverything() throws {
@@ -93,19 +120,98 @@ struct DeckFileTests {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(FileWrapper(regularFileWithContents: deckJSON)) }
     }
 
-    @Test func packageWithoutReviewLogHasEmptyLogs() throws {
-        let deck = sampleDeck()
-        let wrapper = try DeckFile.fileWrapper(for: deck)
+    @Test func packageWithoutReviewLogIsRejectedOnceACardWasStudied() throws {
+        let wrapper = try DeckFile.fileWrapper(for: sampleDeck())
         wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
-        #expect(try DeckFile.decode(wrapper).cards.allSatisfy(\.log.isEmpty))
+        #expect(throws: DeckFile.Error.missingReviewLog) { try DeckFile.decode(wrapper) }
     }
 
-    @Test func reviewsOfUnknownCardsAreDropped() throws {
+    @Test func packageWithoutReviewLogOpensWhileAllCardsAreNew() throws {
+        let deck = Deck(cards: [Card(question: "kot", answer: "Katze", created: date)])
+        let wrapper = try DeckFile.fileWrapper(for: deck)
+        wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
+        #expect(try DeckFile.decode(wrapper) == deck)
+    }
+
+    @Test func reviewsOfUnknownCardsAreRejected() throws {
         let deck = sampleDeck()
+        let wrapper = try package(of: deck, appendingReviews: [reviewLine(of: UUID())])
+        #expect(throws: DeckFile.Error.reviewsOfUnknownCard(line: 3)) { try DeckFile.decode(wrapper) }
+
         let reviews = Data(file(try DeckFile.fileWrapper(for: deck), DeckFile.reviewsFileName).utf8)
         var remaining = [deck.cards[1]]  // the card with reviews was deleted
-        try ReviewLogEncoder.attach(reviews, to: &remaining)
-        #expect(remaining == [deck.cards[1]])
+        #expect(throws: DeckFile.Error.reviewsOfUnknownCard(line: 1)) { try ReviewLogEncoder.attach(reviews, to: &remaining) }
+    }
+
+    @Test func reviewLogLongerThanReviewsIsRejected() throws {
+        let deck = sampleDeck()
+        let studied = deck.cards[0]
+        let tooLong = try package(of: deck, appendingReviews: [reviewLine(of: studied.id), reviewLine(of: studied.id)])
+        #expect(throws: DeckFile.Error.reviewLogTooLong(question: "dom")) { try DeckFile.decode(tooLong) }
+
+        let ofNewCard = try package(of: deck, appendingReviews: [reviewLine(of: deck.cards[1].id)])
+        #expect(throws: DeckFile.Error.reviewLogTooLong(question: "kot")) { try DeckFile.decode(ofNewCard) }
+    }
+
+    @Test func reviewLogShorterThanReviewsIsAllowed() throws {
+        let deck = sampleDeck()
+        let card = try DeckFile.decode(DeckFile.fileWrapper(for: deck)).cards[0]
+        #expect(card.log == deck.cards[0].log)
+        #expect(card.log.count < card.learningState!.reviews)
+    }
+
+    @Test func duplicateCardIDsAreRejected() throws {
+        var deck = sampleDeck()
+        deck.cards.append(Card(id: deck.cards[1].id, question: "kot", answer: "Kater", created: date))
+        #expect(throws: DeckFile.Error.duplicateCardID(question: "kot")) { try DeckFile.decode(DeckFile.fileWrapper(for: deck)) }
+        #expect(throws: DeckFile.Error.duplicateCardID(question: "kot")) { try DeckFile.decode(DeckFile.encodeDeck(deck)) }
+    }
+
+    @Test func parametersOutOfRangeAreRejected() throws {
+        var weights = FSRSParameters.default.weights
+        weights[20] = 0.001
+        #expect(throws: DeckFile.Error.parameterOutOfRange(index: 20)) { try DeckFile.decode(deckJSON(parameters: weights)) }
+
+        // Above the ceiling the optimizer sets for several learning steps, but within the fixed one.
+        weights = FSRSParameters.default.weights
+        weights[17] = 2
+        weights[18] = 2
+        #expect(try DeckFile.decode(deckJSON(parameters: weights)).learningOptions.parameters.weights == weights)
+    }
+
+    /// Values the app never writes are clamped, so studying the card neither crashes
+    /// nor yields values the deck can't be saved with.
+    @Test(arguments: [
+        (step: 0, stability: 0.0, difficulty: 5.0, reviews: 1, lapses: 0),
+        (step: 0, stability: 12.5, difficulty: -3.0, reviews: 1, lapses: 0),
+        (step: 0, stability: 12.5, difficulty: 50.0, reviews: 1, lapses: 0),
+        (step: 0, stability: 12.5, difficulty: 5.0, reviews: Int.max, lapses: Int.max),
+        (step: -2, stability: 12.5, difficulty: 5.0, reviews: -1, lapses: -1),
+        (step: Int.max, stability: 1e300, difficulty: 5.0, reviews: 1, lapses: 0),
+    ])
+    func learningStateOutOfRangeIsClamped(values: (step: Int, stability: Double, difficulty: Double, reviews: Int, lapses: Int)) throws {
+        let json = deckJSON(step: values.step, stability: values.stability, difficulty: values.difficulty, reviews: values.reviews, lapses: values.lapses)
+        let deck = try DeckFile.decode(json)
+        let learningState = try #require(deck.cards[0].learningState)
+        #expect(learningState.stability >= FSRS.minimumStability)
+        #expect(FSRS.difficultyRange.contains(learningState.difficulty))
+        #expect(learningState.step >= 0 && learningState.reviews >= 0 && learningState.lapses >= 0)
+
+        for phase in [LearningPhase.review, .relearning] {
+            for days in [0.0, 3, 400] {
+                for grade in [Grade.good, .easy, .again] {
+                    var studied = deck
+                    studied.cards[0].learningState?.phase = phase
+                    var random = SeededRandom(seed: 1)
+                    let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: .testing)
+                    studied.cards[0] = scheduler.review(studied.cards[0], grade: grade, at: date.addingTimeInterval(days * 86400), using: &random)
+                    let reviewed = try #require(studied.cards[0].learningState)
+                    #expect(reviewed.stability.isFinite && reviewed.difficulty.isFinite, "\(phase) \(grade) after \(days) days")
+                    // Values at the upper bounds are clamped again, so the deck itself may differ.
+                    #expect(try DeckFile.decode(DeckFile.fileWrapper(for: studied)).cards[0].log == studied.cards[0].log)
+                }
+            }
+        }
     }
 
     @Test func damagedReviewLineIsReported() throws {
@@ -140,7 +246,9 @@ struct DeckFileTests {
         let deckJSON = """
             {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "futureDeckKey": 1,
              "learningOptions": {"targetRecall": 0.85, "futureOption": 7},
-             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "futureCardKey": "x"}]}
+             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "futureCardKey": "x",
+                        "learningState": {"phase": "learning", "step": 1, "stability": 2.3, "difficulty": 2.1, "reviews": 1, "lapses": 0,
+                                          "lastReview": "2026-10-05T16:00:00Z", "due": "2026-10-05T16:00:00Z"}}]}
             """
         let reviews = """
             {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3,"futureReviewKey":true}
