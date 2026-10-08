@@ -5,9 +5,9 @@ import VocabCore
 
 @testable import MacVocTrain
 
-/// A window that handles clicks like the key window. The test host can't activate
-/// itself, so no window of it becomes key, and the first click into a window that
-/// isn't key only makes it key.
+/// A window that handles clicks like the key window. A test host that isn't active,
+/// such as one started from a terminal, can't activate itself, so no window of it
+/// becomes key, and the first click into a window that isn't key only makes it key.
 private final class KeyWindow: NSWindow {
     override var isKeyWindow: Bool { true }
 }
@@ -26,7 +26,9 @@ extension WindowTests {
             window = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: CardListView(document: document))
-            window.orderFront(nil)
+            // Key for real where the test host is active, as in CI. Another window, such
+            // as the open panel of the document app, may be key there.
+            window.makeKeyAndOrderFront(nil)
         }
 
         /// The table of the list; a new sort order replaces it with a new one.
