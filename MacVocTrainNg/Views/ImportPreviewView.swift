@@ -5,10 +5,6 @@ import VocabCore
 struct ImportPreviewView: View {
     @ObservedObject var document: VocabularyDocument
     @Bindable var preview: CardImport.Preview
-    /// The document's undo manager. A sheet is a window of its own, and its environment
-    /// holds that window's undo manager: changes registered there could not be undone and
-    /// would not mark the document as edited (#48).
-    let undoManager: UndoManager?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -60,7 +56,7 @@ struct ImportPreviewView: View {
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Import \(preview.selection.count) Cards") {
-                    document.importCards(preview.selectedCards, undoManager: undoManager)
+                    document.importCards(preview.selectedCards)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)

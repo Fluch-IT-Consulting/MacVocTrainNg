@@ -3,7 +3,6 @@ import VocabCore
 
 struct CardListView: View {
     @ObservedObject var document: VocabularyDocument
-    @Environment(\.undoManager) private var undoManager
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var columnCustomization = TableColumnCustomization<CardRow>()
@@ -86,7 +85,7 @@ struct CardListView: View {
                         showingInspector = true
                     }
                     Button("Reset Learning State") {
-                        document.resetLearningState(of: ids, undoManager: undoManager)
+                        document.resetLearningState(of: ids)
                     }
                     Divider()
                     Button("Delete", role: .destructive) {
@@ -153,7 +152,7 @@ struct CardListView: View {
     }
 
     private func delete(_ ids: Set<Card.ID>) {
-        document.delete(ids, undoManager: undoManager)
+        document.delete(ids)
         selection.subtract(ids)
     }
 }

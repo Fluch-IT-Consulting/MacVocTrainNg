@@ -30,8 +30,8 @@ extension WindowTests {
         private let delegate: DocumentWindowDelegate
 
         init() {
-            undoManager = UndoManager()
-            undoManager.groupsByEvent = false
+            // The window has no `DocumentView` to give the document its undo manager.
+            undoManager = makeUndoManager(for: document)
             model = SessionViewModel(document: document, autoAdvance: true)
             delegate = DocumentWindowDelegate(undoManager: undoManager)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)

@@ -82,17 +82,17 @@ final class SessionViewModel {
     }
 
     /// Checks the response. An empty response counts as "I don't know".
-    func submit(undoManager: UndoManager?) {
+    func submit() {
         guard stage == .asking, let card = currentCard else { return }
         let result = checker.check(input, against: card.answer)
         if result == .correct, autoAdvance {
-            grade(.good, undoManager: undoManager)
+            grade(.good)
         } else {
             stage = .feedback(result, response: input)
         }
     }
 
-    func grade(_ grade: Grade, undoManager: UndoManager?) {
+    func grade(_ grade: Grade) {
         guard stage != .finished, let card = currentCard else { return }
         let before = mode
         guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now) else { return }
@@ -104,9 +104,9 @@ final class SessionViewModel {
         let restore = sessionRestore(from: before, to: mode)
         switch outcome {
         case let .rescheduled(change):
-            document.applyReview(change, undoManager: undoManager, alongside: restore)
+            document.applyReview(change, alongside: restore)
         case .practiced:
-            Self.registerUndo(restore, on: document, undoManager: undoManager)
+            Self.registerUndo(restore, on: document)
         }
 
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
@@ -186,10 +186,10 @@ final class SessionViewModel {
     /// The target is the document, like for a review in a study session: the model may
     /// be gone before the undo stack, and the handler reaches it only through `companion`
     /// (#174).
-    private static func registerUndo(_ companion: UndoCompanion, on document: VocabularyDocument, undoManager: UndoManager?) {
-        undoManager?.registerMainActorUndo(withTarget: document, actionName: String(localized: "Review")) { document, undoManager in
+    private static func registerUndo(_ companion: UndoCompanion, on document: VocabularyDocument) {
+        document.undoManager?.registerMainActorUndo(withTarget: document, actionName: String(localized: "Review")) { document, _ in
             companion.undo()
-            registerUndo(companion.reversed, on: document, undoManager: undoManager)
+            registerUndo(companion.reversed, on: document)
         }
     }
 
