@@ -49,8 +49,12 @@ The active developer dir may be the Command Line Tools; prefix with
 - A deck is a package (`deck.json` + `reviews.jsonl`, see `DeckFile`); its keys are the
   glossary terms. Only the private records in `DeckFile` know its keys; domain types
   are not `Codable`. Versions 1 and 2 predate the first release and are no longer read.
-  Bump `DeckFile.currentVersion` only for incompatible changes; new optional fields
-  decode with defaults. The review log is encoded incrementally by `ReviewLogEncoder`:
+  Missing keys decode with defaults, so newer app versions read older decks. Older app
+  versions read newer decks of the same version too, but drop unknown keys and files
+  on save. So a new field (in `deck.json` or `reviews.jsonl`) or file in the package
+  comes without a bump of `DeckFile.currentVersion` only if losing it that way is
+  acceptable; otherwise, and for incompatible changes, bump it: older app versions
+  then reject the deck. The review log is encoded incrementally by `ReviewLogEncoder`:
   logs may only grow at the end or be replaced as a whole.
 
 ## Workflow
