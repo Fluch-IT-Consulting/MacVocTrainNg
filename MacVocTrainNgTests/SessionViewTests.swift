@@ -5,20 +5,6 @@ import VocabCore
 
 @testable import MacVocTrain
 
-/// Gives the window the undo manager a document window gets from its document.
-@MainActor
-private final class DocumentWindowDelegate: NSObject, NSWindowDelegate {
-    let undoManager: UndoManager
-
-    init(undoManager: UndoManager) {
-        self.undoManager = undoManager
-    }
-
-    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
-        undoManager
-    }
-}
-
 extension WindowTests {
     /// The session screen in a real window, typed into through the field editor.
     @MainActor

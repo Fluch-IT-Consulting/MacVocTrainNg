@@ -6,7 +6,8 @@ import os
 
 /// The SwiftUI document of one deck.
 ///
-/// All changes go through methods that register undo actions. Besides providing
+/// All changes go through methods that register undo actions; only the keystrokes of
+/// a text edit share the one of its first, see `editText(of:to:)`. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes. They
 /// register with `undoManager`, which `DocumentView` sets, so no view that changes
 /// the deck has to find the right undo manager itself (#48, #136).
@@ -70,6 +71,15 @@ final class VocabularyDocument: ReferenceFileDocument {
     weak var undoManager: UndoManager?
     /// Switches the calendar when the machine's time zone changes; ends with the document.
     private var timeZoneObservation: AnyCancellable?
+    /// Counts the snapshots taken for saving, so a text edit ends with a save, see
+    /// `editText(of:to:)`. Behind a lock like `savedDeck`, as `snapshot` may run on
+    /// any thread.
+    private let snapshotCount = OSAllocatedUnfairLock(initialState: 0)
+    /// Counts the undo actions `perform` registered, so a text edit ends with any
+    /// other change, undo and redo included.
+    private var registrationCount = 0
+    /// The text edit that later edits of its card continue, see `editText(of:to:)`.
+    private var openTextEdit: TextEdit?
 
     nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system, calendar: StudyCalendar = StudyCalendar()) {
         self.deck = deck
@@ -148,7 +158,8 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     /// Runs on the main thread or, for the first save of a new deck, on a background thread.
     nonisolated func snapshot(contentType: UTType) throws -> Deck {
-        savedDeck.withLock { $0 }
+        snapshotCount.withLock { $0 += 1 }
+        return savedDeck.withLock { $0 }
     }
 
     nonisolated func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
@@ -181,9 +192,32 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     /// Changes question, answer and hint of a card, see `DeckChange.editingText(of:to:in:)`.
+    ///
+    /// The inspector writes every keystroke through, so the deck holds the text before
+    /// it is saved (#175). Undo takes back a whole edit, not each keystroke: an edit
+    /// continues a text edit of the same card without an undo action of its own, as
+    /// long as nothing else registered one since and the deck wasn't saved. Then the
+    /// undo action of the edit's first change, which brings back the card from before
+    /// it, still takes back all of it. `endTextEdit(of:)` ends the edit.
+    ///
+    /// After a save a new edit begins, so the document reports the next keystroke as a
+    /// change, and undo goes back to the saved text first.
     func editText(of id: Card.ID, to text: CardText) {
         guard let change = DeckChange.editingText(of: id, to: text, in: deck) else { return }
+        let snapshots = snapshotCount.withLock { $0 }
+        if openTextEdit == TextEdit(cardID: id, registration: registrationCount, snapshots: snapshots) {
+            apply(change)
+            return
+        }
         perform(change, actionName: String(localized: "Edit Card"))
+        openTextEdit = TextEdit(cardID: id, registration: registrationCount, snapshots: snapshots)
+    }
+
+    /// Ends the text edit of the card with `id`, if it has one: its next edit registers
+    /// an undo action of its own.
+    func endTextEdit(of id: Card.ID) {
+        guard openTextEdit?.cardID == id else { return }
+        openTextEdit = nil
     }
 
     func delete(_ ids: Set<Card.ID>) {
@@ -222,13 +256,31 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// app still changes the deck.
     private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
         assert(undoManager != nil, "The document changes without an undo manager; DocumentView sets it.")
-        var deck = deck
-        let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
-        self.deck = deck
+        let inverse = apply(change)
+        registrationCount += 1
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, _ in
             document.perform(inverse, actionName: actionName, alongside: companion?.reversed)
             companion?.undo()
         }
+    }
+
+    /// Applies `change` to the deck without registering undo and returns its inverse.
+    /// Only `perform` and the continued text edit of `editText(of:to:)` use it.
+    @discardableResult
+    private func apply(_ change: DeckChange) -> DeckChange {
+        var deck = deck
+        let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
+        self.deck = deck
+        return inverse
+    }
+
+    /// Where a text edit stands: its card, and how many undo actions and snapshots
+    /// there were after its first change. Equal counts later mean that nothing else
+    /// registered undo and nothing was saved since.
+    private struct TextEdit: Equatable {
+        var cardID: Card.ID
+        var registration: Int
+        var snapshots: Int
     }
 }
 
