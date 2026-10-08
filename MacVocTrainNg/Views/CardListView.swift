@@ -6,8 +6,8 @@ struct CardListView: View {
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var columnCustomization = TableColumnCustomization<CardRow>()
-    /// Read only in `sortOrderKeepingFocus`, never in `body`: the table would lose the
-    /// click that moves the focus into it (#171).
+    /// Read only in `sortOrderKeepingFocus` and `focusNewTable`, never in `body`: the
+    /// table would lose the click that moves the focus into it (#171).
     @FocusState private var tableIsFocused: Bool
     @State private var searchText = ""
     @State private var showingInspector = false
@@ -126,9 +126,9 @@ struct CardListView: View {
     /// Sets the sort order and hands the focus of the old table to the new one. A focused
     /// search field keeps its focus.
     ///
-    /// `tableIsFocused` is read only here, never in `body`: a view that reads it is
-    /// rebuilt while a click moves the focus into the table, and the table then loses
-    /// that click instead of selecting the row (#171).
+    /// `tableIsFocused` is read only here and in `focusNewTable`, never in `body`: a view
+    /// that reads it is rebuilt while a click moves the focus into the table, and the
+    /// table then loses that click instead of selecting the row (#171).
     private var sortOrderKeepingFocus: Binding<[KeyPathComparator<CardRow>]> {
         Binding {
             sortOrder
@@ -137,12 +137,23 @@ struct CardListView: View {
             guard newOrder != sortOrder else { return }
             let tableWasFocused = tableIsFocused
             sortOrder = newOrder
-            // The new table can take the focus only on the next turn of the run loop,
-            // after the old one has given it up.
             if tableWasFocused {
-                DispatchQueue.main.async {
-                    tableIsFocused = true
-                }
+                focusNewTable(waitingUntil: .now() + .seconds(1))
+            }
+        }
+    }
+
+    /// Gives the focus to the new table once the old one has left the window and given
+    /// the focus up. Asked for earlier, the focus is lost: `tableIsFocused` is still true
+    /// for the old table, setting it changes nothing, and SwiftUI drops the request with
+    /// that table. The window swaps the tables some time after SwiftUI has built the new
+    /// one, at times only after several turns of the run loop (#226).
+    private func focusNewTable(waitingUntil deadline: DispatchTime) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(10)) {
+            if !tableIsFocused {
+                tableIsFocused = true
+            } else if .now() < deadline {
+                focusNewTable(waitingUntil: deadline)
             }
         }
     }
