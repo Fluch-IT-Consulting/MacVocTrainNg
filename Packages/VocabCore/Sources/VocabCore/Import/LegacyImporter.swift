@@ -12,6 +12,13 @@ import Foundation
 /// - level n ≥ 1 → card in the review phase whose stability equals its old interval, so it falls
 ///   due exactly when MacVocTrain 1 would have asked it. Difficulty is unknown and
 ///   set to a neutral 5; FSRS adapts it with the first reviews.
+///
+/// Damaged values are clamped so the deck saves, opens and studies:
+/// - The interval including spread is at most the `maximumInterval` of the new deck,
+///   which the scheduler never exceeds either.
+/// - The level counts as at most as many reviews as the lowest level reaching that interval.
+/// - A `lastAnswered` after `now`, before 2001 or not finite becomes `now`.
+///
 /// The daily level statistics become the progress of the deck. Their counter for level 0
 /// holds both cards never asked and cards answered wrong; see `progress(from:neverAsked:)`.
 public enum LegacyImporter {
@@ -21,9 +28,17 @@ public enum LegacyImporter {
 
     public static let neutralDifficulty = 5.0
 
+    /// The earliest plausible `lastAnswered`: MacVocTrain 1 wrote its documents with
+    /// `NSKeyedArchiver`, which exists since Mac OS X 10.2.
+    static let earliestAnswer = Date(timeIntervalSinceReferenceDate: 0)
+
     public static func importDeck(from data: Data, now: Date = Date(), calendar: StudyCalendar = StudyCalendar()) throws -> Deck {
         let box = try unarchive(data)
         let fsrs = FSRS()
+        let learningOptions = LearningOptions()
+        // Longer intervals the scheduler never plans either.
+        let maximumDays = Double(learningOptions.maximumInterval)
+        let maximumLevel = lowestLevel(reaching: maximumDays)
 
         let cards = box.indexCards.map { legacy -> Card in
             var card = Card(
@@ -32,7 +47,11 @@ public enum LegacyImporter {
                 hint: legacy.remarkQuestion ?? "",
                 created: now
             )
-            if let lastAnswered = legacy.lastAnswered {
+            if var lastAnswered = legacy.lastAnswered {
+                // A damaged date (also NaN) counts as answered at import.
+                if !(lastAnswered >= earliestAnswer && lastAnswered <= now) {
+                    lastAnswered = now
+                }
                 if legacy.level <= 0 {
                     card.learningState = LearningState(
                         phase: .relearning,
@@ -47,13 +66,14 @@ public enum LegacyImporter {
                     // MacVocTrain 1 used ±10 %; clamp in case the file is damaged.
                     let adjustment = Double(legacy.levelDurationAdjustment)
                     let days = levelDuration(legacy.level) * (1 + (adjustment.isFinite ? min(max(adjustment, -0.5), 0.5) : 0))
+                    let interval = min(days, maximumDays)
                     card.learningState = LearningState(
                         phase: .review,
-                        stability: days,
+                        stability: interval,
                         difficulty: neutralDifficulty,
                         lastReview: lastAnswered,
-                        due: lastAnswered.addingTimeInterval(days * 86400),
-                        reviews: legacy.level
+                        due: lastAnswered.addingTimeInterval(interval * 86400),
+                        reviews: min(legacy.level, maximumLevel)
                     )
                 }
             }
@@ -61,18 +81,26 @@ public enum LegacyImporter {
         }
 
         let statuses = box.progressMonitor?.progressData ?? []
-        var deck = Deck(cards: cards, progress: progress(from: statuses, neverAsked: cards.filter(\.isNew).count))
+        var deck = Deck(learningOptions: learningOptions, cards: cards, progress: progress(from: statuses, neverAsked: cards.filter(\.isNew).count))
         deck.updateProgress(day: calendar.dayNumber(for: now))
         return deck
     }
 
+    private static let levelDurations = [0.7, 1.5, 1.8, 2.5, 3.5, 4.5, 6.5, 9.5, 13.5, 15.5, 18.5, 22.0]
+    private static let levelIncrement = 3.52
+
     /// Interval of a level in days, as defined by `LevelDefinitions` in MacVocTrain 1.
     public static func levelDuration(_ level: Int) -> Double {
-        let levels = [0.7, 1.5, 1.8, 2.5, 3.5, 4.5, 6.5, 9.5, 13.5, 15.5, 18.5, 22.0]
-        let increment = 3.52
-        guard level >= 1 else { return Double(level) * increment }
-        guard level > levels.count else { return levels[level - 1] }
-        return levels[levels.count - 1] + Double(level - levels.count) * increment
+        guard level >= 1 else { return Double(level) * levelIncrement }
+        guard level > levelDurations.count else { return levelDurations[level - 1] }
+        return levelDurations[levelDurations.count - 1] + Double(level - levelDurations.count) * levelIncrement
+    }
+
+    /// The lowest level whose interval is at least `days`.
+    static func lowestLevel(reaching days: Double) -> Int {
+        if let index = levelDurations.firstIndex(where: { $0 >= days }) { return index + 1 }
+        let beyond = (days - levelDurations[levelDurations.count - 1]) / levelIncrement
+        return levelDurations.count + Int(beyond.rounded(.up))
     }
 
     /// Converts the daily level statistics into snapshots.
@@ -120,7 +148,8 @@ public enum LegacyImporter {
         for entry in LegacyClasses.mapping {
             unarchiver.setClass(entry.1, forClassName: entry.0)
         }
-        guard let box = unarchiver.decodeObject(of: LegacyBox.self, forKey: NSKeyedArchiveRootObjectKey) else {
+        // A damaged part sets the error but may leave the rest readable.
+        guard let box = unarchiver.decodeObject(of: LegacyBox.self, forKey: NSKeyedArchiveRootObjectKey), unarchiver.error == nil else {
             throw Error.unreadableArchive
         }
         return box
@@ -152,8 +181,10 @@ final class LegacyBox: NSObject, NSSecureCoding {
 
     override init() {}
 
+    /// Fails without cards: a missing list or a foreign element in it means a damaged document.
     init?(coder: NSCoder) {
-        indexCards = coder.decodeObject(of: LegacyClasses.arrayClasses + [LegacyIndexCard.self], forKey: "indexCards") as? [LegacyIndexCard] ?? []
+        guard let cards = coder.decodeObject(of: LegacyClasses.arrayClasses + [LegacyIndexCard.self], forKey: "indexCards") as? [LegacyIndexCard] else { return nil }
+        indexCards = cards
         progressMonitor = coder.decodeObject(of: LegacyProgressMonitor.self, forKey: "progressMonitor")
     }
 
