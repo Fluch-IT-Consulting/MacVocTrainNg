@@ -131,17 +131,16 @@ struct SchedulerTests {
         #expect(scheduler.intervalDays(stability: 1e300, using: &random) == scheduler.learningOptions.maximumInterval)
     }
 
-    @Test(arguments: [3, 10, 50, 400])
-    func fuzzStaysWithinPyFSRSRanges(interval: Int) {
+    /// The ranges as py-fsrs computes them, worked out by hand.
+    @Test(arguments: [(3, 2...4), (10, 8...12), (50, 46...54), (400, 378...422)] as [(Int, ClosedRange<Int>)])
+    func fuzzStaysWithinPyFSRSRanges(interval: Int, range: ClosedRange<Int>) {
         var random = SeededRandom(seed: 42)
         var seen = Set<Int>()
         for _ in 0..<500 {
-            let fuzzed = Scheduler.fuzzed(interval: interval, maximum: 36500, using: &random)
-            seen.insert(fuzzed)
-            #expect(fuzzed >= 2)
-            #expect(abs(fuzzed - interval) <= max(2, interval / 10 + 2))
+            seen.insert(Scheduler.fuzzed(interval: interval, maximum: 36500, using: &random))
         }
-        #expect(seen.count > 1)
+        #expect(seen.min() == range.lowerBound)
+        #expect(seen.max() == range.upperBound)
     }
 
     @Test func shortIntervalsAreNotFuzzed() {

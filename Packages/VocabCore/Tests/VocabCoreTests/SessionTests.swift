@@ -4,15 +4,19 @@ import Testing
 @testable import VocabCore
 
 struct SessionQueueTests {
-    @Test func neverAsksTheSameCardTwiceInARow() {
+    /// With a full rotation, a card comes back only after the other half of it.
+    @Test func cardComesBackOnlyAfterSeveralOthers() {
         let ids = (0..<30).map { _ in UUID() }
         var queue = SessionQueue(cardIDs: ids)
         var random = SeededRandom(seed: 3)
-        var previous: UUID?
-        for _ in 0..<200 {
+        let minimumGap = SessionQueue.rotationSize - (SessionQueue.rotationSize + 1) / 2
+        var lastAsked: [UUID: Int] = [:]
+        for question in 0..<200 {
             let id = queue.next(using: &random)!
-            #expect(id != previous)
-            previous = id
+            if let last = lastAsked[id] {
+                #expect(question - last - 1 >= minimumGap)
+            }
+            lastAsked[id] = question
         }
     }
 
@@ -253,6 +257,32 @@ struct SessionTests {
         let selected = StudySession.selectCards(from: deck, at: now, calendar: .testing, using: &random)
         #expect(selected.count == deck.learningOptions.cardsPerSession)
         #expect(deck.cards.filter { !$0.isNew }.allSatisfy { selected.contains($0.id) })
+    }
+
+    @Test func reviewCardsLeastLikelyRecalledFillTheSession() {
+        var deck = deck(newCards: 0)
+        deck.learningOptions.cardsPerSession = 30
+        func reviewCards(daysSinceLastReview days: Double) -> [Card] {
+            (0..<30).map { index in
+                var card = Card(question: "r\(index)", answer: "b\(index)")
+                card.learningState = LearningState(
+                    phase: .review,
+                    stability: 5,
+                    difficulty: 5,
+                    lastReview: now.addingTimeInterval(-days * 86400),
+                    due: now.addingTimeInterval(-86400)
+                )
+                return card
+            }
+        }
+        // Recall probability 0.90 against 0.68: different buckets, so the tie break
+        // doesn't decide.
+        let overdue = reviewCards(daysSinceLastReview: 60)
+        deck.cards = reviewCards(daysSinceLastReview: 5) + overdue
+        var random = SeededRandom(seed: 8)
+        let selected = StudySession.selectCards(from: deck, at: now, calendar: .testing, using: &random)
+        #expect(selected.count == 30)
+        #expect(Set(selected) == Set(overdue.map(\.id)))
     }
 
     @Test func finishUpEndsAfterStartedCards() {
