@@ -79,6 +79,24 @@
               }
             }
           }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld card in “%@”"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld cards in “%@”"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -177,7 +195,57 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld von %2$lld Karten"
+            "value": "%1$lld von %#@total@"
+          },
+          "substitutions": {
+            "total": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg Karte"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg Karten"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld of %#@total@"
+          },
+          "substitutions": {
+            "total": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg card"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg cards"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -207,6 +275,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld Zeilen ohne Frage oder Antwort werden ausgelassen."
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld row without a question or an answer is left out."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld rows without a question or an answer are left out."
                 }
               }
             }
@@ -773,6 +859,24 @@
               }
             }
           }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Export %lld card."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Export %lld cards."
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -901,6 +1005,24 @@
                 "stringUnit": {
                   "state": "translated",
                   "value": "%lld Karten importieren"
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Import %lld Card"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Import %lld Cards"
                 }
               }
             }
@@ -1551,9 +1673,39 @@
     "Save the imported deck with %lld cards.": {
       "localizations": {
         "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sichere den importierten Stapel mit %lld Karten."
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Sichere den importierten Stapel mit %lld Karte."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Sichere den importierten Stapel mit %lld Karten."
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Save the imported deck with %lld card."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Save the imported deck with %lld cards."
+                }
+              }
+            }
           }
         }
       }
