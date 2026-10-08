@@ -133,6 +133,24 @@ struct DocumentTests {
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }
 
+    @Test func everyDeckFileErrorOpensWithItsOwnMessage() {
+        let errors: [DeckFile.Error] = [
+            .notADeck, .unsupportedVersion(4), .outdatedVersion(2), .damagedReviewLog(line: 3), .missingReviewLog,
+            .reviewsOfUnknownCard(line: 3), .reviewLogTooLong(question: "dom"), .duplicateCardID(question: "dom"),
+            .parameterOutOfRange(index: 20),
+        ]
+        let openingErrors = errors.map(VocabularyDocument.openingError(for:))
+        #expect(openingErrors.allSatisfy { $0 is AppError })
+        #expect(Set(openingErrors.map(\.localizedDescription)).count == errors.count)
+    }
+
+    @Test func otherErrorsOpenWithTheirCauseAttached() throws {
+        enum Cause: Error { case test }
+        let error = try #require(VocabularyDocument.openingError(for: Cause.test) as? CocoaError)
+        #expect(error.code == .fileReadCorruptFile)
+        #expect(error.userInfo[NSUnderlyingErrorKey] as? Cause == .test)
+    }
+
     /// The first save of a new deck takes the snapshot on a background thread.
     @Test func snapshotOffTheMainThreadHoldsTheLatestChange() async throws {
         let document = VocabularyDocument()

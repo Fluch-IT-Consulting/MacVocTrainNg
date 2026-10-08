@@ -67,17 +67,40 @@ final class VocabularyDocument: ReferenceFileDocument {
         let deck: Deck
         do {
             deck = try DeckFile.decode(configuration.file)
-        } catch let DeckFile.Error.damagedReviewLog(line) {
-            throw AppError(String(localized: "The review log of this deck is damaged (line \(line))."))
-        } catch DeckFile.Error.unsupportedVersion {
-            throw AppError(String(localized: "This deck was created by a newer version of MacVocTrain."))
-        } catch DeckFile.Error.outdatedVersion {
-            throw AppError(String(localized: "This deck was saved by a test version of MacVocTrain from before its first release and can no longer be opened."))
         } catch {
-            throw CocoaError(.fileReadCorruptFile)
+            throw Self.openingError(for: error)
         }
         self.deck = deck
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
+    }
+
+    /// The error to show when reading a deck failed with `error`. A deck the app
+    /// rejects can't be opened at all, so the message says what is wrong with it: the
+    /// learner may restore a backup or repair the file by hand.
+    nonisolated static func openingError(for error: Error) -> Error {
+        guard let error = error as? DeckFile.Error else {
+            return CocoaError(.fileReadCorruptFile, userInfo: [NSUnderlyingErrorKey: error as NSError])
+        }
+        switch error {
+        case .notADeck:
+            return AppError(String(localized: "This file is not a MacVocTrain deck, or its deck.json is missing or damaged."))
+        case .unsupportedVersion:
+            return AppError(String(localized: "This deck was created by a newer version of MacVocTrain."))
+        case .outdatedVersion:
+            return AppError(String(localized: "This deck was saved by a test version of MacVocTrain from before its first release and can no longer be opened."))
+        case let .damagedReviewLog(line):
+            return AppError(String(localized: "The review log of this deck is damaged (line \(line))."))
+        case .missingReviewLog:
+            return AppError(String(localized: "The review log of this deck (reviews.jsonl) is missing, although some of its cards have been studied."))
+        case let .reviewsOfUnknownCard(line):
+            return AppError(String(localized: "The review log of this deck contains reviews of a card that is not in the deck (line \(line))."))
+        case let .reviewLogTooLong(question):
+            return AppError(String(localized: "The review log of the card “\(question)” lists more reviews than the card has had."))
+        case let .duplicateCardID(question):
+            return AppError(String(localized: "Several cards of this deck have the same ID, among them “\(question)”."))
+        case let .parameterOutOfRange(index):
+            return AppError(String(localized: "The algorithm parameter w\(index) of this deck is outside its range."))
+        }
     }
 
     /// Runs on the main thread or, for the first save of a new deck, on a background thread.

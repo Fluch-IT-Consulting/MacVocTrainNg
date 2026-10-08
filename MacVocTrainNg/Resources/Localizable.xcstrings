@@ -1628,6 +1628,16 @@
         }
       }
     },
+    "Several cards of this deck have the same ID, among them “%@”.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehrere Karten dieses Stapels haben dieselbe ID, darunter „%@“."
+          }
+        }
+      }
+    },
     "Shaky": {
       "localizations": {
         "de": {
@@ -1768,6 +1778,16 @@
         }
       }
     },
+    "The algorithm parameter w%lld of this deck is outside its range.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Algorithmus-Parameter w%lld dieses Stapels liegt außerhalb seines Bereichs."
+          }
+        }
+      }
+    },
     "The current parameters already predict your reviews best.": {
       "localizations": {
         "de": {
@@ -1784,6 +1804,36 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die Parameter ließen sich nicht berechnen."
+          }
+        }
+      }
+    },
+    "The review log of the card “%@” lists more reviews than the card has had.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Verlauf der Karte „%@“ nennt mehr Abfragen, als die Karte hatte."
+          }
+        }
+      }
+    },
+    "The review log of this deck (reviews.jsonl) is missing, although some of its cards have been studied.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Verlauf dieses Stapels (reviews.jsonl) fehlt, obwohl einige seiner Karten schon gelernt wurden."
+          }
+        }
+      }
+    },
+    "The review log of this deck contains reviews of a card that is not in the deck (line %lld).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Verlauf dieses Stapels enthält Abfragen einer Karte, die nicht im Stapel ist (Zeile %lld)."
           }
         }
       }
@@ -1824,6 +1874,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Dieser Stapel wurde mit einer Testversion von MacVocTrain vor der ersten Veröffentlichung gesichert und lässt sich nicht mehr öffnen."
+          }
+        }
+      }
+    },
+    "This file is not a MacVocTrain deck, or its deck.json is missing or damaged.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Datei ist kein MacVocTrain-Stapel, oder ihre deck.json fehlt oder ist beschädigt."
           }
         }
       }
