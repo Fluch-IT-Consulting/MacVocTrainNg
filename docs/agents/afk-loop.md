@@ -13,6 +13,7 @@ und ohne Build und Tests hätte der Agent keine Rückmeldung.
 Tools/agent-loop.sh              # alle freien Issues, das älteste zuerst
 Tools/agent-loop.sh 197 189      # nur diese, ebenfalls das älteste zuerst
 Tools/agent-loop.sh --dry-run    # nur zeigen, was laufen würde
+Tools/agent-loop.sh --resume 191 # die letzte Sitzung eines Issues fortsetzen
 ```
 
 Die Sitzungen laufen mit Opus 5.5 und 1M-Kontext (`claude-opus-5-5[1m]`) und Effort `high`.
@@ -42,13 +43,22 @@ Am besten im Terminal starten, nicht aus einer Claude-Sitzung heraus: Die App-Te
 |---|---|---|
 | ✓ Pull Request | offener PR auf dem Zweig | Worktree und lokaler Zweig werden entfernt |
 | ? zurückgegeben | `ready-for-agent` fehlt, dafür `needs-info` oder `ready-for-human` | Zuweisung wird aufgehoben, Worktree bleibt liegen |
-| ✗ Fehler | weder noch | Zuweisung und Worktree bleiben, Log ansehen |
+| ✗ Fehler | weder noch | Zuweisung und Worktree bleiben, Log ansehen, dann `--resume` |
 
 Endet `claude` mit einem Fehlercode (Anmeldung, Limit, Absturz), hört das Skript nach
 diesem Issue auf, statt allen weiteren dasselbe anzutun.
 
 Ein zurückgegebenes Issue wird wieder frei, sobald ein Mensch die Fragen beantwortet,
 `ready-for-agent` zurückgesetzt und den alten Zweig gelöscht hat.
+
+## Fortsetzen
+
+Endet eine Sitzung ohne Pull Request und ohne Rückgabe, etwa nach Ctrl-C oder einem
+Limit, setzt `Tools/agent-loop.sh --resume <nummer> [<nachricht>]` sie fort: im
+liegengebliebenen Worktree, mit der Session-ID aus dem Log und denselben Rechten,
+demselben Modell und Effort. Ohne Nachricht bekommt der Agent einen Standardtext:
+Stand prüfen und den Ablauf zu Ende bringen. Die Ausgabe hängt das Skript an dasselbe
+Log an und wertet danach wie gewohnt aus. Fehlen Worktree oder Log, bricht es ab.
 
 ## Rechte
 
