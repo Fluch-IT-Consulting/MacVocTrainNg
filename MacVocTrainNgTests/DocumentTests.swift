@@ -855,6 +855,16 @@ struct SessionViewModelTests {
         #expect(dueCards.count == 2)
     }
 
+    /// The counter counts again at the start of every minute, like `TimelineView(.everyMinute)`.
+    @Test func dueCardsAreCountedOnTheFullMinute() {
+        let minute = Date(timeIntervalSince1970: 1_791_216_000)
+        let next = minute.addingTimeInterval(60)
+        #expect(DueCardCounter.nextRefresh(after: minute) == next)
+        #expect(DueCardCounter.nextRefresh(after: minute.addingTimeInterval(0.001)) == next)
+        #expect(DueCardCounter.nextRefresh(after: minute.addingTimeInterval(30)) == next)
+        #expect(DueCardCounter.nextRefresh(after: next.addingTimeInterval(-0.001)) == next)
+    }
+
     @Test func dueCardsAreCountedAfterEveryChange() {
         let document = VocabularyDocument()
         let undoManager = makeUndoManager()
