@@ -276,6 +276,7 @@ struct SessionViewModelTests {
         var cards: [Card]
         var currentCardID: Card.ID?
         var completedCount: Int
+        var totalCount: Int
         var reviewCount: Int
         var stage: SessionViewModel.Stage
 
@@ -283,6 +284,7 @@ struct SessionViewModelTests {
             cards = model.document.deck.cards
             currentCardID = model.currentCard?.id
             completedCount = model.session.completedCount
+            totalCount = model.session.totalCount
             reviewCount = model.session.reviewCount
             stage = model.stage
         }
@@ -366,6 +368,49 @@ struct SessionViewModelTests {
         model.input = "Haus"
         step(undoManager) { model.submit(undoManager: undoManager) }
         #expect(document.card(withID: card.id)?.learningState == reviewed)
+    }
+
+    /// Grades the current card `.again`, so the next card is asked, then finishes up.
+    /// Undo and redo of that review must bring back none of the cards not asked by
+    /// then (#180).
+    private func expectFinishUpOutlastsUndoAndRedo(of model: SessionViewModel, undoManager: UndoManager) throws {
+        let first = try #require(model.currentCard)
+        model.input = "wrong"
+        model.submit(undoManager: undoManager)
+        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        model.finishUp()
+        #expect(model.session.totalCount == 2)
+        let finishedUp = Place(model)
+
+        undoManager.undo()
+        #expect(model.currentCard?.id == first.id)
+        #expect(model.session.totalCount == 1)  // the card asked after the review is out
+        #expect(model.session.completedCount == 0)
+
+        undoManager.redo()
+        #expect(Place(model) == finishedUp)
+    }
+
+    @Test func undoingAReviewKeepsTheStudySessionFinishedUp() throws {
+        let document = makeDocument(cards: 3)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        try expectFinishUpOutlastsUndoAndRedo(of: model, undoManager: undoManager)
+    }
+
+    @Test func undoingAReviewKeepsPracticeFinishedUp() throws {
+        let document = makeDocument(cards: 3)
+        let undoManager = makeUndoManager()
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        for _ in 0..<20 where model.session.mistakeIDs.count < 3 {
+            model.input = "wrong"
+            model.submit(undoManager: nil)
+            model.grade(.again, undoManager: nil)
+        }
+        #expect(model.session.mistakeIDs.count == 3)
+        model.practiceMistakes()
+        #expect(model.isPracticing)
+        try expectFinishUpOutlastsUndoAndRedo(of: model, undoManager: undoManager)
     }
 
     @Test func aNewReviewAfterUndoDropsTheRedo() throws {

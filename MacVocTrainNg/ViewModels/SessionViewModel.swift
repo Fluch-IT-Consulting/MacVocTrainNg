@@ -37,6 +37,9 @@ final class SessionViewModel {
     /// its own, so ⌘Z can't reach the typing for an earlier one (#9).
     private(set) var questionNumber = 0
     var input = ""
+    /// The session the learner finished up. Finishing up has no undo of its own, so
+    /// undo and redo of a review in it finish up again (#180).
+    @ObservationIgnored private var finishedUpSessionID: UUID?
     @ObservationIgnored private var deckObservation: AnyCancellable?
 
     /// Uses the document's clock, so reviews and the snapshot they update fall on the same study day.
@@ -102,6 +105,7 @@ final class SessionViewModel {
     /// Only finishes the cards already asked.
     func finishUp() {
         mode.perform(.finishUp)
+        finishedUpSessionID = session.id
         moveOn()
     }
 
@@ -179,6 +183,10 @@ final class SessionViewModel {
     private func restore(_ snapshot: SessionMode) {
         guard snapshot.session.id == session.id else { return }  // a different session by now
         mode = snapshot
+        // A snapshot from before finishing up would bring back the cards not asked yet.
+        if session.id == finishedUpSessionID {
+            mode.perform(.finishUp)
+        }
         previous = nil
         moveOn()
     }
