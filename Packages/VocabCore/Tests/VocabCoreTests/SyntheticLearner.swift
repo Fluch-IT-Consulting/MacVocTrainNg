@@ -67,13 +67,15 @@ struct SyntheticLearner {
         }
     }
 
-    /// Same-day reviews until two Goods in a row, like the steps of a session.
+    /// Same-day reviews with all four grades until two steps, counted like the steps
+    /// of a session.
     private mutating func relearn(_ review: (Grade, Int) -> Void) {
-        var steps = 0
-        while steps < 2 {
-            let good = Double.random(in: 0..<1, using: &random) < 0.8
-            review(good ? .good : .again, 0)
-            steps = good ? steps + 1 : 0
+        var steps = Steps(required: 2)
+        while !steps.areEnough {
+            let x = Double.random(in: 0..<1, using: &random)
+            let grade: Grade = x < 0.15 ? .again : x < 0.3 ? .hard : x < 0.9 ? .good : .easy
+            review(grade, 0)
+            steps.apply(grade)
         }
     }
 

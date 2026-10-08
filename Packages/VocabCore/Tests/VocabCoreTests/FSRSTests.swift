@@ -51,6 +51,10 @@ struct FSRSTests {
         let memory = FSRS.Memory(stability: 30, difficulty: 5)
         #expect(fsrs.review(memory, elapsedDays: 0, grade: .good).stability >= 30)
         #expect(fsrs.review(memory, elapsedDays: 0, grade: .again).stability < 30)
+        // The raw factor is below 1 for Hard always, for Easy from about 8000 days on.
+        #expect(fsrs.review(memory, elapsedDays: 0, grade: .hard).stability == 30)
+        let stable = FSRS.Memory(stability: 10_000, difficulty: 5)
+        #expect(fsrs.review(stable, elapsedDays: 0, grade: .easy).stability == 10_000)
     }
 
     @Test func parametersRejectInvalidWeights() throws {

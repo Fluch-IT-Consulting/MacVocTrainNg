@@ -16,11 +16,13 @@ struct ResponseCheckerTests {
 
     @Test func someAlternativesAreIncomplete() {
         #expect(checker.check("Haus", against: "Haus / Gebäude") == .incomplete(missing: ["Gebäude"]))
+        #expect(ResponseChecker(caseSensitive: false).check("haus", against: "Haus / Gebäude") == .incomplete(missing: ["Gebäude"]))
     }
 
     @Test func whitespaceAndUnicodeCompositionAreIgnored() {
         let decomposed = "dzien\u{0301}  dobry"  // n + combining acute accent
         #expect(checker.check("  \(decomposed) ", against: "dzień dobry") == .correct)
+        #expect(checker.check("dzień dobry", against: decomposed) == .correct)
     }
 
     @Test func emptyOrSeparatorOnlyResponseIsWrong() {
@@ -51,6 +53,19 @@ struct ResponseCheckerTests {
         #expect(checker.check("Wohnung", against: "Haus") == .wrong)
         // No tolerance for very short words.
         #expect(checker.check("tak", against: "tam") == .wrong)
+    }
+
+    /// No typo below 4 characters of the alternative, one from 4, two from 8: each
+    /// length at a limit with the most typos allowed and with one more.
+    @Test(
+        arguments: [
+            ("zub", "Zub", .almostCorrect), ("Zup", "Zub", .wrong),
+            ("Blem", "Blim", .almostCorrect), ("Plem", "Blim", .wrong),
+            ("Flomtor", "Flomtur", .almostCorrect), ("Flamtor", "Flomtur", .wrong),
+            ("Quepsila", "Quapsilo", .almostCorrect), ("Quepsela", "Quapsilo", .wrong),
+        ] as [(String, String, CheckResult)])
+    func typoToleranceGrowsWithTheLength(response: String, answer: String, result: CheckResult) {
+        #expect(checker.check(response, against: answer) == result)
     }
 
     @Test func wrongAlternativeMakesResponseWrong() {
