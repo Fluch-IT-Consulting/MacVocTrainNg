@@ -92,7 +92,7 @@ final class SessionViewModel {
         case let .rescheduled(change):
             document.applyReview(change, undoManager: undoManager, alongside: restore)
         case .practiced:
-            registerUndo(restore, undoManager: undoManager)
+            Self.registerUndo(restore, on: document, undoManager: undoManager)
         }
 
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
@@ -164,10 +164,14 @@ final class SessionViewModel {
     /// a change: the deck shows as edited and autosave writes it unchanged. Marking the
     /// action discardable doesn't prevent that. Accepted, because without the undo
     /// action ⌘Z would reach the last review of the earlier study session (#166).
-    private func registerUndo(_ companion: UndoCompanion, undoManager: UndoManager?) {
-        undoManager?.registerMainActorUndo(withTarget: self, actionName: String(localized: "Review")) { model, undoManager in
+    ///
+    /// The target is the document, like for a review in a study session: the model may
+    /// be gone before the undo stack, and the handler reaches it only through `companion`
+    /// (#174).
+    private static func registerUndo(_ companion: UndoCompanion, on document: VocabularyDocument, undoManager: UndoManager?) {
+        undoManager?.registerMainActorUndo(withTarget: document, actionName: String(localized: "Review")) { document, undoManager in
             companion.undo()
-            model.registerUndo(companion.reversed, undoManager: undoManager)
+            registerUndo(companion.reversed, on: document, undoManager: undoManager)
         }
     }
 
