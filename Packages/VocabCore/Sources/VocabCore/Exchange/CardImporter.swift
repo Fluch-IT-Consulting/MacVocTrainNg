@@ -9,14 +9,12 @@ public enum CardImporter {
     public enum Duplicate: Hashable, Sendable {
         /// The deck already has a card with this question.
         case inDeck
-        /// The given, earlier row of the file has this question.
-        case inFile(row: Int)
+        /// An earlier card of the file, with this question and answer, has the same question.
+        case inFile(question: String, answer: String)
     }
 
     public struct Candidate: Identifiable, Sendable {
         public var card: Card
-        /// Row in the file, counting from 1 and including a header row.
-        public var row: Int
         public var duplicate: Duplicate?
 
         public var id: Card.ID { card.id }
@@ -35,8 +33,8 @@ public enum CardImporter {
     public static func candidates(from rows: [[String]], existing: [Card], isHeader: ([String]) -> Bool, created: Date) -> Result {
         var result = Result(candidates: [], skippedRows: 0)
         let inDeck = Set(existing.map { CardText.key(forQuestion: $0.question) })
-        // The first row of each question in the file.
-        var inFile: [String: Int] = [:]
+        // The first card of each question in the file.
+        var inFile: [String: Card] = [:]
 
         for (index, row) in rows.enumerated() {
             if index == 0, isHeader(row) { continue }
@@ -46,10 +44,9 @@ public enum CardImporter {
             }
             let card = Card(text: text, created: created)
             let key = CardText.key(forQuestion: card.question)
-            let row = index + 1
-            let duplicate: Duplicate? = inDeck.contains(key) ? .inDeck : inFile[key].map { .inFile(row: $0) }
-            inFile[key] = inFile[key] ?? row
-            result.candidates.append(Candidate(card: card, row: row, duplicate: duplicate))
+            let duplicate: Duplicate? = inDeck.contains(key) ? .inDeck : inFile[key].map { .inFile(question: $0.question, answer: $0.answer) }
+            inFile[key] = inFile[key] ?? card
+            result.candidates.append(Candidate(card: card, duplicate: duplicate))
         }
         return result
     }
