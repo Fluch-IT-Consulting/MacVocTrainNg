@@ -78,6 +78,13 @@ wird, wann MacVocTrain 1 sie abgefragt hätte:
   ihres Levels samt der Streuung von ±10 %, die MacVocTrain 1 je Karte gespeichert hat;
   fällig ist sie diesen Abstand nach ihrer letzten Abfrage. Die Schwierigkeit ist
   unbekannt und startet neutral bei 5. Das Level zählt als Zahl ihrer Abfragen.
+- Werte aus beschädigten Dokumenten begrenzt der Import, damit sich der Stapel sichern,
+  öffnen und lernen lässt. Der Abstand samt Streuung ist höchstens der längste Abstand
+  der Lernoptionen des neuen Stapels (36 500 Tage); länger plant auch der `Scheduler`
+  nie. Als Zahl der Abfragen zählt höchstens das Level, das diesen Abstand erreicht. Eine
+  letzte Abfrage nach dem Import, vor 2001 oder ohne endlichen Zeitpunkt gilt als zum
+  Import erfolgt: MacVocTrain 1 schrieb seine Dokumente mit `NSKeyedArchiver`, den es
+  erst seit Mac OS X 10.2 gibt.
 - Die täglichen Zähler je Level werden zum Fortschritt: Jedes Level zählt im Tagesstand
   mit der Stabilität seines Abstands, ohne Streuung. Level 0 zählte in MacVocTrain 1 neue
   Karten und Karten nach einer falschen Eingabe zusammen; der Import teilt den Zähler

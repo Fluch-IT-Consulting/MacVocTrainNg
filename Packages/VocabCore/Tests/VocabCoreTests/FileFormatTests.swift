@@ -369,6 +369,76 @@ struct LegacyImporterTests {
         }
     }
 
+    /// Builds an archive like `legacyArchive` whose `indexCards` hold `elements`, or lack the key if `nil`.
+    func damagedLegacyArchive(indexCards elements: [NSObject]?) -> Data {
+        let archiver = NSKeyedArchiver(requiringSecureCoding: false)
+        archiver.setClassName("IndexCardBoxHelper", for: DamagedLegacyBox.self)
+        archiver.setClassName("IndexCard", for: LegacyIndexCard.self)
+        archiver.setClassName("MVTFlashcard", for: UnknownLegacyElement.self)
+        archiver.encode(DamagedLegacyBox(indexCards: elements.map { $0 as NSArray }), forKey: NSKeyedArchiveRootObjectKey)
+        archiver.finishEncoding()
+        return archiver.encodedData
+    }
+
+    @Test func rejectsMissingCards() {
+        #expect(throws: LegacyImporter.Error.unreadableArchive) {
+            try LegacyImporter.importDeck(from: damagedLegacyArchive(indexCards: nil), now: now, calendar: calendar)
+        }
+    }
+
+    @Test func rejectsForeignElementAmongCards() {
+        let cards = [legacyCard("a", level: 0, lastAnswered: nil), legacyCard("b", level: 0, lastAnswered: nil)]
+        #expect(throws: LegacyImporter.Error.unreadableArchive) {
+            try LegacyImporter.importDeck(from: damagedLegacyArchive(indexCards: cards + ["stray" as NSString]), now: now, calendar: calendar)
+        }
+    }
+
+    @Test func rejectsUnknownClassAmongCards() {
+        let cards = [legacyCard("a", level: 0, lastAnswered: nil), legacyCard("b", level: 0, lastAnswered: nil)]
+        #expect(throws: LegacyImporter.Error.unreadableArchive) {
+            try LegacyImporter.importDeck(from: damagedLegacyArchive(indexCards: cards + [UnknownLegacyElement()]), now: now, calendar: calendar)
+        }
+    }
+
+    /// Damaged levels and dates still give a deck that saves, opens and studies.
+    @Test func clampsImplausibleLevelsAndDates() throws {
+        let yesterday = now.addingTimeInterval(-86400)
+        let data = try legacyArchive(
+            cards: [
+                legacyCard("huge level", level: 100_000_000, lastAnswered: yesterday),
+                legacyCard("maximum level", level: .max, lastAnswered: yesterday),
+                // Years 200 000 and -27; level 12 is 22 days, so due falls on whole seconds.
+                legacyCard("far future", level: 12, lastAnswered: Date(timeIntervalSinceReferenceDate: 6_248_300_000_000)),
+                legacyCard("before year 1", level: 12, lastAnswered: Date(timeIntervalSinceReferenceDate: -64_000_000_000)),
+            ],
+            progress: []
+        )
+        let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
+        let maximumInterval = Double(deck.learningOptions.maximumInterval)
+
+        for card in deck.cards {
+            let learningState = try #require(card.learningState)
+            try #require(learningState.stability <= maximumInterval, "\(card.question)")
+            try #require(learningState.due.timeIntervalSince(learningState.lastReview) <= maximumInterval * 86400, "\(card.question)")
+            try #require(learningState.lastReview <= now, "\(card.question)")
+        }
+        let maximumLevel = LegacyImporter.lowestLevel(reaching: maximumInterval)
+        #expect(LegacyImporter.levelDuration(maximumLevel) >= maximumInterval)
+        #expect(LegacyImporter.levelDuration(maximumLevel - 1) < maximumInterval)
+        #expect(deck.cards[1].learningState?.reviews == maximumLevel)
+        #expect(deck.cards[0].learningState?.lastReview == yesterday)
+        #expect(deck.cards[2].learningState?.lastReview == now)
+        #expect(deck.cards[3].learningState?.lastReview == now)
+        // Saved and opened again, the dates stay as imported.
+        #expect(try DeckFile.decode(DeckFile.fileWrapper(for: deck)) == deck)
+
+        let scheduler = Scheduler(learningOptions: deck.learningOptions, calendar: calendar)
+        var random = SeededRandom(seed: 1)
+        for card in deck.cards {
+            #expect(scheduler.review(card, grade: .good, at: now, using: &random).learningState?.phase == .review)
+        }
+    }
+
     /// Set MVT_SAMPLE to the path of a real MacVocTrain 1 document to check it imports.
     @Test(.enabled(if: ProcessInfo.processInfo.environment["MVT_SAMPLE"] != nil))
     func importsRealDocument() throws {
@@ -379,4 +449,28 @@ struct LegacyImporterTests {
         #expect(!deck.cards.isEmpty)
         #expect(deck.cards.allSatisfy { !$0.question.isEmpty })
     }
+}
+
+/// The root of a damaged MacVocTrain 1 document: any `indexCards`, or none.
+final class DamagedLegacyBox: NSObject, NSCoding {
+    let indexCards: NSArray?
+
+    init(indexCards: NSArray?) {
+        self.indexCards = indexCards
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    func encode(with coder: NSCoder) {
+        if let indexCards { coder.encode(indexCards, forKey: "indexCards") }
+    }
+}
+
+/// An archived element whose class name MacVocTrain 1 never wrote.
+final class UnknownLegacyElement: NSObject, NSCoding {
+    override init() {}
+
+    required init?(coder: NSCoder) { nil }
+
+    func encode(with coder: NSCoder) {}
 }
