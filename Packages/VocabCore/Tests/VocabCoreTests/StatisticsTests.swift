@@ -20,6 +20,7 @@ struct StatisticsTests {
         #expect(StabilityBins.bin(forStability: 2) == 3)
         #expect(StabilityBins.bin(forStability: 300) == 10)
         #expect(StabilityBins.bin(forStability: 100_000) == 11)
+        #expect(StabilityBins.bin(forStability: .infinity) == StabilityBins.count - 1)
     }
 
     @Test func newAndLearningCardsHaveTheirOwnBins() {

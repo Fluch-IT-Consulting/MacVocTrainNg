@@ -110,7 +110,8 @@ public struct Scheduler: Sendable {
         let maximum = max(1, learningOptions.maximumInterval)
         let raw = fsrs.interval(stability: stability, targetRecall: learningOptions.targetRecall)
         guard raw.isFinite else { return raw > 0 ? maximum : 1 }
-        let interval = min(max(Int(raw.rounded()), 1), maximum)
+        // Clamped before the conversion, which traps beyond the range of Int.
+        let interval = Int(min(max(raw.rounded(), 1), Double(maximum)))
         guard learningOptions.fuzzing else { return interval }
         return Self.fuzzed(interval: interval, maximum: maximum, using: &random)
     }
