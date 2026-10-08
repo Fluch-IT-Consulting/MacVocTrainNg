@@ -34,15 +34,16 @@ public enum SessionMode: Sendable {
     ///
     /// Both modes use the learning options `deck` has now: a study session schedules
     /// the card with them, practice counts the steps of mistakes with them. A change
-    /// to them during the session applies from the next review on.
+    /// to them during the session applies from the next review on. Likewise, a study
+    /// session counts study days with `calendar`, not with the one it started with.
     ///
     /// - Returns: `nil`, and the mode stays as it is, if the session is finished or
     ///   `deck` doesn't hold the current card.
-    public mutating func grade(_ grade: Grade, in deck: Deck, at now: Date) -> Outcome? {
+    public mutating func grade(_ grade: Grade, in deck: Deck, at now: Date, calendar: StudyCalendar) -> Outcome? {
         guard let id = session.currentCardID, let card = deck.card(withID: id) else { return nil }
         switch self {
         case var .study(study):
-            guard let scheduled = study.review(grade, of: card, with: deck.learningOptions, at: now) else { return nil }
+            guard let scheduled = study.review(grade, of: card, with: deck.learningOptions, at: now, calendar: calendar) else { return nil }
             self = .study(study)
             return .rescheduled(DeckChange(upserts: [scheduled]))
         case var .practice(practice):

@@ -6,7 +6,6 @@ public struct StudySession: Sendable {
     /// The state shared with practice. Only this type changes it.
     public private(set) var session: Session
 
-    private let calendar: StudyCalendar
     /// Fuzzes the intervals of reviews. Kept apart from the order of the session, so
     /// a review doesn't change which card comes next. As part of the session's value,
     /// undoing a review restores it: the same review again yields the same due date.
@@ -14,12 +13,14 @@ public struct StudySession: Sendable {
 
     /// A session over all cards of `deck` that are due at `now`.
     ///
-    /// - Parameter random: Decides the selection and order of the cards and the fuzz
-    ///   of the intervals; the same seed gives the same session.
+    /// - Parameters:
+    ///   - calendar: Counts the study days that order the cards. Each review gets a
+    ///     calendar of its own, see `review(_:of:with:at:calendar:)`.
+    ///   - random: Decides the selection and order of the cards and the fuzz of the
+    ///     intervals; the same seed gives the same session.
     public init(deck: Deck, at now: Date, calendar: StudyCalendar, random: SeededRandom = SeededRandom()) {
         var random = random
         let ids = Self.selectCards(from: deck, at: now, calendar: calendar, using: &random)
-        self.calendar = calendar
         fuzzing = SeededRandom(seed: random.next())
         session = Session(cardIDs: ids, startedAt: now, random: random)
     }
@@ -28,9 +29,12 @@ public struct StudySession: Sendable {
     ///
     /// The card leaves the session once it is in the review phase.
     ///
+    /// - Parameter calendar: Counts the elapsed study days and the due date. It may
+    ///   differ from the one the session started with, e.g. after the machine's time
+    ///   zone changed (#186).
     /// - Returns: `card` after the review, to be stored in the deck; `nil` if `card`
     ///   isn't the current card, e.g. because the session is finished.
-    mutating func review(_ grade: Grade, of card: Card, with learningOptions: LearningOptions, at now: Date) -> Card? {
+    mutating func review(_ grade: Grade, of card: Card, with learningOptions: LearningOptions, at now: Date, calendar: StudyCalendar) -> Card? {
         guard card.id == session.currentCardID else { return nil }
         let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
         let scheduled = scheduler.review(card, grade: grade, at: now, using: &fuzzing)

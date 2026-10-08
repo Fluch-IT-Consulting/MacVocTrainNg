@@ -4,8 +4,8 @@ import Foundation
 /// options. `Deck.apply(_:day:)` makes it and returns the change that reverts it.
 ///
 /// Only VocabCore builds changes: outside it, the factory methods below and
-/// `SessionMode.grade(_:in:at:)` are the only way. So the app can't set a card's
-/// learning state or log on its own.
+/// `SessionMode.grade(_:in:at:calendar:)` are the only way. So the app can't set a
+/// card's learning state or log on its own.
 public struct DeckChange: Sendable {
     /// Cards to replace (matched by ID) or insert at the given index (appended if `nil`).
     /// Only the inverse of removals inserts at an index.

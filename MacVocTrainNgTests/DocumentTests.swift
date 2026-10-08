@@ -143,6 +143,36 @@ struct DocumentTests {
         #expect(document.deck.progress.last?.total == 1)
     }
 
+    /// The calendar follows the machine's time zone; the study day still starts at the
+    /// same hour (#186).
+    @Test func theCalendarSwitchesToANewTimeZone() {
+        let document = VocabularyDocument(calendar: .testing)
+        var changes = 0
+        let willChange = document.objectWillChange.sink { changes += 1 }
+
+        document.switchTimeZone(to: StudyCalendar.newYork.timeZone)
+        #expect(document.calendar == .newYork)
+        #expect(changes == 1)
+        document.switchTimeZone(to: StudyCalendar.newYork.timeZone)
+        #expect(changes == 1)
+        _ = willChange
+    }
+
+    /// After the machine's time zone changed, a change to the open deck updates the
+    /// snapshot of the study day in the new zone (#186).
+    @Test func changesAfterATimeZoneSwitchUpdateTheNewStudyDay() {
+        let day = CivilDate(year: 2026, month: 10, day: 6).dayNumber
+        // 23:00 in New York, already 05:00 of the next day in Berlin.
+        let clock = ManualClock(StudyCalendar.newYork.start(ofDay: day).addingTimeInterval(19 * 3600))
+        let document = VocabularyDocument(clock: clock.studyClock, calendar: .testing)
+        let undoManager = makeUndoManager(for: document)
+        #expect(document.calendar.dayNumber(for: clock.now) == day + 1)
+
+        document.switchTimeZone(to: StudyCalendar.newYork.timeZone)
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
+        #expect(document.deck.progress.map(\.day) == [day])
+    }
+
     @Test func snapshotSavesReadableDeck() throws {
         // The file stores dates with second precision.
         let created = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
@@ -219,7 +249,7 @@ struct DocumentTests {
         let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
         let undoManager = makeUndoManager(for: document)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
-        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now) else {
+        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
             Issue.record("A study session reschedules the card.")
             return
         }
@@ -244,7 +274,7 @@ struct DocumentTests {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
-        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now) else {
+        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
             Issue.record("A study session reschedules the card.")
             return
         }
@@ -860,6 +890,40 @@ struct SessionViewModelTests {
         step(undoManager) { model.submit() }
         #expect(document.card(withID: card.id)?.learningState?.lastReview == clock.now)
         #expect(document.deck.progress.map(\.day) == [day - 1, day - 1 + interval])
+    }
+
+    /// A review after the machine's time zone changed counts elapsed study days and the
+    /// due date in the new zone, also in a session that started before (#186).
+    @Test(arguments: [false, true])
+    func reviewsAfterATimeZoneSwitchCountStudyDaysInTheNewZone(sessionStartedBefore: Bool) throws {
+        let day = CivilDate(year: 2026, month: 10, day: 6).dayNumber
+        // 23:00 in New York, already 05:00 of the next day in Berlin.
+        let clock = ManualClock(StudyCalendar.newYork.start(ofDay: day).addingTimeInterval(19 * 3600))
+        // Last reviewed at 21:00 in New York, 03:00 in Berlin: the same study day in
+        // New York, the one before in Berlin.
+        let lastReview = clock.now.addingTimeInterval(-2 * 3600)
+        let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: lastReview, due: lastReview)
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
+        var learningOptions = LearningOptions()
+        learningOptions.fuzzing = false
+        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: .testing)
+        let undoManager = makeUndoManager(for: document)
+
+        let earlier = sessionStartedBefore ? SessionViewModel(document: document, autoAdvance: true) : nil
+        document.switchTimeZone(to: StudyCalendar.newYork.timeZone)
+        let model = earlier ?? SessionViewModel(document: document, autoAdvance: true)
+        model.input = "Haus"
+        step(undoManager) { model.submit() }
+
+        func review(in calendar: StudyCalendar) -> Card {
+            var random = SeededRandom(seed: 0)  // unused without fuzzing
+            return Scheduler(learningOptions: learningOptions, calendar: calendar).review(card, grade: .good, at: clock.now, using: &random)
+        }
+        let expected = review(in: .newYork)
+        #expect(expected.learningState?.stability != review(in: .testing).learningState?.stability)
+        #expect(expected.learningState?.due != review(in: .testing).learningState?.due)
+        #expect(document.card(withID: card.id) == expected)
+        #expect(document.deck.progress.map(\.day) == [day])
     }
 
     @Test func dueCardsAreCountedAsTimePasses() {

@@ -95,7 +95,7 @@ final class SessionViewModel {
     func grade(_ grade: Grade) {
         guard stage != .finished, let card = currentCard else { return }
         let before = mode
-        guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now) else { return }
+        guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now, calendar: document.calendar) else { return }
 
         // One undo action takes back the card and the session's place: the document
         // restores the card, then the session. Practice changes no card, but ⌘Z should
