@@ -125,6 +125,12 @@ struct SchedulerTests {
         #expect(Scheduler(learningOptions: learningOptions, calendar: calendar).intervalDays(stability: 0.01, using: &random) == 1)
     }
 
+    @Test func intervalBeyondIntRangeIsTheMaximum() {
+        var random = SeededRandom(seed: 1)
+        #expect(scheduler.intervalDays(stability: 1e19, using: &random) == scheduler.learningOptions.maximumInterval)
+        #expect(scheduler.intervalDays(stability: 1e300, using: &random) == scheduler.learningOptions.maximumInterval)
+    }
+
     @Test(arguments: [3, 10, 50, 400])
     func fuzzStaysWithinPyFSRSRanges(interval: Int) {
         var random = SeededRandom(seed: 42)

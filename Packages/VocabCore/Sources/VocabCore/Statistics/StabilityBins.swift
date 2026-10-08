@@ -13,8 +13,8 @@ public enum StabilityBins {
 
     public static func bin(forStability stability: Double) -> Int {
         guard stability >= 1 else { return 1 }
-        let exponent = Int(log2(stability).rounded(.down))
-        return min(2 + exponent, count - 1)
+        // Capped before the conversion, which traps for an infinite stability.
+        return Int(min(2 + log2(stability).rounded(.down), Double(count - 1)))
     }
 
     public static func bin(for card: Card) -> Int {
