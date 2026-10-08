@@ -24,9 +24,7 @@ public struct ResponseChecker: Sendable {
         let expectedKeys = Set(expectedParts.map(key))
 
         if givenKeys.isSubset(of: expectedKeys) {
-            if givenKeys == expectedKeys { return .correct }
-            let missing = expectedParts.filter { !givenKeys.contains(key($0)) }
-            return .incomplete(missing: missing)
+            return givenKeys == expectedKeys ? .correct : .incomplete
         }
 
         let isClose = givenParts.allSatisfy { part in

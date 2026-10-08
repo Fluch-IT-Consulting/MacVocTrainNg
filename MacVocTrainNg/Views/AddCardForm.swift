@@ -39,7 +39,7 @@ struct AddCardForm: View {
                 TextField("Hint", text: $hint, prompt: Text("Hint (optional)"))
                     .focused($focus, equals: .hint)
                     .frame(maxWidth: 200)
-                Button("Add") { submit(fromButton: true) }
+                Button("Add", action: submit)
                     .disabled(text == nil)
             }
             .textFieldStyle(.roundedBorder)
@@ -59,7 +59,7 @@ struct AddCardForm: View {
         }
     }
 
-    private func submit(fromButton: Bool = false) {
+    private func submit() {
         guard let text else {
             focus = CardText.trimmed(question).isEmpty ? .question : .answer
             return
