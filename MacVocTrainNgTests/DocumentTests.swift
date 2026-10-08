@@ -476,6 +476,70 @@ struct SessionViewModelTests {
         #expect(model.isFinished)
     }
 
+    /// A study session with a mistake, then a practice review of it. Nothing else holds the
+    /// model, as in the app once the view closes the session.
+    private func practicedMistake(in document: VocabularyDocument, undoManager: UndoManager) -> SessionViewModel {
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        model.input = "wrong"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        model.input = "a0"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        model.practiceMistakes()
+        model.input = "a0"
+        step(undoManager) { model.submit(undoManager: undoManager) }
+        return model
+    }
+
+    /// The undo manager doesn't hold the target of an undo action (#174).
+    @Test func undoingPracticeReviewOfAClosedSessionChangesNothing() {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
+        weak var closed = model
+        model = nil
+        #expect(closed == nil)
+        let scheduled = document.deck
+
+        undoManager.undo()
+        #expect(document.deck == scheduled)
+        undoManager.redo()
+        #expect(document.deck == scheduled)
+    }
+
+    @Test func redoingPracticeReviewOfAClosedSessionChangesNothing() {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
+        let scheduled = document.deck
+        undoManager.undo()
+        #expect(model?.isPracticing == true)
+        weak var closed = model
+        model = nil
+        #expect(closed == nil)
+
+        undoManager.redo()
+        #expect(document.deck == scheduled)
+    }
+
+    @Test func reviewOfAClosedSessionIsUndoneAndRedone() throws {
+        let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager()
+        var model: SessionViewModel? = SessionViewModel(document: document, autoAdvance: true)
+        let card = try #require(model?.currentCard)
+        model?.input = card.answer
+        step(undoManager) { model?.submit(undoManager: undoManager) }
+        let reviewed = try #require(document.card(withID: card.id))
+        weak var closed = model
+        model = nil
+        #expect(closed == nil)
+
+        undoManager.undo()
+        #expect(document.card(withID: card.id) == card)
+        undoManager.redo()
+        #expect(document.card(withID: card.id) == reviewed)
+    }
+
     @Test func removingTheCurrentCardMovesOn() throws {
         let document = makeDocument(cards: 2)
         let undoManager = makeUndoManager()
