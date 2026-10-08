@@ -122,4 +122,73 @@ struct CardTableTests {
             try #require(stepwise == full)
         }
     }
+
+    /// Cards edited in place, as by typing in the inspector or by a review, give the
+    /// same rows as building the table from scratch (#232).
+    @Test(arguments: [
+        ([KeyPathComparator(\CardRow.position)], ""),
+        ([KeyPathComparator(\CardRow.question)], ""),
+        ([KeyPathComparator(\CardRow.answer, order: .reverse)], ""),
+        ([KeyPathComparator(\CardRow.question)], "o"),
+        ([KeyPathComparator(\CardRow.categoryRank), KeyPathComparator(\CardRow.answer)], "ze"),
+    ])
+    func editsInPlaceMatchFullRebuild(order: [KeyPathComparator<CardRow>], query: String) throws {
+        var random = SeededRandom(seed: 232)
+        let words = ["dom", "Dom", "dzień", "dzien", "kot", "Kot", "a", "b", "żaba", "zebra", "10", "9"]
+        func word() -> String { words.randomElement(using: &random)! }
+        func describe(_ rows: [CardRow]) -> [String] {
+            rows.map { "\($0.position) \($0.question) \($0.answer) \($0.hint) \($0.categoryRank)" }
+        }
+
+        var deck = (0..<40).map { _ in Card(question: word(), answer: word(), hint: word()) }
+        let table = CardTable()
+        _ = table.rows(of: deck, sortedBy: order, matching: query)
+        for _ in 0..<100 {
+            for _ in 0..<Int.random(in: 1...2, using: &random) {
+                let position = Int.random(in: deck.indices, using: &random)
+                let card = deck[position]
+                switch Int.random(in: 0..<4, using: &random) {
+                case 0: deck[position] = Card(id: card.id, question: word(), answer: card.answer, hint: card.hint)
+                case 1: deck[position] = card.withAnswer(card.answer + word())
+                case 2: deck[position] = Card(id: card.id, question: card.question, answer: card.answer, hint: word())
+                default:
+                    let learningState = LearningState(
+                        phase: .review, stability: .random(in: 0.5...300, using: &random), difficulty: 5, lastReview: Date(), due: Date()
+                    )
+                    deck[position] = Card(id: card.id, question: card.question, answer: card.answer, hint: card.hint, learningState: learningState)
+                }
+            }
+            let stepwise = describe(table.rows(of: deck, sortedBy: order, matching: query))
+            let full = describe(CardTable().rows(of: deck, sortedBy: order, matching: query))
+            try #require(stepwise == full)
+        }
+    }
+
+    /// Time of `rows(of:sortedBy:matching:)` per keystroke while the text of one card of
+    /// 5000 is typed, as the inspector writes it (#232). Prints the median and has no
+    /// time limit. Runs only with `CARD_TABLE_MEASURE` set; through `xcodebuild`, set
+    /// `TEST_RUNNER_CARD_TABLE_MEASURE=1`, best with `-configuration Release`.
+    @Test(
+        .enabled(if: ProcessInfo.processInfo.environment["CARD_TABLE_MEASURE"] != nil),
+        arguments: [("unsorted", [KeyPathComparator(\CardRow.position)], ""), ("by question", [KeyPathComparator(\CardRow.question)], ""), ("by question, search", [KeyPathComparator(\CardRow.question)], "ka")]
+    )
+    func measureTyping(name: String, order: [KeyPathComparator<CardRow>], query: String) {
+        var random = SeededRandom(seed: 232)
+        let letters = Array("abcdefghijklmnoprstuwyzłóżćęąś")
+        func word() -> String {
+            String((0..<Int.random(in: 3...10, using: &random)).map { _ in letters.randomElement(using: &random)! })
+        }
+        var deck = (0..<5000).map { _ in Card(question: word(), answer: word() + " " + word(), hint: word()) }
+        let table = CardTable()
+        _ = table.rows(of: deck, sortedBy: order, matching: query)
+
+        var durations: [Duration] = []
+        for keystroke in 0..<50 {
+            let edited = deck[2500]
+            deck[2500] = edited.withAnswer(edited.answer + String(letters[keystroke % letters.count]))
+            durations.append(ContinuousClock().measure { _ = table.rows(of: deck, sortedBy: order, matching: query) })
+        }
+        let median = durations.sorted()[durations.count / 2]
+        print("CardTable, 5000 cards, \(name): \(median.formatted(.units(allowed: [.milliseconds], fractionalPart: .show(length: 2)))) per keystroke (median)")
+    }
 }
