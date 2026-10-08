@@ -13,6 +13,10 @@ The active developer dir may be the Command Line Tools; prefix with
 - Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
   (config in `.swift-format`); `format -i` instead of `lint --strict` fixes the layout.
   Name the paths: `build/` and `.build/` contain generated Swift files.
+- Translations: `swift Tools/check-localizations.swift` after a build with
+  `-derivedDataPath build/DerivedData`.
+- CI (`.github/workflows/ci.yml`, job `test`): all of the above, warnings as errors,
+  and the Release build of `Tools/make-release.sh` (both architectures, no disk image).
 - Signing: `Config/Signing.xcconfig` signs ad hoc; the untracked
   `Config/Signing.local.xcconfig` sets the team. No team ID in tracked files.
 
@@ -37,7 +41,8 @@ The active developer dir may be the Command Line Tools; prefix with
 ## Conventions
 
 - New user-facing strings: add the German translation to
-  `MacVocTrainNg/Resources/Localizable.xcstrings` (Xcode may not run to sync it).
+  `MacVocTrainNg/Resources/Localizable.xcstrings` (Xcode may not run to sync it), in
+  state `translated`. The CI fails on a key missing from the catalog or without German.
 - Code ported from another project: add its license to `THIRD_PARTY_NOTICES.md` and
   `MacVocTrainNg/Resources/Credits.html` (the About window).
 - Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
