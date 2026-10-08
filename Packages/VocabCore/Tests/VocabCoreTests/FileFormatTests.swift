@@ -346,7 +346,7 @@ struct LegacyImporterTests {
     }
 
     /// Old snapshots count a level without spread, import day counts the card with it.
-    @Test func importedCardMayChangeMaturityOnImportDay() throws {
+    @Test func spreadMovesImportedCardToMaturingOnImportDay() throws {
         let data = try legacyArchive(
             // Level 10 is 15.5 days, +5 % makes 16.3 days.
             cards: [legacyCard("known", level: 10, lastAnswered: now.addingTimeInterval(-86400), adjustment: 0.05)],
