@@ -7,7 +7,9 @@ import os
 /// The SwiftUI document of one deck.
 ///
 /// All changes go through methods that register undo actions. Besides providing
-/// undo, this is how SwiftUI learns that the document has unsaved changes.
+/// undo, this is how SwiftUI learns that the document has unsaved changes. They
+/// register with `undoManager`, which `DocumentView` sets, so no view that changes
+/// the deck has to find the right undo manager itself (#48, #136).
 ///
 /// Who wants to hear of changes to the deck uses one of two ways, depending on what
 /// it is:
@@ -53,6 +55,12 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Remembers the encoded review log between saves, so autosave stays cheap.
     /// Thread-safe on its own, as saving uses it on a background thread.
     private let reviewLog = ReviewLogEncoder()
+    /// The undo manager of the document's window; every change registers its undo
+    /// action here. SwiftUI creates the document but hands the undo manager only to
+    /// views, so `DocumentView` sets it, and tests set it themselves. Weak: it belongs
+    /// to the NSDocument behind `DocumentGroup`. Not part of the deck, so setting it
+    /// tells no observer.
+    weak var undoManager: UndoManager?
 
     nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system, calendar: StudyCalendar = StudyCalendar()) {
         self.deck = deck
@@ -123,62 +131,67 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Appends a new card with `text`, created now by the document's clock, see
     /// `DeckChange.adding(_:to:)`. Returns the ID of the new card.
     @discardableResult
-    func add(_ text: CardText, undoManager: UndoManager?) -> Card.ID {
+    func add(_ text: CardText) -> Card.ID {
         let card = Card(text: text, created: clock.now)
         if let change = DeckChange.adding([card], to: deck) {
-            perform(change, actionName: String(localized: "Add Card"), undoManager: undoManager)
+            perform(change, actionName: String(localized: "Add Card"))
         }
         return card.id
     }
 
     /// Appends cards from an import as one change, see `DeckChange.adding(_:to:)`.
-    func importCards(_ cards: [Card], undoManager: UndoManager?) {
+    func importCards(_ cards: [Card]) {
         guard let change = DeckChange.adding(cards, to: deck) else { return }
-        perform(change, actionName: String(localized: "Import Cards"), undoManager: undoManager)
+        perform(change, actionName: String(localized: "Import Cards"))
     }
 
     /// Changes question, answer and hint of a card, see `DeckChange.editingText(of:to:in:)`.
-    func editText(of id: Card.ID, to text: CardText, undoManager: UndoManager?) {
+    func editText(of id: Card.ID, to text: CardText) {
         guard let change = DeckChange.editingText(of: id, to: text, in: deck) else { return }
-        perform(change, actionName: String(localized: "Edit Card"), undoManager: undoManager)
+        perform(change, actionName: String(localized: "Edit Card"))
     }
 
-    func delete(_ ids: Set<Card.ID>, undoManager: UndoManager?) {
+    func delete(_ ids: Set<Card.ID>) {
         guard let change = DeckChange.removing(ids, from: deck) else { return }
         let name = ids.count == 1 ? String(localized: "Delete Card") : String(localized: "Delete Cards")
-        perform(change, actionName: name, undoManager: undoManager)
+        perform(change, actionName: name)
     }
 
-    func resetLearningState(of ids: Set<Card.ID>, undoManager: UndoManager?) {
+    func resetLearningState(of ids: Set<Card.ID>) {
         guard let change = DeckChange.resettingLearningState(of: ids, in: deck) else { return }
-        perform(change, actionName: String(localized: "Reset Learning State"), undoManager: undoManager)
+        perform(change, actionName: String(localized: "Reset Learning State"))
     }
 
     /// Stores a card rescheduled after a review in a study session, with the change
     /// `SessionMode.grade(_:in:at:)` returns. Undo and redo of the review run `companion`
     /// right after the card, in the same undo action; the session brings back its place
     /// with it, see `SessionViewModel.grade`.
-    func applyReview(_ change: DeckChange, undoManager: UndoManager?, alongside companion: UndoCompanion) {
-        perform(change, actionName: String(localized: "Review"), undoManager: undoManager, alongside: companion)
+    func applyReview(_ change: DeckChange, alongside companion: UndoCompanion) {
+        perform(change, actionName: String(localized: "Review"), alongside: companion)
     }
 
     /// Changes the learning options, see `DeckChange.changingLearningOptions(_:in:calendar:)`.
-    func updateLearningOptions(_ learningOptions: LearningOptions, undoManager: UndoManager?) {
+    func updateLearningOptions(_ learningOptions: LearningOptions) {
         guard let change = DeckChange.changingLearningOptions(learningOptions, in: deck, calendar: calendar) else { return }
-        perform(change, actionName: String(localized: "Change Learning Options"), undoManager: undoManager)
+        perform(change, actionName: String(localized: "Change Learning Options"))
     }
 
     // MARK: - Undo machinery
 
-    /// Applies `change` and registers its inverse as the undo action. The undo action
-    /// runs `companion` once the deck holds the inverse; the redo action it registers
-    /// runs the companion reversed.
-    private func perform(_ change: DeckChange, actionName: String, undoManager: UndoManager?, alongside companion: UndoCompanion? = nil) {
+    /// Applies `change` and registers its inverse as the undo action with `undoManager`.
+    /// The undo action runs `companion` once the deck holds the inverse; the redo action
+    /// it registers runs the companion reversed.
+    ///
+    /// Without an undo manager the change could not be undone, and SwiftUI would not
+    /// learn of it: autosave might never write it. Debug builds stop there; the released
+    /// app still changes the deck.
+    private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
+        assert(undoManager != nil, "The document changes without an undo manager; DocumentView sets it.")
         var deck = deck
         let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
         self.deck = deck
-        undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
-            document.perform(inverse, actionName: actionName, undoManager: undoManager, alongside: companion?.reversed)
+        undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, _ in
+            document.perform(inverse, actionName: actionName, alongside: companion?.reversed)
             companion?.undo()
         }
     }

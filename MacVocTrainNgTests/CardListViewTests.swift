@@ -20,9 +20,11 @@ extension WindowTests {
         let document = VocabularyDocument(
             deck: Deck(cards: [Card(question: "frax", answer: "frox"), Card(question: "blim", answer: "blom"), Card(question: "glim", answer: "glom")])
         )
+        let undoManager: UndoManager
         let window: NSWindow
 
         init() {
+            undoManager = makeUndoManager(for: document)
             window = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.contentView = NSHostingView(rootView: CardListView(document: document))
@@ -97,7 +99,8 @@ extension WindowTests {
         /// tests running alongside may keep the main actor busy for longer.
         private func updateList(_ table: NSTableView) async throws {
             let rows = table.numberOfRows
-            _ = document.add(try #require(CardText(question: "snirk \(rows)", answer: "snork")), undoManager: nil)
+            let text = try #require(CardText(question: "snirk \(rows)", answer: "snork"))
+            step(undoManager) { document.add(text) }
             try await waitUntil("the table shows the added card") { table.numberOfRows == rows + 1 }
         }
 

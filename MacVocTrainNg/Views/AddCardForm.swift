@@ -14,16 +14,18 @@ struct AddCardForm: View {
     @ObservedObject var document: VocabularyDocument
     var onAdd: (Card.ID) -> Void
 
-    @Environment(\.undoManager) private var undoManager
     @State private var question = ""
     @State private var answer = ""
     @State private var hint = ""
     @FocusState private var focus: Field?
     /// Counts Return presses; `onChange` submits. SwiftUI on macOS renews a field's
     /// submit action only when the field's text changes, so Return in a hint field that
-    /// stayed empty runs the action of the first render, where `undoManager` was still
-    /// `nil`: the card was added without undo, and the document wasn't marked as changed.
-    /// Setting state works from any copy of the view; `onChange` runs the current one.
+    /// stayed empty runs the action of the first render. When the form still read the
+    /// undo manager from its environment, that action held `nil`: the card was added
+    /// without undo, and the document wasn't marked as changed (#136). The document has
+    /// its own undo manager now; whether the action of the first render is safe since,
+    /// only the app can show, so the detour stays. Setting state works from any copy of
+    /// the view; `onChange` runs the current one.
     @State private var submitRequests = 0
 
     /// `nil` until question and answer are filled in.
@@ -64,7 +66,7 @@ struct AddCardForm: View {
             focus = CardText.trimmed(question).isEmpty ? .question : .answer
             return
         }
-        onAdd(document.add(text, undoManager: undoManager))
+        onAdd(document.add(text))
         question = ""
         answer = ""
         hint = ""

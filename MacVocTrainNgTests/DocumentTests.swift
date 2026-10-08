@@ -6,21 +6,6 @@ import VocabCore
 
 @testable import MacVocTrain
 
-/// An undo manager that groups explicitly, as there is no event loop in tests.
-@MainActor
-private func makeUndoManager() -> UndoManager {
-    let undoManager = UndoManager()
-    undoManager.groupsByEvent = false
-    return undoManager
-}
-
-@MainActor
-private func step(_ undoManager: UndoManager, _ action: () -> Void) {
-    undoManager.beginUndoGrouping()
-    action()
-    undoManager.endUndoGrouping()
-}
-
 /// Counts calls of a sendable closure. Only used on the main actor.
 private final class ChangeCount: @unchecked Sendable {
     var value = 0
@@ -30,10 +15,10 @@ private final class ChangeCount: @unchecked Sendable {
 struct DocumentTests {
     @Test func addingIsUndoable() throws {
         let document = VocabularyDocument()
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
 
         var id: Card.ID?
-        step(undoManager) { id = document.add(CardText(question: " dom", answer: "Haus ", hint: "Gebäude")!, undoManager: undoManager) }
+        step(undoManager) { id = document.add(CardText(question: " dom", answer: "Haus ", hint: "Gebäude")!) }
         let card = try #require(document.deck.cards.first)
         #expect(document.deck.cards == [card])
         #expect(card.id == id)
@@ -50,21 +35,54 @@ struct DocumentTests {
     @Test func addedCardsAreCreatedByTheDocumentsClock() {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_700_000_000))
         let document = VocabularyDocument(clock: clock.studyClock)
+        let undoManager = makeUndoManager(for: document)
 
-        let first = document.add(CardText(question: "dom", answer: "Haus")!, undoManager: nil)
-        #expect(document.card(withID: first)?.created == clock.now)
+        var first: Card.ID?
+        step(undoManager) { first = document.add(CardText(question: "dom", answer: "Haus")!) }
+        #expect(first.flatMap(document.card(withID:))?.created == clock.now)
 
         clock.now.addTimeInterval(3600)
-        let second = document.add(CardText(question: "kot", answer: "Katze")!, undoManager: nil)
-        #expect(document.card(withID: second)?.created == clock.now)
+        var second: Card.ID?
+        step(undoManager) { second = document.add(CardText(question: "kot", answer: "Katze")!) }
+        #expect(second.flatMap(document.card(withID:))?.created == clock.now)
+    }
+
+    /// No caller hands over an undo manager: every change registers its undo action with
+    /// the document's (#195).
+    @Test func everyChangeRegistersWithTheDocumentsUndoManager() {
+        let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
+        let card = Card(question: "dom", answer: "Haus", learningState: learningState)
+        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let undoManager = makeUndoManager(for: document)
+        var options = LearningOptions()
+        options.caseSensitive.toggle()
+        let changes: [() -> Void] = [
+            { _ = document.add(CardText(question: "kot", answer: "Katze")!) },
+            { document.importCards([Card(question: "pies", answer: "Hund")]) },
+            { document.editText(of: card.id, to: CardText(question: "dom", answer: "Heim")!) },
+            { document.resetLearningState(of: [card.id]) },
+            { document.updateLearningOptions(options) },
+            { document.delete([card.id]) },
+        ]
+
+        for change in changes {
+            step(undoManager, change)
+        }
+        for _ in changes {
+            #expect(undoManager.canUndo)
+            undoManager.undo()
+        }
+        #expect(!undoManager.canUndo)
+        #expect(document.deck.cards == [card])
+        #expect(document.deck.learningOptions == LearningOptions())
     }
 
     @Test func importIsOneUndoableChange() {
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let imported = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
 
-        step(undoManager) { document.importCards(imported, undoManager: undoManager) }
+        step(undoManager) { document.importCards(imported) }
         #expect(document.deck.cards.map(\.question) == ["dom", "kot", "pies"])
         #expect(undoManager.undoActionName == "Import Cards" || undoManager.undoActionName == "Karten importieren")
 
@@ -76,12 +94,12 @@ struct DocumentTests {
         let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         let document = VocabularyDocument(deck: Deck(cards: [card]))
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
 
         let edited = card.withAnswer("Haus / Heim")
-        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus / Heim")!, undoManager: undoManager) }
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus / Heim")!) }
         #expect(document.deck.cards[0] == edited)
-        step(undoManager) { document.resetLearningState(of: [card.id], undoManager: undoManager) }
+        step(undoManager) { document.resetLearningState(of: [card.id]) }
         #expect(document.deck.cards[0].isNew)
         #expect(document.deck.cards[0].answer == "Haus / Heim")
 
@@ -94,19 +112,19 @@ struct DocumentTests {
     @Test func unchangedEditRegistersNoUndo() {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]))
-        let undoManager = makeUndoManager()
-        document.editText(of: card.id, to: CardText(question: " dom", answer: "Haus")!, undoManager: undoManager)  // would throw without an open group if it registered anything
+        let undoManager = makeUndoManager(for: document)
+        document.editText(of: card.id, to: CardText(question: " dom", answer: "Haus")!)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
     }
 
     @Test func changesAreAnnouncedBeforeAndReportedAfter() {
         let document = VocabularyDocument()
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         var events: [String] = []
         let willChange = document.objectWillChange.sink { events.append("will \(document.deck.cards.count)") }
         let didChange = document.deckDidChange.sink { events.append("did \(document.deck.cards.count)") }
 
-        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
         undoManager.undo()
         #expect(events == ["will 0", "did 1", "will 1", "did 0"])
         _ = (willChange, didChange)
@@ -119,8 +137,8 @@ struct DocumentTests {
 
     @Test func changesUpdateTodaysSnapshot() {
         let document = VocabularyDocument(calendar: .testing)
-        let undoManager = makeUndoManager()
-        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
+        let undoManager = makeUndoManager(for: document)
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
         #expect(document.deck.progress.last?.day == document.calendar.dayNumber(for: Date()))
         #expect(document.deck.progress.last?.total == 1)
     }
@@ -154,8 +172,8 @@ struct DocumentTests {
     /// The first save of a new deck takes the snapshot on a background thread.
     @Test func snapshotOffTheMainThreadHoldsTheLatestChange() async throws {
         let document = VocabularyDocument()
-        let undoManager = makeUndoManager()
-        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
+        let undoManager = makeUndoManager(for: document)
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
         let snapshot = try await Task.detached { try document.snapshot(contentType: .vocabularyDeck) }.value
         #expect(snapshot == document.deck)
     }
@@ -168,13 +186,13 @@ struct DocumentTests {
             scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
         }
         let document = VocabularyDocument(deck: Deck(cards: [studied]))
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
 
         var options = LearningOptions()
         var weights = FSRSParameters.default.weights
         weights[8] = 1.2
         options.parameters = try #require(FSRSParameters(weights))
-        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
+        step(undoManager) { document.updateLearningOptions(options) }
         let replayed = document.deck.cards
         #expect(replayed != [studied])
         #expect(undoManager.undoActionName == "Change Learning Options" || undoManager.undoActionName == "Lernoptionen ändern")
@@ -189,8 +207,8 @@ struct DocumentTests {
 
     @Test func unchangedLearningOptionsRegisterNoUndo() {
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
-        let undoManager = makeUndoManager()
-        document.updateLearningOptions(LearningOptions(), undoManager: undoManager)  // would throw without an open group if it registered anything
+        let undoManager = makeUndoManager(for: document)
+        document.updateLearningOptions(LearningOptions())  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
     }
 
@@ -199,7 +217,7 @@ struct DocumentTests {
     @Test func reviewUndoRunsItsCompanionAfterTheCard() {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
         guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now) else {
             Issue.record("A study session reschedules the card.")
@@ -210,7 +228,7 @@ struct DocumentTests {
             undo: { calls.entries.append("undo \(document.card(withID: card.id)?.log.count ?? -1)") },
             redo: { calls.entries.append("redo \(document.card(withID: card.id)?.log.count ?? -1)") }
         )
-        step(undoManager) { document.applyReview(change, undoManager: undoManager, alongside: companion) }
+        step(undoManager) { document.applyReview(change, alongside: companion) }
         #expect(calls.entries.isEmpty)
 
         undoManager.undo()
@@ -234,9 +252,9 @@ struct DocumentTests {
         let companion = UndoCompanion(undo: { calls.entries.append("undo") }, redo: { calls.entries.append("redo") })
         weak var released: UndoManager?
         autoreleasepool {
-            let undoManager = makeUndoManager()
-            step(undoManager) { document.applyReview(change, undoManager: undoManager, alongside: companion) }
-            step(undoManager) { document.add(CardText(question: "kot", answer: "Katze")!, undoManager: undoManager) }
+            let undoManager = makeUndoManager(for: document)
+            step(undoManager) { document.applyReview(change, alongside: companion) }
+            step(undoManager) { document.add(CardText(question: "kot", answer: "Katze")!) }
             undoManager.undo()
             #expect(undoManager.canUndo && undoManager.canRedo)
             released = undoManager
@@ -262,12 +280,12 @@ struct SessionViewModelTests {
 
     @Test func correctResponseMovesOnAndCanBeUndone() throws {
         let document = makeDocument(cards: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
 
         model.input = first.answer
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(document.card(withID: first.id)?.learningState?.phase == .review)
         #expect(model.previous?.grade == .good)
         #expect(model.currentCard?.id != first.id)
@@ -292,11 +310,11 @@ struct SessionViewModelTests {
 
     @Test func undoingAReviewOfAnEarlierSessionOnlyTakesBackTheCard() throws {
         let document = makeDocument(cards: 2, steps: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
         model.input = first.answer
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
 
         model.continueStudying()
         let session = model.session.id
@@ -335,12 +353,12 @@ struct SessionViewModelTests {
     /// Each undo and redo registers the opposite step anew; the stack must stay in order.
     @Test func severalReviewsAreUndoneAndRedoneOneByOne() throws {
         let document = makeDocument(cards: 3)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         var places = [Place(model)]
         for _ in 0..<3 {
             model.input = try #require(model.currentCard).answer
-            step(undoManager) { model.submit(undoManager: undoManager) }
+            step(undoManager) { model.submit() }
             places.append(Place(model))
         }
         #expect(model.isFinished)
@@ -360,11 +378,11 @@ struct SessionViewModelTests {
 
     @Test func undoingTheReviewThatFinishedTheSessionAsksAgain() throws {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
         model.input = card.answer
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(model.isFinished)
 
         undoManager.undo()
@@ -382,12 +400,12 @@ struct SessionViewModelTests {
         learningOptions.steps = 1
         let deck = Deck(learningOptions: learningOptions, cards: [Card(question: "dom", answer: "Haus")])
         let document = VocabularyDocument(deck: deck, clock: clock.studyClock, calendar: .testing)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
         clock.now.addTimeInterval(30)
         model.input = "Haus"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(model.isFinished)
         #expect(model.session.duration == 30)
 
@@ -410,16 +428,16 @@ struct SessionViewModelTests {
         let learningState = LearningState(phase: .learning, stability: 100, difficulty: 5, lastReview: now.addingTimeInterval(-100 * 86400), due: now)
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock, calendar: .testing)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
         model.input = "Haus"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(document.card(withID: card.id)?.learningState?.step == 1)
         #expect(model.currentCard?.id == card.id)  // stays in the session
 
         model.input = "Haus"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         let reviewed = try #require(document.card(withID: card.id)?.learningState)
         #expect(reviewed.phase == .review)
         #expect(model.isFinished)
@@ -432,7 +450,7 @@ struct SessionViewModelTests {
         #expect(model.currentCard?.learningState?.step == 1)
 
         model.input = "Haus"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(document.card(withID: card.id)?.learningState == reviewed)
     }
 
@@ -442,8 +460,8 @@ struct SessionViewModelTests {
     private func expectFinishUpOutlastsUndoAndRedo(of model: SessionViewModel, undoManager: UndoManager) throws {
         let first = try #require(model.currentCard)
         model.input = "wrong"
-        model.submit(undoManager: undoManager)
-        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        model.submit()
+        step(undoManager) { model.grade(.again) }
         model.finishUp()
         #expect(model.session.totalCount == 2)
         let finishedUp = Place(model)
@@ -459,19 +477,19 @@ struct SessionViewModelTests {
 
     @Test func undoingAReviewKeepsTheStudySessionFinishedUp() throws {
         let document = makeDocument(cards: 3)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         try expectFinishUpOutlastsUndoAndRedo(of: model, undoManager: undoManager)
     }
 
     @Test func undoingAReviewKeepsPracticeFinishedUp() throws {
         let document = makeDocument(cards: 3)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         for _ in 0..<20 where model.session.mistakeIDs.count < 3 {
             model.input = "wrong"
-            model.submit(undoManager: nil)
-            model.grade(.again, undoManager: nil)
+            model.submit()
+            step(undoManager) { model.grade(.again) }
         }
         #expect(model.session.mistakeIDs.count == 3)
         model.practiceMistakes()
@@ -481,17 +499,17 @@ struct SessionViewModelTests {
 
     @Test func aNewReviewAfterUndoDropsTheRedo() throws {
         let document = makeDocument(cards: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
         model.input = first.answer
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
 
         undoManager.undo()
         #expect(model.currentCard == first)
         model.input = "wrong"
-        model.submit(undoManager: undoManager)
-        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        model.submit()
+        step(undoManager) { model.grade(.again) }
         #expect(!undoManager.canRedo)
         #expect(document.card(withID: first.id)?.log.map(\.grade) == [.again])
         #expect(model.session.mistakeIDs == [first.id])
@@ -505,17 +523,17 @@ struct SessionViewModelTests {
 
     @Test func wrongResponseAsksForGrade() throws {
         let document = makeDocument(cards: 2, steps: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
 
         model.input = "nonsense"
-        model.submit(undoManager: undoManager)
+        model.submit()
         #expect(model.stage == .feedback(.wrong, response: "nonsense"))
         #expect(model.suggestedGrade == .again)
         #expect(document.card(withID: card.id)?.isNew == true)  // nothing applied yet
 
-        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        step(undoManager) { model.grade(.again) }
         #expect(document.card(withID: card.id)?.learningState?.phase == .learning)
         #expect(model.session.mistakeIDs == [card.id])
         #expect(model.stage == .asking)
@@ -523,13 +541,13 @@ struct SessionViewModelTests {
 
     @Test func typoCanBeAcceptedAsCorrect() throws {
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "Tag", answer: "dzień")]))
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
         model.input = "dzien"
-        model.submit(undoManager: undoManager)
+        model.submit()
         #expect(model.stage == .feedback(.almostCorrect, response: "dzien"))
-        step(undoManager) { model.grade(.good, undoManager: undoManager) }
+        step(undoManager) { model.grade(.good) }
         #expect(document.deck.cards[0].log.map(\.grade) == [.good])
     }
 
@@ -542,7 +560,7 @@ struct SessionViewModelTests {
         #expect(model.highlightedAnswer == nil)
 
         model.input = "wumbl"
-        model.submit(undoManager: nil)
+        model.submit()
         #expect(model.stage == .feedback(.almostCorrect, response: "wumbl"))
         let marked = model.highlightedAnswer?.filter(\.isMismatch).map(\.text)
         #expect(marked == (caseSensitive ? ["W", "e"] : ["e"]))
@@ -550,23 +568,25 @@ struct SessionViewModelTests {
 
     @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() {
         let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: false)
         model.input = "a0"
-        model.submit(undoManager: nil)
+        model.submit()
         #expect(model.suggestedGrade == .good)
-        model.grade(.easy, undoManager: nil)
+        step(undoManager) { model.grade(.easy) }
         #expect(document.deck.cards[0].log.map(\.grade) == [.easy])
         #expect(model.isFinished)
     }
 
     @Test func practicingMistakesLeavesScheduleAlone() throws {
         let document = makeDocument(cards: 1)
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
-        model.submit(undoManager: nil)
-        model.grade(.again, undoManager: nil)
+        model.submit()
+        step(undoManager) { model.grade(.again) }
         model.input = "a0"
-        model.submit(undoManager: nil)
+        step(undoManager) { model.submit() }
         #expect(model.isFinished)
 
         let before = document.deck
@@ -574,25 +594,25 @@ struct SessionViewModelTests {
         #expect(model.isPracticing)
         #expect(!model.isFinished)
         model.input = "a0"
-        model.submit(undoManager: nil)
+        step(undoManager) { model.submit() }
         #expect(model.isFinished)
         #expect(document.deck == before)
     }
 
     @Test func undoingPracticeReviewKeepsEarlierSessionIntact() throws {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
-        step(undoManager) { model.submit(undoManager: undoManager) }
-        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        step(undoManager) { model.submit() }
+        step(undoManager) { model.grade(.again) }
         model.input = "a0"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         model.practiceMistakes()
         let scheduled = document.deck
 
         model.input = "a0"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         #expect(model.isFinished)
         undoManager.undo()
         #expect(!model.isFinished)
@@ -607,20 +627,20 @@ struct SessionViewModelTests {
     private func practicedMistake(in document: VocabularyDocument, undoManager: UndoManager) -> SessionViewModel {
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
-        step(undoManager) { model.submit(undoManager: undoManager) }
-        step(undoManager) { model.grade(.again, undoManager: undoManager) }
+        step(undoManager) { model.submit() }
+        step(undoManager) { model.grade(.again) }
         model.input = "a0"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         model.practiceMistakes()
         model.input = "a0"
-        step(undoManager) { model.submit(undoManager: undoManager) }
+        step(undoManager) { model.submit() }
         return model
     }
 
     /// The undo manager doesn't hold the target of an undo action (#174).
     @Test func undoingPracticeReviewOfAClosedSessionChangesNothing() {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
         weak var closed = model
         model = nil
@@ -635,7 +655,7 @@ struct SessionViewModelTests {
 
     @Test func redoingPracticeReviewOfAClosedSessionChangesNothing() {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
         let scheduled = document.deck
         undoManager.undo()
@@ -653,7 +673,7 @@ struct SessionViewModelTests {
         let document = makeDocument(cards: 1)
         weak var released: UndoManager?
         autoreleasepool {
-            let undoManager = makeUndoManager()
+            let undoManager = makeUndoManager(for: document)
             let model = practicedMistake(in: document, undoManager: undoManager)
             #expect(model.isFinished)
             released = undoManager
@@ -663,11 +683,11 @@ struct SessionViewModelTests {
 
     @Test func reviewOfAClosedSessionIsUndoneAndRedone() throws {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model?.currentCard)
         model?.input = card.answer
-        step(undoManager) { model?.submit(undoManager: undoManager) }
+        step(undoManager) { model?.submit() }
         let reviewed = try #require(document.card(withID: card.id))
         weak var closed = model
         model = nil
@@ -682,15 +702,15 @@ struct SessionViewModelTests {
     @Test(arguments: [false, true])
     func removingTheCurrentCardMovesOn(whileShowingFeedback: Bool) throws {
         let document = makeDocument(cards: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
         if whileShowingFeedback {
             model.input = "wrong"
-            model.submit(undoManager: undoManager)
+            model.submit()
             #expect(model.stage == .feedback(.wrong, response: "wrong"))
         }
-        step(undoManager) { document.delete([current.id], undoManager: undoManager) }
+        step(undoManager) { document.delete([current.id]) }
         #expect(model.currentCard != nil)
         #expect(model.currentCard?.id != current.id)
         #expect(model.session.totalCount == 1)
@@ -702,12 +722,12 @@ struct SessionViewModelTests {
     /// The session used to notice removals only by a changed number of cards (#57).
     @Test func removingTheCurrentCardMovesOnEvenIfTheCountStays() throws {
         let document = makeDocument(cards: 2)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
         step(undoManager) {
-            document.delete([current.id], undoManager: undoManager)
-            document.add(CardText(question: "kot", answer: "Katze")!, undoManager: undoManager)
+            document.delete([current.id])
+            document.add(CardText(question: "kot", answer: "Katze")!)
         }
         #expect(document.deck.cards.count == 2)
         #expect(model.currentCard != nil)
@@ -718,9 +738,9 @@ struct SessionViewModelTests {
 
     @Test func undoingAnEditChangesTheCurrentCard() throws {
         let document = makeDocument(cards: 1)
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         let card = document.deck.cards[0]
-        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: card.answer)!, undoManager: undoManager) }
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: card.answer)!) }
         let model = SessionViewModel(document: document, autoAdvance: true)
         #expect(model.currentCard?.question == "dom")
 
@@ -731,11 +751,11 @@ struct SessionViewModelTests {
     @Test func undoingAndRedoingAnAnswerEditRechecksFeedback() {
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(cards: [card]))
-        let undoManager = makeUndoManager()
-        step(undoManager) { document.editText(of: card.id, to: CardText(question: card.question, answer: "Heim")!, undoManager: undoManager) }
+        let undoManager = makeUndoManager(for: document)
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: card.question, answer: "Heim")!) }
         let model = SessionViewModel(document: document, autoAdvance: false)
         model.input = "Heim"
-        model.submit(undoManager: undoManager)
+        model.submit()
         #expect(model.stage == .feedback(.correct, response: "Heim"))
         let questionNumber = model.questionNumber
         model.input = "not submitted"
@@ -760,12 +780,12 @@ struct SessionViewModelTests {
         options.caseSensitive = false
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(learningOptions: options, cards: [card]))
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         options.caseSensitive = true
-        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
+        step(undoManager) { document.updateLearningOptions(options) }
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "haus"
-        model.submit(undoManager: undoManager)
+        model.submit()
         #expect(model.stage == .feedback(.almostCorrect, response: "haus"))
         let questionNumber = model.questionNumber
 
@@ -791,7 +811,7 @@ struct SessionViewModelTests {
     @Test func emptyResponseRevealsTheAnswer() {
         let document = makeDocument(cards: 1)
         let model = SessionViewModel(document: document, autoAdvance: true)
-        model.submit(undoManager: nil)
+        model.submit()
         #expect(model.stage == .feedback(.wrong, response: ""))
     }
 
@@ -812,10 +832,11 @@ struct SessionViewModelTests {
         learningOptions.fuzzing = false
         let card = Card(question: "dom", answer: "Haus")
         let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: calendar)
+        let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
         model.input = "Haus"
-        model.submit(undoManager: nil)
+        step(undoManager) { model.submit() }
         let state = try #require(document.card(withID: card.id)?.learningState)
         #expect(state.phase == .review)
         #expect(state.lastReview == clock.now)
@@ -836,7 +857,7 @@ struct SessionViewModelTests {
         model.continueStudying()
         #expect(model.currentCard?.id == card.id)
         model.input = "Haus"
-        model.submit(undoManager: nil)
+        step(undoManager) { model.submit() }
         #expect(document.card(withID: card.id)?.learningState?.lastReview == clock.now)
         #expect(document.deck.progress.map(\.day) == [day - 1, day - 1 + interval])
     }
@@ -867,10 +888,10 @@ struct SessionViewModelTests {
 
     @Test func dueCardsAreCountedAfterEveryChange() {
         let document = VocabularyDocument()
-        let undoManager = makeUndoManager()
+        let undoManager = makeUndoManager(for: document)
         #expect(document.dueCards.count == 0)
 
-        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!, undoManager: undoManager) }
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
         #expect(document.dueCards.count == 1)
         undoManager.undo()
         #expect(document.dueCards.count == 0)
@@ -879,6 +900,7 @@ struct SessionViewModelTests {
     @Test func dueCardsTellObserversOnlyWhenTheNumberChanges() {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
         let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]), clock: clock.studyClock)
+        let undoManager = makeUndoManager(for: document)
         let dueCards = document.dueCards
         let changes = ChangeCount()
         withObservationTracking {
@@ -891,7 +913,7 @@ struct SessionViewModelTests {
         dueCards.refresh()
         #expect(changes.value == 0)
 
-        document.add(CardText(question: "kot", answer: "Katze")!, undoManager: nil)
+        step(undoManager) { document.add(CardText(question: "kot", answer: "Katze")!) }
         #expect(changes.value == 1)
     }
 }

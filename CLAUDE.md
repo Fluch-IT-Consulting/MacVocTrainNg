@@ -27,7 +27,9 @@ The active developer dir may be the Command Line Tools; prefix with
   a shared `Session` that only tracks card IDs and order.
 - `MacVocTrainNg/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
-  marks the document dirty. Don't mutate `deck` elsewhere. Underneath, cards and learning
+  marks the document dirty. They register with the document's own `undoManager`, which
+  `DocumentView` sets from its environment (tests set it themselves); callers don't pass
+  one. Don't mutate `deck` elsewhere. Underneath, cards and learning
   options change only through `Deck.apply(_:day:)`: it returns the inverse change and keeps
   `progress` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
   log can't be set from outside it (tests reach the full `Card.init` via `@testable`).

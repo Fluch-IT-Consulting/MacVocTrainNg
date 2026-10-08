@@ -12,6 +12,9 @@ struct DocumentView: View {
     @ObservedObject var document: VocabularyDocument
     /// Where the document is saved; `nil` until it is saved for the first time.
     var fileURL: URL?
+    /// The document's undo manager, which SwiftUI hands only to views. The document
+    /// gets it from here. A sheet's environment holds the undo manager of the sheet's
+    /// own window instead (#48).
     @Environment(\.undoManager) private var undoManager
     /// Survives quitting when the window is restored; the session doesn't.
     @SceneStorage("screen") private var screen: Screen = .cards
@@ -55,11 +58,15 @@ struct DocumentView: View {
             }
         }
         .sheet(isPresented: $showingOptions) {
-            DeckOptionsView(document: document, undoManager: undoManager)
+            DeckOptionsView(document: document)
         }
         .sheet(item: $importPreview) { preview in
-            ImportPreviewView(document: document, preview: preview, undoManager: undoManager)
+            ImportPreviewView(document: document, preview: preview)
         }
+        // Again whenever either changes: SwiftUI may replace the document in this window,
+        // e.g. when reverting to a saved version.
+        .onChange(of: ObjectIdentifier(document), initial: true, giveUndoManagerToDocument)
+        .onChange(of: undoManager, initial: true, giveUndoManagerToDocument)
         .focusedSceneValue(
             \.deckActions,
             DeckActions(
@@ -97,6 +104,10 @@ struct DocumentView: View {
         }
     }
     #endif
+
+    private func giveUndoManagerToDocument() {
+        document.undoManager = undoManager
+    }
 
     private func importCards() {
         importPreview = CardImport.chooseFile(existing: document.deck.cards, created: document.clock.now)

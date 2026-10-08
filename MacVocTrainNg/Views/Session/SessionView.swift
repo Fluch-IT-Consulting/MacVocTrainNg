@@ -11,7 +11,6 @@ struct SessionView: View {
     @Bindable var model: SessionViewModel
     var onClose: () -> Void
 
-    @Environment(\.undoManager) private var undoManager
     /// The question whose response field has the focus.
     @FocusState private var focusedQuestion: Int?
     @State private var confirmingEnd = false
@@ -91,7 +90,7 @@ struct SessionView: View {
                 .frame(maxWidth: 480)
                 .focused($focusedQuestion, equals: model.questionNumber)
                 .disabled(model.stage != .asking)
-                .onSubmit { model.submit(undoManager: undoManager) }
+                .onSubmit { model.submit() }
                 // Before `id`, so it runs for every new field, not only the first.
                 .onAppear { focus(model.questionNumber) }
                 // A new field per question: with automatic continuing the field never
@@ -101,7 +100,7 @@ struct SessionView: View {
             Group {
                 if case let .feedback(result, response) = model.stage {
                     FeedbackView(result: result, response: response, expected: card.answer, highlightedAnswer: model.highlightedAnswer) { grade in
-                        model.grade(grade, undoManager: undoManager)
+                        model.grade(grade)
                     }
                 } else {
                     Text("Press Return to check your response.")

@@ -5,7 +5,6 @@ import VocabCore
 struct CardInspector: View {
     @ObservedObject var document: VocabularyDocument
     var selection: Set<Card.ID>
-    @Environment(\.undoManager) private var undoManager
 
     var body: some View {
         Group {
@@ -17,10 +16,10 @@ struct CardInspector: View {
                     Text("\(selection.count) cards selected")
                         .font(.headline)
                     Button("Reset Learning State") {
-                        document.resetLearningState(of: selection, undoManager: undoManager)
+                        document.resetLearningState(of: selection)
                     }
                     Button("Delete", role: .destructive) {
-                        document.delete(selection, undoManager: undoManager)
+                        document.delete(selection)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -38,7 +37,6 @@ private struct CardDetail: View {
 
     @ObservedObject var document: VocabularyDocument
     let card: Card
-    @Environment(\.undoManager) private var undoManager
     @State private var question: String
     @State private var answer: String
     @State private var hint: String
@@ -90,7 +88,7 @@ private struct CardDetail: View {
                 }
                 if !card.isNew {
                     Button("Reset Learning State") {
-                        document.resetLearningState(of: [card.id], undoManager: undoManager)
+                        document.resetLearningState(of: [card.id])
                     }
                 }
             }
@@ -129,6 +127,6 @@ private struct CardDetail: View {
             answer = current.answer
             return
         }
-        document.editText(of: card.id, to: text, undoManager: undoManager)
+        document.editText(of: card.id, to: text)
     }
 }
