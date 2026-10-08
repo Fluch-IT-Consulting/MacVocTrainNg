@@ -3,7 +3,7 @@ public enum CheckResult: Hashable, Sendable {
     /// All alternatives given, nothing wrong.
     case correct
     /// Only some of the alternatives given, but none wrong.
-    case incomplete(missing: [String])
+    case incomplete
     /// Close to the answer: a few typos, depending on the length of the alternative
     /// (see `ResponseChecker.isClose`), or a capitalisation slip.
     case almostCorrect

@@ -72,7 +72,7 @@ private struct CardDetail: View {
                     // are re-evaluated every minute. The text fields above stay outside the
                     // tick.
                     TimelineView(.everyMinute) { _ in
-                        LabeledContent("Due", value: Format.due(card, now: document.clock.now))
+                        LabeledContent("Due", value: Format.due(learningState.due, now: document.clock.now))
                     }
                     LabeledContent("Stability", value: Format.days(learningState.stability))
                     LabeledContent("Difficulty", value: learningState.difficulty.formatted(.number.precision(.fractionLength(1))) + " / 10")

@@ -15,8 +15,8 @@ struct ResponseCheckerTests {
     }
 
     @Test func someAlternativesAreIncomplete() {
-        #expect(checker.check("Haus", against: "Haus / Gebäude") == .incomplete(missing: ["Gebäude"]))
-        #expect(ResponseChecker(caseSensitive: false).check("haus", against: "Haus / Gebäude") == .incomplete(missing: ["Gebäude"]))
+        #expect(checker.check("Haus", against: "Haus / Gebäude") == .incomplete)
+        #expect(ResponseChecker(caseSensitive: false).check("haus", against: "Haus / Gebäude") == .incomplete)
     }
 
     @Test func whitespaceAndUnicodeCompositionAreIgnored() {
@@ -74,7 +74,7 @@ struct ResponseCheckerTests {
 
     @Test func suggestedGrades() {
         #expect(CheckResult.correct.suggestedGrade == .good)
-        #expect(CheckResult.incomplete(missing: []).suggestedGrade == .hard)
+        #expect(CheckResult.incomplete.suggestedGrade == .hard)
         #expect(CheckResult.almostCorrect.suggestedGrade == .again)
         #expect(CheckResult.wrong.suggestedGrade == .again)
     }

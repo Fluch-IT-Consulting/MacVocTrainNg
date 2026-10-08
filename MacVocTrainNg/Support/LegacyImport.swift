@@ -44,10 +44,6 @@ enum LegacyImport {
     }
 
     private static func showError(_ message: String) {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = String(localized: "Import failed")
-        alert.informativeText = message
-        alert.runModal()
+        NSAlert.showWarning(String(localized: "Import failed"), message: message)
     }
 }

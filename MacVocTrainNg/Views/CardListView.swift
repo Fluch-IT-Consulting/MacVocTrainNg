@@ -163,12 +163,8 @@ private struct DueText: View {
     var now: Date
 
     var body: some View {
-        if let due {
-            Text(due <= now ? String(localized: "Now") : due.formatted(.relative(presentation: .named)))
-        } else {
-            Text("New")
-                .foregroundStyle(.secondary)
-        }
+        Text(Format.due(due, now: now))
+            .foregroundStyle(due == nil ? .secondary : .primary)
     }
 }
 

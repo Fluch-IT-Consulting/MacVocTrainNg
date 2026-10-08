@@ -78,11 +78,7 @@ enum CardExport {
             try data(of: cards, format: options.format, includingLearningState: options.includesLearningState, calendar: calendar)
                 .write(to: target, options: .atomic)
         } catch {
-            let alert = NSAlert()
-            alert.alertStyle = .warning
-            alert.messageText = String(localized: "Export failed")
-            alert.informativeText = error.localizedDescription
-            alert.runModal()
+            NSAlert.showWarning(String(localized: "Export failed"), message: error.localizedDescription)
         }
     }
 
