@@ -4,14 +4,19 @@ import Foundation
 /// finds "dzień".
 ///
 /// Folds the text of every card once, so each search is a plain substring test and
-/// stays fast while typing. Build a new index when the cards change.
+/// stays fast while typing. Build a new index when cards are added, removed or moved;
+/// replace the entry of a card whose text changed.
 public struct CardSearchIndex: Sendable {
     /// Folded text per card, in the order of the cards the index was built from.
-    private let texts: [String]
+    private var texts: [String]
 
     public init(cards: [Card]) {
-        // The separator keeps a query from matching across two fields.
-        texts = cards.map { Self.fold($0.question + "\u{1F}" + $0.answer + "\u{1F}" + $0.hint) }
+        texts = cards.map(Self.text(of:))
+    }
+
+    /// Replaces the entry at `position` with `card`, e.g. after its text was edited.
+    public mutating func replace(at position: Int, with card: Card) {
+        texts[position] = Self.text(of: card)
     }
 
     /// The positions among `positions` whose cards match `query`, in the given order.
@@ -25,6 +30,11 @@ public struct CardSearchIndex: Sendable {
     /// The positions of all cards matching `query`, in deck order.
     public func positions(matching query: String) -> [Int] {
         filter(Array(texts.indices), by: query)
+    }
+
+    private static func text(of card: Card) -> String {
+        // The separator keeps a query from matching across two fields.
+        fold(card.question + "\u{1F}" + card.answer + "\u{1F}" + card.hint)
     }
 
     /// Case- and diacritic-insensitive, and canonically composed so a literal

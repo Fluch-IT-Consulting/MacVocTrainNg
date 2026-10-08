@@ -17,6 +17,14 @@ struct CardSearchIndexTests {
         #expect(index.positions(matching: "gebäude") == [1])
     }
 
+    @Test func replacedEntryFindsNewText() {
+        var index = CardSearchIndex(cards: cards)
+        index.replace(at: 1, with: Card(question: "chata", answer: "Hütte"))
+        #expect(index.positions(matching: "haus").isEmpty)
+        #expect(index.positions(matching: "hutte") == [1])
+        #expect(index.positions(matching: "a") == [0, 1, 2])
+    }
+
     @Test func ignoresCaseAndDiacritics() {
         let index = CardSearchIndex(cards: cards)
         #expect(index.positions(matching: "DZIEN") == [0])

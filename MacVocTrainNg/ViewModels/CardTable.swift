@@ -32,8 +32,9 @@ struct CardRow: Identifiable {
 /// Keeps the rows, the search index and the sorted order between view updates, so
 /// typing a search or selecting rows stays fast with many cards. When cards change,
 /// only the changed and added cards are sorted in again; a full sort happens only
-/// when the sort order changes. It is not observable: the view asks for its rows
-/// while it renders.
+/// when the sort order changes. When only some cards changed in place, as with every
+/// keystroke in the inspector, only their rows and index entries are built again
+/// (#232). It is not observable: the view asks for its rows while it renders.
 @MainActor
 final class CardTable {
     private var cards: [Card] = []
@@ -47,11 +48,22 @@ final class CardTable {
         if cards != self.cards {
             let oldCards = self.cards
             self.cards = cards
-            allRows = cards.enumerated().map { CardRow(card: $1, position: $0) }
-            index = CardSearchIndex(cards: cards)
-            sorted = sorted.flatMap { sorted in
-                guard sorted.order == order else { return nil }
-                return resorted(sorted.positions, by: order, after: oldCards).map { (order, $0) }
+            if let edited = Self.editedPositions(from: oldCards, to: cards) {
+                for position in edited {
+                    allRows[position] = CardRow(card: cards[position], position: position)
+                    index.replace(at: position, with: cards[position])
+                }
+                sorted = sorted.flatMap { sorted in
+                    guard sorted.order == order else { return nil }
+                    return (order, reinserted(edited, into: sorted.positions, by: order))
+                }
+            } else {
+                allRows = cards.enumerated().map { CardRow(card: $1, position: $0) }
+                index = CardSearchIndex(cards: cards)
+                sorted = sorted.flatMap { sorted in
+                    guard sorted.order == order else { return nil }
+                    return resorted(sorted.positions, by: order, after: oldCards).map { (order, $0) }
+                }
             }
             shown = nil
         }
@@ -69,6 +81,30 @@ final class CardTable {
         let rows = index.filter(positions, by: query).map { allRows[$0] }
         shown = (query, rows)
         return rows
+    }
+
+    /// The positions of the cards that changed in place, or `nil` if cards were added,
+    /// removed or moved.
+    private static func editedPositions(from oldCards: [Card], to cards: [Card]) -> [Int]? {
+        guard oldCards.count == cards.count else { return nil }
+        var edited: [Int] = []
+        for position in cards.indices where cards[position] != oldCards[position] {
+            guard cards[position].id == oldCards[position].id else { return nil }
+            edited.append(position)
+        }
+        return edited
+    }
+
+    /// Takes the cards at `edited` out of `positions`, sorted before they changed, and
+    /// inserts them again by binary search. The other cards keep their place.
+    private func reinserted(_ edited: [Int], into positions: [Int], by order: [KeyPathComparator<CardRow>]) -> [Int] {
+        let editedSet = Set(edited)
+        var result = positions.filter { !editedSet.contains($0) }
+        for position in edited {
+            let slot = result.partitioningIndex { precedes(position, $0, by: order) }
+            result.insert(position, at: slot)
+        }
+        return result
     }
 
     /// Updates `positions`, sorted for `oldCards`, to the current cards: unchanged
