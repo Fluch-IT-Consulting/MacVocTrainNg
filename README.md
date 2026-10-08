@@ -210,11 +210,12 @@ Stapel.voctrain/
 ```
 
 Der Verlauf liegt getrennt, weil er mit jeder Abfrage wächst: Die App kodiert beim
-Sichern nur die neuen Zeilen. Das Kodieren kostet deshalb gleich viel, egal wie lang
-der Verlauf ist; Zusammenfügen und Schreiben von `reviews.jsonl` wachsen mit ihm,
-bleiben aber billig. `progress` hält den Fortschritt, einen Tagesstand je Lerntag:
-wie viele Karten neu waren und wie viele eine Stabilität von unter 1, 1–2, 2–4, 4–8 …
-Tagen hatten. Fehlende Felder werden mit Standardwerten ergänzt.
+Sichern nur, was sich seit dem letzten Mal geändert hat. Das Kodieren kostet deshalb
+gleich viel, egal wie lang der Verlauf ist; Zusammenfügen und Schreiben von
+`reviews.jsonl` wachsen mit ihm, bleiben aber billig. `progress` hält den Fortschritt,
+einen Tagesstand je Lerntag: wie viele Karten neu waren und wie viele eine Stabilität
+von unter 1, 1–2, 2–4, 4–8 … Tagen hatten. Fehlende Felder werden mit Standardwerten
+ergänzt.
 
 Die Schlüssel heißen wie die Begriffe im Glossar (`CONTEXT.md`). Die Versionen 1 (eine
 einzelne JSON-Datei mit dem Verlauf in jeder Karte) und 2 (das Paket mit den Schlüsseln

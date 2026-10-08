@@ -60,11 +60,11 @@ Wartezeit, und Abstände zählen in Lerntagen. Dafür genügt das Speichermodell
 - **Einen einfachen Rückweg.** Lernstand und Fortschritt beruhen auf der Stabilität; die
   Tagesstände zählen Karten nach ihrer Stabilität. Ein anderes Verfahren müsste sie
   übersetzen, so wie der Import heute die Level.
-- **Vorerst die eigenen Gewichte.** Die App rechnet mit den Standardgewichten von
-  open-spaced-repetition. Der Verlauf hält jede Abfrage mit Zeitpunkt und Bewertung fest,
-  damit sich die Gewichte später an den Lernenden anpassen lassen. Erledigt durch
-  [ADR 0002](0002-optimierer-als-swift-port.md): Seitdem berechnet die App die Gewichte
-  aus dem Verlauf eines Stapels; die Standardgewichte sind nur noch die Startwerte.
+- **Vorerst die eigenen Gewichte.** Die App rechnete zunächst nur mit den Standardgewichten
+  von open-spaced-repetition. Der Verlauf hält jede Abfrage mit Zeitpunkt und Bewertung
+  fest, damit sich die Gewichte später an den Lernenden anpassen lassen. Erledigt durch
+  [ADR 0002](0002-optimierer-als-swift-port.md): Seitdem kann die App die Gewichte aus dem
+  Verlauf eines Stapels berechnen; jeder Stapel beginnt mit den Standardgewichten.
 
 ## Import aus MacVocTrain 1
 
