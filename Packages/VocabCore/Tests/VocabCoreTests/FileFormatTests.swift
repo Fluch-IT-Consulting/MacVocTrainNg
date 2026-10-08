@@ -365,8 +365,15 @@ struct LegacyImporterTests {
     let calendar = StudyCalendar.testing
     let now = Date(timeIntervalSince1970: 1_791_216_000)
 
-    /// Builds an archive exactly like MacVocTrain 1 wrote it.
-    func legacyArchive(cards: [LegacyIndexCard], progress: [LegacyDailyStatus]) throws -> Data {
+    /// Builds an archive with the class names of MacVocTrain 1, or with older ones for the box
+    /// and its cards. Keys and value types come from the stand-ins, so only the fixed file in
+    /// `importsFixedDocument` checks them against the format.
+    func legacyArchive(
+        cards: [LegacyIndexCard],
+        progress: [LegacyDailyStatus],
+        boxClassName: String = "IndexCardBoxHelper",
+        cardClassName: String = "IndexCard"
+    ) throws -> Data {
         let box = LegacyBox()
         box.indexCards = cards
         let monitor = LegacyProgressMonitor()
@@ -374,8 +381,8 @@ struct LegacyImporterTests {
         box.progressMonitor = monitor
 
         let archiver = NSKeyedArchiver(requiringSecureCoding: false)
-        archiver.setClassName("IndexCardBoxHelper", for: LegacyBox.self)
-        archiver.setClassName("IndexCard", for: LegacyIndexCard.self)
+        archiver.setClassName(boxClassName, for: LegacyBox.self)
+        archiver.setClassName(cardClassName, for: LegacyIndexCard.self)
         archiver.setClassName("ProgressMonitor", for: LegacyProgressMonitor.self)
         archiver.setClassName("DailyStatus", for: LegacyDailyStatus.self)
         archiver.setClassName("Counter", for: LegacyCounter.self)
@@ -406,6 +413,106 @@ struct LegacyImporterTests {
         #expect(LegacyImporter.levelDuration(1) == 0.7)
         #expect(LegacyImporter.levelDuration(12) == 22)
         #expect(abs(LegacyImporter.levelDuration(14) - 29.04) < 1e-9)
+    }
+
+    /// A document in the format of MacVocTrain 1, archived once without the stand-ins of
+    /// the importer and never generated again: lists as `NSMutableArray`, `level` as integer,
+    /// `levelDurationAdjustment` as float, dates of the progress as `yyyymmdd`.
+    @Test func importsFixedDocument() throws {
+        let url = try #require(Bundle.module.url(forResource: "Resources/macvoctrain1", withExtension: "plist"))
+        let deck = try LegacyImporter.importDeck(from: Data(contentsOf: url), now: now, calendar: calendar)
+
+        #expect(deck.cards.map(\.question) == ["blim", "frax", "glim", "snirk"])
+        #expect(deck.cards.map(\.answer) == ["blom", "frox", "glom", "snork"])
+        #expect(deck.cards.map(\.hint) == ["", "", "Verb", ""])
+
+        // Never asked
+        #expect(deck.cards[0].isNew)
+
+        // Level 0, last answered two days and eight hours ago
+        let frax = try #require(deck.cards[1].learningState)
+        let fraxAnswered = now.addingTimeInterval(-2 * 86400 - 8 * 3600)
+        #expect(frax.phase == .relearning)
+        #expect(frax.stability == FSRS().initialStability(.again))
+        #expect(frax.lastReview == fraxAnswered)
+        #expect(frax.due == fraxAnswered)
+        #expect(frax.reviews == 1)
+
+        // Level 4 (2.5 days) with +8 %
+        let glim = try #require(deck.cards[2].learningState)
+        let glimAnswered = now.addingTimeInterval(-86400 - 6.5 * 3600)
+        #expect(glim.phase == .review)
+        #expect(abs(glim.stability - 2.7) < 1e-6)
+        #expect(glim.difficulty == LegacyImporter.neutralDifficulty)
+        #expect(glim.lastReview == glimAnswered)
+        #expect(abs(glim.due.timeIntervalSince(glimAnswered) - 2.7 * 86400) < 1)
+        #expect(glim.reviews == 4)
+
+        // Level 14 (29.04 days) with -6 %
+        let snirk = try #require(deck.cards[3].learningState)
+        let snirkAnswered = now.addingTimeInterval(-15 * 86400 - 4 * 3600)
+        #expect(snirk.phase == .review)
+        #expect(abs(snirk.stability - 27.2976) < 1e-6)
+        #expect(snirk.lastReview == snirkAnswered)
+        #expect(abs(snirk.due.timeIntervalSince(snirkAnswered) - 27.2976 * 86400) < 1)
+        #expect(snirk.reviews == 14)
+
+        let padding = { (bins: [Int]) in bins + Array(repeating: 0, count: StabilityBins.count - bins.count) }
+        #expect(deck.progress.count == 4)
+        #expect(deck.progress.map { CivilDate(dayNumber: $0.day).isoString } == ["2026-09-18", "2026-09-20", "2026-10-04", "2026-10-05"])
+        // Three cards at level 0, one of them never asked
+        #expect(deck.progress[0].bins == padding([1, 2]))
+        // Level 4 in [2, 4) days
+        #expect(deck.progress[1].bins == padding([1, 1, 0, 1]))
+        // Level 14 in [16, 32) days
+        #expect(deck.progress[2].bins == padding([1, 1, 0, 1, 0, 0, 1]))
+    }
+
+    @Test func importsOlderClassNames() throws {
+        let data = try legacyArchive(
+            cards: [legacyCard("known", level: 3, lastAnswered: now.addingTimeInterval(-86400))],
+            progress: [legacyStatus(20_260_920, counters: [0, 0, 0, 1])],
+            boxClassName: "MVTIndexCardBox",
+            cardClassName: "MVTIndexCard"
+        )
+        let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
+        #expect(deck.cards.map(\.question) == ["known"])
+        #expect(deck.cards[0].learningState?.reviews == 3)
+        #expect(deck.progress.count == 2)
+    }
+
+    /// MacVocTrain 1 spread intervals by ±10 %. A damaged spread counts as at most ±50 %,
+    /// one that isn't finite as none.
+    @Test(arguments: [
+        (adjustment: Float(0.5), applied: 0.5),
+        (adjustment: 0.8, applied: 0.5),
+        (adjustment: -0.9, applied: -0.5),
+        (adjustment: 1e30, applied: 0.5),
+        (adjustment: .infinity, applied: 0),
+        (adjustment: -.infinity, applied: 0),
+        (adjustment: .nan, applied: 0),
+    ])
+    func clampsLevelDurationAdjustment(values: (adjustment: Float, applied: Double)) throws {
+        let lastAnswered = now.addingTimeInterval(-86400)
+        let data = try legacyArchive(
+            // Level 4 is 2.5 days.
+            cards: [legacyCard("known", level: 4, lastAnswered: lastAnswered, adjustment: values.adjustment)],
+            progress: []
+        )
+        let learningState = try #require(LegacyImporter.importDeck(from: data, now: now, calendar: calendar).cards[0].learningState)
+        let days = 2.5 * (1 + values.applied)
+        #expect(abs(learningState.stability - days) < 1e-9)
+        #expect(abs(learningState.due.timeIntervalSince(lastAnswered) - days * 86400) < 1)
+    }
+
+    @Test func skipsDailyStatusesWithInvalidDates() throws {
+        let dates = [20_260_920, 20_261_320, 20_260_020, 20_260_900, 20_260_932]
+        let data = try legacyArchive(
+            cards: [legacyCard("x", level: 0, lastAnswered: nil)],
+            progress: dates.map { legacyStatus($0, counters: [1]) }
+        )
+        let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
+        #expect(deck.progress.map { CivilDate(dayNumber: $0.day).isoString } == ["2026-09-20", "2026-10-05"])
     }
 
     @Test func importsCardsAndConvertsLevels() throws {
