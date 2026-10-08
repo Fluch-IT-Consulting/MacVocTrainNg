@@ -9,6 +9,9 @@
 #   Tools/agent-loop.sh 197 189      only these, if eligible
 #   Tools/agent-loop.sh --dry-run    list what would run, change nothing
 #
+# AGENT_MODEL and AGENT_EFFORT override the model and effort level of the sessions,
+# e.g. `AGENT_EFFORT=xhigh Tools/agent-loop.sh 177`.
+#
 # Eligible: open, labelled ready-for-agent, not blocked, assigned to nobody, and no
 # branch for it yet. The prompt is docs/agents/afk-prompt.md from this checkout; the
 # agent's output goes to .claude/agent-runs/<issue>.log.
@@ -18,6 +21,8 @@ cd "$(dirname "$0")/.."
 ROOT=$PWD
 
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+AGENT_MODEL=${AGENT_MODEL:-claude-opus-5-5[1m]}
+AGENT_EFFORT=${AGENT_EFFORT:-high}
 
 DRY_RUN=false
 typeset -a requested
@@ -124,7 +129,8 @@ for entry in $queue; do
     log=$ROOT/$LOG_DIR/$number.log
     agent_status=0
     sed -e "s/{{ISSUE}}/$number/g" -e "s|{{BRANCH}}|$branch|g" "$PROMPT_FILE" \
-        | (cd "$worktree" && claude -p --permission-mode dontAsk \
+        | (cd "$worktree" && claude -p --model "$AGENT_MODEL" --effort "$AGENT_EFFORT" \
+            --permission-mode dontAsk \
             --allowedTools "${ALLOWED_TOOLS[@]}" \
             --disallowedTools "${DISALLOWED_TOOLS[@]}" \
             --output-format stream-json --verbose) \

@@ -15,6 +15,11 @@ Tools/agent-loop.sh 197 189      # nur diese, ebenfalls das älteste zuerst
 Tools/agent-loop.sh --dry-run    # nur zeigen, was laufen würde
 ```
 
+Die Sitzungen laufen mit Opus 5.5 und 1M-Kontext (`claude-opus-5-5[1m]`) und Effort `high`.
+`AGENT_MODEL` und `AGENT_EFFORT` überschreiben das für einen Aufruf, etwa
+`AGENT_EFFORT=xhigh Tools/agent-loop.sh 177`. Ohne feste Werte würde ein Update von
+Claude Code die Voreinstellungen unbemerkt ändern.
+
 **Frei** ist ein Issue, wenn es offen ist, `ready-for-agent` trägt, nicht `blocked`
 ist, keinen offenen Blocker hat, niemandem zugewiesen ist, einen Typ hat und es noch
 keinen Zweig dafür gibt.
