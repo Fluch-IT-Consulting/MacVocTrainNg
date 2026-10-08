@@ -16,8 +16,8 @@ struct CardListView: View {
 
     var body: some View {
         // Re-evaluated every minute because cards become due as time passes. The rows
-        // stay in `table`, so a tick only counts the due cards and formats the visible
-        // due dates again.
+        // stay in `table`, so a tick only formats the visible due dates again. The
+        // status bar reads the count of `DueCardCounter`, which ticks at the same time.
         TimelineView(.everyMinute) { _ in
             list(at: document.clock.now)
         }
@@ -108,7 +108,7 @@ struct CardListView: View {
 
             Divider()
 
-            StatusBar(document: document, shownCount: rows.count, isFiltered: !searchText.isEmpty, now: now)
+            StatusBar(document: document, shownCount: rows.count, isFiltered: !searchText.isEmpty)
         }
     }
 
@@ -186,11 +186,10 @@ private struct StatusBar: View {
     @ObservedObject var document: VocabularyDocument
     var shownCount: Int
     var isFiltered: Bool
-    var now: Date
 
     var body: some View {
         let total = document.deck.cards.count
-        let due = document.deck.dueCount(at: now)
+        let due = document.dueCards.count
         HStack(spacing: 16) {
             if isFiltered {
                 Text("\(shownCount) of \(total) cards")
