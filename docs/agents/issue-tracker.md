@@ -53,13 +53,16 @@ mehrere kleine Issues zusammen, nennt der Zweig beide: `bugfix/12-13`.
 
 Auf `main` wird nicht direkt committet. Jeder Zweig endet in einem Pull Request,
 gemergt wird per **Rebase** (keine Merge-Commits), damit jeder Commit mit seinem
-Titel auf `main` landet. Vor dem Pull Request müssen Build und alle Tests grün sein und
-swift-format darf nichts melden:
+Titel auf `main` landet. Vor dem Pull Request müssen Build und alle Tests grün sein, ohne
+Warnungen, jeder Text übersetzt im String Catalog stehen und swift-format nichts melden:
 
 ```
-xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg test
+xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+swift Tools/check-localizations.swift
 xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
+
+Dasselbe prüft die CI bei jedem Pull Request, dazu den Release-Build.
 
 ## Der Commit-Titel nennt Typ und Issue
 

@@ -12,7 +12,8 @@ von `origin/main`. Das Issue ist schon zugewiesen. Arbeite nur in diesem Verzeic
 2. Setz das Issue um. Ändert es Verhalten, schreib zuerst den Test, der ohne die
    Änderung fehlschlägt.
 3. Vor dem ersten Commit muss alles grün sein:
-   - `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData test`
+   - `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test`
+   - `swift Tools/check-localizations.swift` (liest, was der Build davor extrahiert hat)
    - `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
 
    Zwischendurch reicht für VocabCore `swift test --package-path Packages/VocabCore`.
