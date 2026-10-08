@@ -160,6 +160,9 @@ final class SessionViewModel {
             moveOn()
         } else {
             refreshCurrentCard()
+            if case let .feedback(_, response) = stage, let card = currentCard {
+                stage = .feedback(checker.check(response, against: card.answer), response: response)
+            }
         }
     }
 

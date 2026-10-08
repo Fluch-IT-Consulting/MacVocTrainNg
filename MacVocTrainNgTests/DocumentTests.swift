@@ -679,15 +679,24 @@ struct SessionViewModelTests {
         #expect(document.card(withID: card.id) == reviewed)
     }
 
-    @Test func removingTheCurrentCardMovesOn() throws {
+    @Test(arguments: [false, true])
+    func removingTheCurrentCardMovesOn(whileShowingFeedback: Bool) throws {
         let document = makeDocument(cards: 2)
         let undoManager = makeUndoManager()
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
+        if whileShowingFeedback {
+            model.input = "wrong"
+            model.submit(undoManager: undoManager)
+            #expect(model.stage == .feedback(.wrong, response: "wrong"))
+        }
         step(undoManager) { document.delete([current.id], undoManager: undoManager) }
         #expect(model.currentCard != nil)
         #expect(model.currentCard?.id != current.id)
         #expect(model.session.totalCount == 1)
+        #expect(model.stage == .asking)
+        #expect(model.input.isEmpty)
+        #expect(model.suggestedGrade == nil)
     }
 
     /// The session used to notice removals only by a changed number of cards (#57).
@@ -717,6 +726,66 @@ struct SessionViewModelTests {
 
         undoManager.undo()
         #expect(model.currentCard?.question == "q0")
+    }
+
+    @Test func undoingAndRedoingAnAnswerEditRechecksFeedback() {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let undoManager = makeUndoManager()
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: card.question, answer: "Heim")!, undoManager: undoManager) }
+        let model = SessionViewModel(document: document, autoAdvance: false)
+        model.input = "Heim"
+        model.submit(undoManager: undoManager)
+        #expect(model.stage == .feedback(.correct, response: "Heim"))
+        let questionNumber = model.questionNumber
+        model.input = "not submitted"
+
+        undoManager.undo()
+        #expect(model.currentCard == card)
+        #expect(model.stage == .feedback(.wrong, response: "Heim"))
+        #expect(model.suggestedGrade == .again)
+        #expect(model.session.reviewCount == 0)
+        #expect(model.questionNumber == questionNumber)
+
+        undoManager.redo()
+        #expect(model.currentCard == card.withAnswer("Heim"))
+        #expect(model.stage == .feedback(.correct, response: "Heim"))
+        #expect(model.suggestedGrade == .good)
+        #expect(model.session.reviewCount == 0)
+        #expect(model.questionNumber == questionNumber)
+    }
+
+    @Test func undoingAndRedoingCaseSensitivityRechecksWithoutAutoAdvance() {
+        var options = LearningOptions()
+        options.caseSensitive = false
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(learningOptions: options, cards: [card]))
+        let undoManager = makeUndoManager()
+        options.caseSensitive = true
+        step(undoManager) { document.updateLearningOptions(options, undoManager: undoManager) }
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        model.input = "haus"
+        model.submit(undoManager: undoManager)
+        #expect(model.stage == .feedback(.almostCorrect, response: "haus"))
+        let questionNumber = model.questionNumber
+
+        undoManager.undo()
+        #expect(model.stage == .feedback(.correct, response: "haus"))
+        #expect(model.suggestedGrade == .good)
+        #expect(model.highlightedAnswer == nil)
+        #expect(document.deck.cards == [card])
+        #expect(model.currentCard == card)
+        #expect(model.session.reviewCount == 0)
+        #expect(model.questionNumber == questionNumber)
+
+        undoManager.redo()
+        #expect(model.stage == .feedback(.almostCorrect, response: "haus"))
+        #expect(model.suggestedGrade == .again)
+        #expect(model.highlightedAnswer?.filter(\.isMismatch).map(\.text) == ["H"])
+        #expect(document.deck.cards == [card])
+        #expect(model.currentCard == card)
+        #expect(model.session.reviewCount == 0)
+        #expect(model.questionNumber == questionNumber)
     }
 
     @Test func emptyResponseRevealsTheAnswer() {
