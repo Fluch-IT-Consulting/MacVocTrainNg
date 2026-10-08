@@ -345,6 +345,24 @@ struct LegacyImporterTests {
         #expect(lastOld.bins == importDay.bins)
     }
 
+    /// Old snapshots count a level without spread, import day counts the card with it.
+    @Test func importedCardMayChangeMaturityOnImportDay() throws {
+        let data = try legacyArchive(
+            // Level 10 is 15.5 days, +5 % makes 16.3 days.
+            cards: [legacyCard("known", level: 10, lastAnswered: now.addingTimeInterval(-86400), adjustment: 0.05)],
+            progress: [legacyStatus(20_141_108, counters: Array(repeating: 0, count: 10) + [1])]
+        )
+
+        let deck = try LegacyImporter.importDeck(from: data, now: now, calendar: calendar)
+        #expect(deck.progress.count == 2)
+        let lastOld = MaturityCategory.counts(fromBins: deck.progress[0].bins)
+        let importDay = MaturityCategory.counts(fromBins: deck.progress[1].bins)
+        #expect(lastOld[.young] == 1)
+        #expect(lastOld[.maturing] == 0)
+        #expect(importDay[.young] == 0)
+        #expect(importDay[.maturing] == 1)
+    }
+
     @Test func rejectsGarbage() {
         #expect(throws: LegacyImporter.Error.unreadableArchive) {
             try LegacyImporter.importDeck(from: Data("nope".utf8))
