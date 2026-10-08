@@ -3,8 +3,8 @@
 #
 # - lints with swift-format like the local check before a pull request,
 # - builds the app and runs all tests, core and app, with warnings as errors,
-# - checks the String Catalog: every key in the app is in it, every key has a German
-#   translation (Tools/check-localizations.swift),
+# - checks the String Catalog: every key in the app is in it, every key has a complete
+#   German translation (Tools/check-localizations.swift),
 # - builds the Release configuration for Apple Silicon and Intel like
 #   Tools/make-release.sh, also with warnings as errors, but without a disk image.
 #

@@ -1,5 +1,6 @@
 // Checks the String Catalog against the app (#191): every key the compiler extracts
-// is in the catalog, and every key in the catalog has a German translation.
+// is in the catalog, and every key in the catalog has a German translation: in state
+// translated, not empty, and with the plural forms German needs.
 // Usage: swift Tools/check-localizations.swift [DerivedData]   (from the repository root)
 //
 // Reads the keys from the .stringsdata files a build of the app leaves in its
@@ -11,6 +12,7 @@ import Foundation
 let catalogPath = "MacVocTrainNg/Resources/Localizable.xcstrings"
 let catalogTable = "Localizable"
 let language = "de"
+let pluralForms = ["one", "other"]
 
 let arguments = CommandLine.arguments.dropFirst()
 guard arguments.count <= 1 else {
@@ -19,8 +21,6 @@ guard arguments.count <= 1 else {
 }
 let derivedData = URL(fileURLWithPath: arguments.first ?? "build/DerivedData")
 let repository = FileManager.default.currentDirectoryPath + "/"
-
-var problems: [String] = []
 
 func fail(_ message: String) -> Never {
     FileHandle.standardError.write(Data("✗ \(message)\n".utf8))
@@ -34,13 +34,23 @@ func json(at url: URL) -> [String: Any] {
     return object
 }
 
+func failUnknownFormat(_ url: URL, _ problem: String) -> Never {
+    fail("\(url.path) \(problem); adapt this check to the new Xcode.")
+}
+
 // MARK: Keys the compiler extracted
+
+/// A key in a strings table.
+struct TableKey: Hashable {
+    var table: String
+    var key: String
+}
 
 /// A key as the compiler found it in the source.
 struct ExtractedKey {
-    var table: String
-    var key: String
-    var place: String
+    var tableKey: TableKey
+    /// `path:line` in the repository.
+    var location: String
 }
 
 /// The .stringsdata files of the app target, from every configuration and architecture built.
@@ -58,15 +68,13 @@ func extractedKeys(in url: URL) -> [ExtractedKey] {
     let file = json(at: url)
     guard file["version"] as? Int == 1, let source = file["source"] as? String,
         let tables = file["tables"] as? [String: [[String: Any]]]
-    else { fail("\(url.path) has an unknown format; adapt this check to the new Xcode.") }
+    else { failUnknownFormat(url, "has an unknown format") }
     let path = source.hasPrefix(repository) ? String(source.dropFirst(repository.count)) : source
     return tables.flatMap { table, entries in
         entries.map { entry in
-            guard let key = entry["key"] as? String else {
-                fail("\(url.path) has an entry without a key; adapt this check to the new Xcode.")
-            }
+            guard let key = entry["key"] as? String else { failUnknownFormat(url, "has an entry without a key") }
             let line = (entry["location"] as? [String: Any])?["startingLine"] as? Int
-            return ExtractedKey(table: table, key: key, place: line.map { "\(path):\($0)" } ?? path)
+            return ExtractedKey(tableKey: TableKey(table: table, key: key), location: line.map { "\(path):\($0)" } ?? path)
         }
     }
 }
@@ -80,40 +88,66 @@ let extracted = files.flatMap(extractedKeys)
 // MARK: The catalog
 
 let catalog = json(at: URL(fileURLWithPath: catalogPath))
-guard let entries = catalog["strings"] as? [String: [String: Any]] else {
+guard let catalogStrings = catalog["strings"] as? [String: [String: Any]] else {
     fail("\(catalogPath) has no strings.")
 }
 
-var reported = Set<String>()
-for key in extracted.sorted(by: { $0.place < $1.place }) where reported.insert(key.table + "\u{0}" + key.key).inserted {
-    if key.table != catalogTable {
-        problems.append("\(key.place): “\(key.key)” is in table \(key.table), which has no String Catalog.")
-    } else if entries[key.key] == nil {
-        problems.append("\(key.place): “\(key.key)” is missing from \(catalogPath).")
+var problems: [String] = []
+
+var reported = Set<TableKey>()
+for extractedKey in extracted.sorted(by: { $0.location < $1.location }) where reported.insert(extractedKey.tableKey).inserted {
+    let (table, key) = (extractedKey.tableKey.table, extractedKey.tableKey.key)
+    if table != catalogTable {
+        problems.append("\(extractedKey.location): “\(key)” is in table \(table), which has no String Catalog.")
+    } else if catalogStrings[key] == nil {
+        problems.append("\(extractedKey.location): “\(key)” is missing from \(catalogPath).")
     }
 }
 
-/// The states of all string units below a localization: plural and device variations
-/// and substitutions each carry their own.
-func states(in node: Any) -> [String] {
+/// All string units below a localization: plural and device variations and
+/// substitutions each carry their own.
+func stringUnits(in node: Any) -> [[String: Any]] {
     guard let object = node as? [String: Any] else { return [] }
-    var result: [String] = []
+    var result: [[String: Any]] = []
     if let unit = object["stringUnit"] as? [String: Any] {
-        result.append(unit["state"] as? String ?? "none")
+        result.append(unit)
     }
     for (name, value) in object where name != "stringUnit" {
-        result += states(in: value)
+        result += stringUnits(in: value)
     }
     return result
 }
 
-for (key, entry) in entries.sorted(by: { $0.key < $1.key }) where entry["shouldTranslate"] as? Bool != false {
+/// The forms of every plural variation below a localization, the key's own and its
+/// substitutions'.
+func pluralVariations(in node: Any) -> [[String]] {
+    guard let object = node as? [String: Any] else { return [] }
+    var result: [[String]] = []
+    if let plural = (object["variations"] as? [String: Any])?["plural"] as? [String: Any] {
+        result.append(Array(plural.keys))
+    }
+    for value in object.values {
+        result += pluralVariations(in: value)
+    }
+    return result
+}
+
+let toTranslate = catalogStrings.filter { $0.value["shouldTranslate"] as? Bool != false }
+for (key, entry) in toTranslate.sorted(by: { $0.key < $1.key }) {
     let localization = (entry["localizations"] as? [String: Any])?[language]
-    let found = localization.map { states(in: $0) } ?? []
-    if found.isEmpty {
+    let units = localization.map { stringUnits(in: $0) } ?? []
+    let missingForms = (localization.map { pluralVariations(in: $0) } ?? []).flatMap { forms in
+        pluralForms.filter { !forms.contains($0) }
+    }
+    if units.isEmpty {
         problems.append("\(catalogPath): “\(key)” has no translation into \(language).")
-    } else if found.contains(where: { $0 != "translated" }) {
+    } else if units.contains(where: { $0["state"] as? String != "translated" }) {
         problems.append("\(catalogPath): “\(key)” has a translation into \(language) that is not in state translated.")
+    } else if units.contains(where: { ($0["value"] as? String ?? "").isEmpty }) {
+        problems.append("\(catalogPath): “\(key)” has an empty translation into \(language).")
+    } else if !missingForms.isEmpty {
+        let forms = Set(missingForms).sorted().joined(separator: ", ")
+        problems.append("\(catalogPath): “\(key)” lacks the plural form \(forms) in \(language).")
     }
 }
 
@@ -123,4 +157,5 @@ if !problems.isEmpty {
     }
     exit(1)
 }
-print("✓ \(Set(extracted.map(\.key)).count) keys in \(files.count) files, all in the catalog; \(entries.count) catalog entries, all translated.")
+let keyCount = Set(extracted.map(\.tableKey)).count
+print("✓ \(keyCount) keys in \(files.count) files, all in the catalog; \(toTranslate.count) catalog entries to translate, all translated.")
