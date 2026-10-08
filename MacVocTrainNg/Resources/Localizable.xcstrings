@@ -600,6 +600,16 @@
         }
       }
     },
+    "Close the deck before replacing it, or choose another name.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließe den Stapel, bevor du ihn ersetzt, oder wähle einen anderen Namen."
+          }
+        }
+      }
+    },
     "Compute from Review Log": {
       "localizations": {
         "de": {
@@ -2246,6 +2256,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "„%@“ konnte nicht als MacVocTrain-1-Dokument gelesen werden."
+          }
+        }
+      }
+    },
+    "“%@” is open.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ ist geöffnet."
           }
         }
       }
