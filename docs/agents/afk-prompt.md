@@ -53,11 +53,23 @@ abgelehnt, bis auf einige, die nur lesen:
 
 - Lesen und Suchen über Read, Glob und Grep, Dateien anlegen über Write, löschen und
   verschieben über `git rm` und `git mv`. Kein `cd`, `rm` oder `mkdir`.
+- Kein `VAR=…` vor einem Befehl: Dann passt er nicht auf die Liste und wird abgelehnt.
+  `DEVELOPER_DIR` ist schon gesetzt.
 - Keine verketteten Befehle (`&&`, `;`, `|`), kein `$(…)`, keine Heredocs. Längere
   Texte (Commit-Nachricht, PR-Rumpf, Kommentar) schreibst du mit Write nach
   `build/` (ist ignoriert) und übergibst sie mit `git commit -F`, `--body-file`.
 - Nicht erlaubt sind außerdem: mergen, Issues anlegen oder schließen, `gh api`,
   force-push, push auf `main`.
+
+## Warten
+
+Die Sitzung endet mit deiner ersten Antwort ohne Werkzeugaufruf. Danach kommt nichts
+mehr an, auch keine Benachrichtigung über einen fertigen Befehl. Starte deshalb nichts
+im Hintergrund (`run_in_background`) und hör nie auf, um auf etwas zu warten.
+
+Was dauert, läuft im Vordergrund mit einem Timeout von bis zu 600000 ms, etwa
+`gh run watch <id> --exit-status --interval 30`. Reicht das nicht, ruf den Befehl
+einfach noch einmal auf.
 
 ## Eigenheiten dieses Repos
 
