@@ -134,6 +134,38 @@ struct DeckFileTests {
         #expect(deck.learningOptions == LearningOptions())
     }
 
+    /// What a newer app version adds without a new format version, an older one reads
+    /// and drops on the next save (see `DeckFile`).
+    @Test func unknownKeysAndFilesAreReadAndDroppedOnSave() throws {
+        let deckJSON = """
+            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "futureDeckKey": 1,
+             "learningOptions": {"targetRecall": 0.85, "futureOption": 7},
+             "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "futureCardKey": "x"}]}
+            """
+        let reviews = """
+            {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3,"futureReviewKey":true}
+
+            """
+        let package = FileWrapper(directoryWithFileWrappers: [
+            DeckFile.deckFileName: FileWrapper(regularFileWithContents: Data(deckJSON.utf8)),
+            DeckFile.reviewsFileName: FileWrapper(regularFileWithContents: Data(reviews.utf8)),
+            "future.json": FileWrapper(regularFileWithContents: Data("{}".utf8)),
+        ])
+
+        let deck = try DeckFile.decode(package)
+        #expect(deck.learningOptions.targetRecall == 0.85)
+        #expect(deck.cards.map(\.question) == ["dom"])
+        #expect(deck.cards[0].log == [ReviewLogEntry(date: date, grade: .good)])
+
+        let written = try DeckFile.fileWrapper(for: deck)
+        #expect(Set(written.fileWrappers!.keys) == [DeckFile.deckFileName, DeckFile.reviewsFileName])
+        let writtenDeck = file(written, DeckFile.deckFileName)
+        for key in ["futureDeckKey", "futureOption", "futureCardKey"] {
+            #expect(!writtenDeck.contains(key), "kept key \(key)")
+        }
+        #expect(file(written, DeckFile.reviewsFileName) == "{\"card\":\"6F9619FF-8B86-D011-B42D-00C04FC964FF\",\"date\":1791216000,\"grade\":3}\n")
+    }
+
     @Test func clampsInvalidLearningOptions() throws {
         let json = """
             {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
