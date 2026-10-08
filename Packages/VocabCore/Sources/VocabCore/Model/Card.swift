@@ -59,6 +59,25 @@ public struct LearningState: Hashable, Sendable {
     }
 }
 
+extension LearningState {
+    /// Far above any stability FSRS reaches in a lifetime of reviews, and far enough
+    /// below the largest `Double` that further reviews keep it finite.
+    static let maximumStability = 1e9
+    /// For `step`, `reviews` and `lapses`: far above any real count, and far enough
+    /// below `Int.max` that the next review can't overflow it.
+    static let maximumCount = 1_000_000
+
+    /// Clamps values into the ranges FSRS and `Scheduler` work with, for learning states
+    /// from hand-edited or corrupt files.
+    mutating func sanitize() {
+        stability = stability.clamped(to: FSRS.minimumStability...Self.maximumStability)
+        difficulty = difficulty.clamped(to: FSRS.difficultyRange)
+        step = step.clamped(to: 0...Self.maximumCount)
+        reviews = reviews.clamped(to: 0...Self.maximumCount)
+        lapses = lapses.clamped(to: 0...Self.maximumCount)
+    }
+}
+
 /// One review in a study session.
 public struct ReviewLogEntry: Hashable, Sendable {
     public var date: Date

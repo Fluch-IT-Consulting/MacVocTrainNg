@@ -23,6 +23,25 @@ public struct FSRSParameters: Hashable, Sendable {
     }
 
     public subscript(index: Int) -> Double { weights[index] }
+
+    /// The range of each weight, as in `parameter_clipper.rs` of fsrs-rs. `FSRSOptimizer`
+    /// keeps its results within them; with several relearning steps it lowers the
+    /// ceiling of w17 and w18 below 2.
+    static let ranges: [ClosedRange<Double>] = {
+        let s = FSRS.minimumStability...InitialStability.maximum
+        return [
+            s, s, s, s,
+            FSRS.difficultyRange,
+            0.001...4, 0.001...4, 0.001...0.75, 0...4.5, 0...0.8, 0.001...3.5, 0.001...5, 0.001...0.25,
+            0.001...0.9, 0...4, 0...1, 1...6,
+            0...2, 0...2, 0.01...0.8, 0.1...0.8,
+        ]
+    }()
+
+    /// The first weight outside its range, if any.
+    var indexOutOfRange: Int? {
+        weights.indices.first { !Self.ranges[$0].contains(weights[$0]) }
+    }
 }
 
 /// The FSRS-6 memory model: how stability and difficulty evolve with each review.

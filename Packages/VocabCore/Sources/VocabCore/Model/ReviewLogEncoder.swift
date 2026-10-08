@@ -82,8 +82,8 @@ public final class ReviewLogEncoder: @unchecked Sendable {
         var grade: Grade
     }
 
-    /// Replaces the review logs of `cards` with the ones in `data`. Lines of cards
-    /// that no longer exist are dropped.
+    /// Replaces the review logs of `cards` with the ones in `data`. A line of a card
+    /// that isn't among `cards` is an error: the app never writes one.
     static func attach(_ data: Data, to cards: inout [Card]) throws {
         let lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)
             .enumerated()
@@ -110,7 +110,11 @@ public final class ReviewLogEncoder: @unchecked Sendable {
             throw DeckFile.Error.damagedReviewLog(line: 0)
         }
 
-        for line in decoded {
+        let ids = Set(cards.map(\.id))
+        for (index, line) in decoded.enumerated() {
+            guard ids.contains(line.card) else {
+                throw DeckFile.Error.reviewsOfUnknownCard(line: lines[index].offset + 1)
+            }
             logs[line.card, default: []].append(ReviewLogEntry(date: Date(timeIntervalSince1970: Double(line.date)), grade: line.grade))
         }
         for index in cards.indices {
