@@ -60,8 +60,9 @@ _Vermeiden_: „richtig“ für eine Grade, siehe Recalled
 Die Response enthält nur einen Teil der Alternatives und nichts Falsches.
 
 **Almost correct** (Fast richtig):
-Die Response verfehlt die Answer nur um einen Tippfehler oder die Groß- und
-Kleinschreibung.
+Die Response verfehlt die Answer nur um wenige Tippfehler oder die Groß- und
+Kleinschreibung. Wie viele Tippfehler, hängt von der Länge der Alternative ab: unter 4
+Zeichen keiner, ab 4 einer, ab 8 zwei.
 _Vermeiden_: Typo, Tippfehler (als Ergebnis)
 
 **Wrong** (Falsch):

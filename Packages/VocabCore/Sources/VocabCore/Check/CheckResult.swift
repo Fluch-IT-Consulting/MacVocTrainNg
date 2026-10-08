@@ -4,7 +4,8 @@ public enum CheckResult: Hashable, Sendable {
     case correct
     /// Only some of the alternatives given, but none wrong.
     case incomplete(missing: [String])
-    /// Close to the answer: one typo or a capitalisation slip.
+    /// Close to the answer: a few typos, depending on the length of the alternative
+    /// (see `ResponseChecker.isClose`), or a capitalisation slip.
     case almostCorrect
     case wrong
 

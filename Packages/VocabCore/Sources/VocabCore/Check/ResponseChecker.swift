@@ -59,7 +59,8 @@ public struct ResponseChecker: Sendable {
         caseSensitive ? text : text.lowercased()
     }
 
-    /// True for a capitalisation difference or a small number of typos.
+    /// True for a capitalisation difference or a few typos, depending on the length of
+    /// `expected`: none below 4 characters, one from 4, two from 8.
     static func isClose(_ response: String, _ expected: String) -> Bool {
         let response = response.lowercased()
         let expected = expected.lowercased()
