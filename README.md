@@ -113,8 +113,18 @@ Formatierung mit swift-format (liegt Xcode bei, Einstellungen in `.swift-format`
 xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
 
-Beides, alle Tests und swift-format, prüft auch die CI bei jedem Pull Request
-(`.github/workflows/ci.yml`, macOS-Runner mit Xcode 16.2).
+Ob jeder Text der App im String Catalog steht und jeder Schlüssel dort eine deutsche
+Übersetzung hat, prüft nach einem Build mit `-derivedDataPath build/DerivedData`:
+
+```bash
+swift Tools/check-localizations.swift
+```
+
+Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 16.2) läuft bei jedem Pull
+Request und nach jedem Push auf `main`. Sie prüft swift-format, baut und testet mit
+Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut die
+Release-Konfiguration wie `Tools/make-release.sh` für Apple Silicon und Intel, ohne
+Disk-Image. Lokal bleiben Warnungen Warnungen.
 
 Commits, die nur umformatieren, stehen in `.git-blame-ignore-revs`. GitHub blendet sie in
 der Blame-Ansicht aus; damit `git blame` sie lokal auch überspringt, einmalig:

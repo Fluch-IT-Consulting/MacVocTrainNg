@@ -1,18 +1,33 @@
-# Builds the app and runs all tests, core and app, on every pull request (#13), and
-# lints with swift-format like the local check before a pull request.
+# Checks every pull request and every push to main (#13, #191). One job, `test`, the
+# check branch protection requires:
+#
+# - lints with swift-format like the local check before a pull request,
+# - builds the app and runs all tests, core and app, with warnings as errors,
+# - checks the String Catalog: every key in the app is in it, every key has a German
+#   translation (Tools/check-localizations.swift),
+# - builds the Release configuration for Apple Silicon and Intel like
+#   Tools/make-release.sh, also with warnings as errors, but without a disk image.
+#
+# Branch protection doesn't require an up-to-date branch, so the run on main checks
+# what the rebase merge actually produced.
 #
 # Xcode is pinned to the version the project is developed with: a newer swift-format
-# may judge the same code differently, and the check would fail without a change.
+# may judge the same code differently, and the check would fail without a change. The
+# pull request that raises it also fixes new warnings, such as deprecations, and adapts
+# the localization check if Xcode changed the .stringsdata format.
 name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# A new push to the same pull request makes the running check obsolete.
+# A new push to the same pull request makes the running check obsolete; on main the
+# later merge checks the same and more.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -33,9 +48,24 @@ jobs:
             Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 
       # Signed ad hoc (Config/Signing.xcconfig): the runner has no certificate.
-      # Runs after a failed lint too, so one push reports both.
+      # Runs after a failed lint too, so one push reports everything. Warnings are
+      # errors only here; locally they stay warnings.
       - name: Build and test
         if: ${{ !cancelled() }}
         run: |
           xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg \
-            -destination platform=macOS test
+            -destination platform=macOS -derivedDataPath build/DerivedData \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+
+      # Reads the keys the build above extracted into build/DerivedData.
+      - name: Check translations
+        if: ${{ !cancelled() }}
+        run: swift Tools/check-localizations.swift build/DerivedData
+
+      # What Tools/make-release.sh builds: whole module, without DEBUG, both architectures.
+      - name: Build release
+        if: ${{ !cancelled() }}
+        run: |
+          xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg \
+            -configuration Release -derivedDataPath build/DerivedData \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
