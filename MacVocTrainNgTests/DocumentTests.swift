@@ -219,6 +219,30 @@ struct DocumentTests {
         undoManager.undo()
         #expect(calls.entries == ["undo 0", "redo 1", "undo 0"])
     }
+
+    /// The undo actions don't hold their undo manager, which outlives a closed deck
+    /// otherwise (#181).
+    @Test func undoActionsLetTheirUndoManagerGo() {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
+        var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
+        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now) else {
+            Issue.record("A study session reschedules the card.")
+            return
+        }
+        let calls = CompanionCalls()
+        let companion = UndoCompanion(undo: { calls.entries.append("undo") }, redo: { calls.entries.append("redo") })
+        weak var released: UndoManager?
+        autoreleasepool {
+            let undoManager = makeUndoManager()
+            step(undoManager) { document.applyReview(change, undoManager: undoManager, alongside: companion) }
+            step(undoManager) { document.add(CardText(question: "kot", answer: "Katze")!, undoManager: undoManager) }
+            undoManager.undo()
+            #expect(undoManager.canUndo && undoManager.canRedo)
+            released = undoManager
+        }
+        #expect(released == nil)
+    }
 }
 
 /// The calls of an `UndoCompanion` in a test.
@@ -583,6 +607,19 @@ struct SessionViewModelTests {
 
         undoManager.redo()
         #expect(document.deck == scheduled)
+    }
+
+    /// The undo actions don't hold their undo manager (#181).
+    @Test func practiceReviewLetsItsUndoManagerGo() {
+        let document = makeDocument(cards: 1)
+        weak var released: UndoManager?
+        autoreleasepool {
+            let undoManager = makeUndoManager()
+            let model = practicedMistake(in: document, undoManager: undoManager)
+            #expect(model.isFinished)
+            released = undoManager
+        }
+        #expect(released == nil)
     }
 
     @Test func reviewOfAClosedSessionIsUndoneAndRedone() throws {
