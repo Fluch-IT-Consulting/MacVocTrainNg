@@ -80,9 +80,14 @@ public enum LegacyImporter {
     /// MacVocTrain 1 counted new cards and cards answered wrong together as level 0, so the
     /// split into new and shaky is estimated: up to `neverAsked` (the cards never asked at
     /// import) count as new, the rest as shaky. A card never asked at import was never asked
-    /// on any earlier day it existed, so the split is exact on the last old day and the
-    /// progress continues without a jump on import day. On days before some of those cards
-    /// were added, cards answered wrong count as new in their place.
+    /// on any earlier day it existed, so the split is exact on the last old day and does not
+    /// jump on import day. On days before some of those cards were added, cards answered
+    /// wrong count as new in their place.
+    ///
+    /// Every level from 1 counts with the interval of the level, without spread. The
+    /// snapshot of import day comes from the cards, whose stability includes the ±10 % that
+    /// MacVocTrain 1 stored per card. Where that spread crosses a bin boundary, the card
+    /// changes its bin on import day, at 4, 16, 64 or 256 days also its maturity.
     static func progress(from statuses: [LegacyDailyStatus], neverAsked: Int) -> [DailySnapshot] {
         var snapshots: [Int: DailySnapshot] = [:]
         for status in statuses {

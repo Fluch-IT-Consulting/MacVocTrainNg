@@ -59,6 +59,8 @@ Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Statistics/               Reifegrad-Histogramme, Fortschritt, Prognose
   Import/                   Import von MacVocTrain 1
   Exchange/                 CSV/TSV lesen und schreiben, Karten aus Tabellenzeilen
+  Search/                   Suche nach Karten, ohne Rücksicht auf Akzente
+  Support/                  Kalenderdatum ohne Zeitzone, Zufallsgenerator mit Startwert
 ```
 
 Die App-Schicht ist bewusst dünn; alles Fachliche steckt in `VocabCore` und ist ohne
@@ -154,8 +156,8 @@ des Zertifikats, mit dem es signiert ist.
 
 ## Lernalgorithmus
 
-- **FSRS-6** mit den Standardparametern von open-spaced-repetition; das Speichermodell ist
-  gegen die Referenzwerte von py-fsrs getestet.
+- **FSRS-6**; jeder Stapel beginnt mit den Standardparametern von open-spaced-repetition.
+  Das Speichermodell ist gegen die Referenzwerte von py-fsrs getestet.
 - Neue Karten und Karten nach einem Vergessen brauchen in der Sitzung *n* Lernschritte,
   also *n*-mal „Gut“ (einstellbar, Standard 2), bevor sie in die Wiederholungsphase kommen
   und einen Abstand in Lerntagen bekommen.
@@ -208,10 +210,11 @@ Stapel.voctrain/
 ```
 
 Der Verlauf liegt getrennt, weil er mit jeder Abfrage wächst: Die App kodiert beim
-Sichern nur die neuen Zeilen, ein Autosave kostet deshalb gleich viel, egal wie lang
-der Verlauf ist. `progress` hält den Fortschritt, einen Tagesstand je Lerntag: wie viele
-Karten neu waren und wie viele eine Stabilität von unter 1, 1–2, 2–4, 4–8 … Tagen
-hatten. Fehlende Felder werden mit Standardwerten ergänzt.
+Sichern nur die neuen Zeilen. Das Kodieren kostet deshalb gleich viel, egal wie lang
+der Verlauf ist; Zusammenfügen und Schreiben von `reviews.jsonl` wachsen mit ihm,
+bleiben aber billig. `progress` hält den Fortschritt, einen Tagesstand je Lerntag:
+wie viele Karten neu waren und wie viele eine Stabilität von unter 1, 1–2, 2–4, 4–8 …
+Tagen hatten. Fehlende Felder werden mit Standardwerten ergänzt.
 
 Die Schlüssel heißen wie die Begriffe im Glossar (`CONTEXT.md`). Die Versionen 1 (eine
 einzelne JSON-Datei mit dem Verlauf in jeder Karte) und 2 (das Paket mit den Schlüsseln

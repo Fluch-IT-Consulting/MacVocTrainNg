@@ -9,9 +9,10 @@ import Foundation
 /// ```
 ///
 /// `date` is in whole seconds since 1970. The encoder keeps the encoded lines of
-/// every card and on the next call only encodes what changed, so saving costs the
-/// same however long the log gets. A card's lines are reused while its log has
-/// the same length and last entry, and extended when entries were appended.
+/// every card and on the next call only encodes what changed, so encoding costs the
+/// same however long the log gets. Joining the lines and writing `reviews.jsonl`
+/// still grow with the log, but stay cheap. A card's lines are reused while its
+/// log has the same length and last entry, and extended when entries were appended.
 /// Logs only ever grow at the end or are replaced as a whole (reset, undo,
 /// deletion), so this is enough to notice every change.
 public final class ReviewLogEncoder: @unchecked Sendable {
