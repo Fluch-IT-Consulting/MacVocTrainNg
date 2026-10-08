@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import VocabCore
 
@@ -43,6 +44,7 @@ private struct CardDetail: View {
     @State private var answer: String
     @State private var hint: String
     @FocusState private var focus: Field?
+    @State private var window = WindowReference()
 
     init(document: VocabularyDocument, card: Card) {
         self.document = document
@@ -107,6 +109,7 @@ private struct CardDetail: View {
             }
         }
         .formStyle(.grouped)
+        .background(WindowReader(reference: window))
         .onChange(of: [question, answer, hint]) {
             write()
         }
@@ -130,6 +133,24 @@ private struct CardDetail: View {
     private func write() {
         guard let text = CardText(question: question, answer: answer, hint: hint) else { return }
         document.editText(of: card.id, to: text)
+        dropTypingUndo()
+    }
+
+    /// Empties the field's own undo manager, which the field editor registers typing
+    /// with. It hands ⌘Z to the window's undo manager only once it is empty, so the
+    /// document's undo action, which takes back the whole edit at once, comes first.
+    /// Otherwise ⌘Z would take back the typing in the field first, leaving the
+    /// document's action behind: the deck still counted as changed, and the next ⌘Z
+    /// changed nothing visible (#175).
+    ///
+    /// Only the typing goes: the field editor is shared by all text fields of the app,
+    /// so it keeps its settings.
+    private func dropTypingUndo() {
+        guard focus != nil, let editor = window.window?.firstResponder as? NSTextView,
+            let undoManager = editor.undoManager, undoManager !== document.undoManager
+        else { return }
+        editor.breakUndoCoalescing()
+        undoManager.removeAllActions()
     }
 
     /// Ends the edit when a field loses the focus or Return is pressed: the next one
@@ -151,5 +172,35 @@ private struct CardDetail: View {
         question = card.question
         answer = card.answer
         hint = card.hint
+    }
+}
+
+/// The window a view is in, kept weakly. Not observable: reading it doesn't update a view.
+private final class WindowReference {
+    weak var window: NSWindow?
+}
+
+/// Keeps `reference` up to date with the window of the view it is the background of.
+private struct WindowReader: NSViewRepresentable {
+    let reference: WindowReference
+
+    final class View: NSView {
+        var reference: WindowReference?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            reference?.window = window
+        }
+    }
+
+    func makeNSView(context: Context) -> View {
+        let view = View()
+        view.reference = reference
+        return view
+    }
+
+    func updateNSView(_ view: View, context: Context) {
+        view.reference = reference
+        reference.window = view.window
     }
 }
