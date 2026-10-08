@@ -15,8 +15,7 @@ The active developer dir may be the Command Line Tools; prefix with
   Name the paths: `build/` and `.build/` contain generated Swift files.
 - Translations: `swift Tools/check-localizations.swift` after a build with
   `-derivedDataPath build/DerivedData`.
-- CI (`.github/workflows/ci.yml`, job `test`): all of the above, warnings as errors,
-  and the Release build of `Tools/make-release.sh` (both architectures, no disk image).
+- CI: `.github/workflows/ci.yml`; its header comment lists what the job `test` checks.
 - Signing: `Config/Signing.xcconfig` signs ad hoc; the untracked
   `Config/Signing.local.xcconfig` sets the team. No team ID in tracked files.
 
