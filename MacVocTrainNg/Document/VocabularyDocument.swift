@@ -45,9 +45,16 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Sends after every change to `deck`, once it holds the new state. Observers
     /// other than views use this, see the type's documentation.
     let deckDidChange = PassthroughSubject<Void, Never>()
-    /// The study days of reviews, statistics and export. The machine's time zone,
-    /// unless a test passes a fixed one.
-    let calendar: StudyCalendar
+    /// The study days of reviews, statistics and export. Follows the machine's time
+    /// zone: when it changes, the deck counts study days in the new one at once, with
+    /// the same hour for the start of a study day (#186). A test passes a fixed zone
+    /// and switches with `switchTimeZone(to:)`.
+    ///
+    /// Not `@Published`, like `deck`. `objectWillChange` sends before every change,
+    /// so the views that count study days show them anew.
+    private(set) var calendar: StudyCalendar {
+        willSet { objectWillChange.send() }
+    }
     /// The time of reviews, of today's snapshot and of which cards are due.
     let clock: StudyClock
     /// The number of cards due now, kept up to date as time passes.
@@ -61,12 +68,15 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// to the NSDocument behind `DocumentGroup`. Not part of the deck, so setting it
     /// tells no observer.
     weak var undoManager: UndoManager?
+    /// Switches the calendar when the machine's time zone changes; ends with the document.
+    private var timeZoneObservation: AnyCancellable?
 
     nonisolated init(deck: Deck = Deck(), clock: StudyClock = .system, calendar: StudyCalendar = StudyCalendar()) {
         self.deck = deck
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
         self.clock = clock
         self.calendar = calendar
+        startFollowingSystemTimeZone()
     }
 
     nonisolated required init(configuration: ReadConfiguration) throws {
@@ -80,6 +90,31 @@ final class VocabularyDocument: ReferenceFileDocument {
         }
         self.deck = deck
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
+        startFollowingSystemTimeZone()
+    }
+
+    /// Observes the machine's time zone from the main actor, where the calendar changes.
+    /// The initializers aren't isolated to it, so the observation starts right after.
+    private nonisolated func startFollowingSystemTimeZone() {
+        Task { @MainActor [weak self] in
+            self?.timeZoneObservation = NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] _ in self?.followSystemTimeZone() }
+        }
+    }
+
+    /// Switches to the machine's new time zone. Foundation keeps the zone it read
+    /// first, so it forgets that one before.
+    private func followSystemTimeZone() {
+        NSTimeZone.resetSystemTimeZone()
+        switchTimeZone(to: .current)
+    }
+
+    /// Counts study days in `timeZone` from now on, starting them at the same hour.
+    /// Running sessions follow, as they get the calendar with every review.
+    func switchTimeZone(to timeZone: TimeZone) {
+        guard timeZone != calendar.timeZone else { return }
+        calendar.timeZone = timeZone
     }
 
     /// The error to show when reading a deck failed with `error`. A deck the app
@@ -163,9 +198,9 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     /// Stores a card rescheduled after a review in a study session, with the change
-    /// `SessionMode.grade(_:in:at:)` returns. Undo and redo of the review run `companion`
-    /// right after the card, in the same undo action; the session brings back its place
-    /// with it, see `SessionViewModel.grade`.
+    /// `SessionMode.grade(_:in:at:calendar:)` returns. Undo and redo of the review run
+    /// `companion` right after the card, in the same undo action; the session brings
+    /// back its place with it, see `SessionViewModel.grade`.
     func applyReview(_ change: DeckChange, alongside companion: UndoCompanion) {
         perform(change, actionName: String(localized: "Review"), alongside: companion)
     }

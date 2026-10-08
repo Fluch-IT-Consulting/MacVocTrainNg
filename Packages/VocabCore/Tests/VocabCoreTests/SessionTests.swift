@@ -97,7 +97,7 @@ struct SessionTests {
     /// Reviews the current card and stores it in `deck`, like `SessionMode` and the app do.
     func review(_ study: inout StudySession, deck: inout Deck, _ grade: Grade, at time: Date? = nil) {
         let current = deck.card(withID: study.session.currentCardID!)!
-        let card = study.review(grade, of: current, with: deck.learningOptions, at: time ?? now)!
+        let card = study.review(grade, of: current, with: deck.learningOptions, at: time ?? now, calendar: .testing)!
         deck.cards[deck.index(of: card.id)!] = card
     }
 
@@ -143,7 +143,7 @@ struct SessionTests {
         let deck = deck(newCards: 3)
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let current = deck.card(withID: study.session.currentCardID!)!
-        let card = study.review(.good, of: current, with: deck.learningOptions, at: now)!
+        let card = study.review(.good, of: current, with: deck.learningOptions, at: now, calendar: .testing)!
         var random = SeededRandom(seed: 1)
         let expected = Scheduler(learningOptions: deck.learningOptions, calendar: .testing).review(current, grade: .good, at: now, using: &random)
         #expect(card == expected)
@@ -207,12 +207,12 @@ struct SessionTests {
         let deck = deck(newCards: 2)
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let other = deck.cards.first { $0.id != study.session.currentCardID }!
-        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now) == nil)
+        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now, calendar: .testing) == nil)
         #expect(study.session.reviewCount == 0)
         study.perform(.skip)
         study.perform(.skip)
         #expect(study.session.isFinished)
-        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now) == nil)
+        #expect(study.review(.good, of: other, with: deck.learningOptions, at: now, calendar: .testing) == nil)
     }
 
     @Test func onlyDueCardsAreSelected() {
@@ -394,9 +394,9 @@ struct SessionTests {
         let deck = deck(newCards: 2)
         var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), at: now, random: SeededRandom(seed: 1)))
         #expect(mode.session.duration == 0)
-        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(20))
+        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(20), calendar: .testing)
         #expect(mode.session.duration == 20)
-        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(45))
+        _ = mode.grade(.good, in: deck, at: now.addingTimeInterval(45), calendar: .testing)
         #expect(mode.session.isFinished)
         #expect(mode.session.duration == 45)
     }
@@ -406,10 +406,10 @@ struct SessionTests {
         var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
         var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         let current = deck.card(withID: study.session.currentCardID!)!
-        let reviewed = study.review(.good, of: current, with: deck.learningOptions, at: now)
+        let reviewed = study.review(.good, of: current, with: deck.learningOptions, at: now, calendar: .testing)
         let expected = try #require(reviewed)
 
-        guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now) else {
+        guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now, calendar: .testing) else {
             Issue.record("The study session didn't reschedule the card")
             return
         }
@@ -422,7 +422,7 @@ struct SessionTests {
         let deck = deck(newCards: 2)
         var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), at: now, random: SeededRandom(seed: 1)))
 
-        guard case .practiced = mode.grade(.again, in: deck, at: now) else {
+        guard case .practiced = mode.grade(.again, in: deck, at: now, calendar: .testing) else {
             Issue.record("Practice changed a card")
             return
         }
@@ -437,8 +437,8 @@ struct SessionTests {
         var practice = SessionMode.practice(Practice(practicing: ids, at: now, random: SeededRandom(seed: 1)))
         deck.cards.removeAll { $0.id == study.session.currentCardID || $0.id == practice.session.currentCardID }
 
-        #expect(study.grade(.good, in: deck, at: now) == nil)
-        #expect(practice.grade(.good, in: deck, at: now) == nil)
+        #expect(study.grade(.good, in: deck, at: now, calendar: .testing) == nil)
+        #expect(practice.grade(.good, in: deck, at: now, calendar: .testing) == nil)
         #expect(study.session.reviewCount == 0)
         #expect(practice.session.reviewCount == 0)
     }
@@ -448,7 +448,7 @@ struct SessionTests {
         deck.learningOptions.steps = 3
         var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
         func grade() {
-            guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now) else {
+            guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now, calendar: .testing) else {
                 Issue.record("The study session didn't reschedule the card")
                 return
             }
@@ -461,13 +461,33 @@ struct SessionTests {
         #expect(mode.session.isFinished)
     }
 
+    /// A study session schedules with the calendar of the review, e.g. after the
+    /// machine's time zone changed during the session (#186).
+    @Test func gradingUsesTheCalendarPassed() {
+        var deck = deck(newCards: 0, reviewCards: 1)
+        var mode = SessionMode.study(StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1)))
+        var later = StudyCalendar.testing
+        later.rolloverHour = 20
+        guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: now, calendar: later) else {
+            Issue.record("The study session didn't reschedule the card")
+            return
+        }
+        let card = deck.cards[0]
+        _ = deck.apply(change, day: 100)
+
+        var random = SeededRandom(seed: 0)  // unused without fuzzing
+        let expected = Scheduler(learningOptions: deck.learningOptions, calendar: later).review(card, grade: .good, at: now, using: &random)
+        #expect(deck.cards == [expected])
+        #expect(expected.learningState?.due != Scheduler(learningOptions: deck.learningOptions, calendar: .testing).review(card, grade: .good, at: now, using: &random).learningState?.due)
+    }
+
     @Test func practiceCountsStepsWithTheLearningOptionsTheDeckHasNow() {
         var deck = deck(newCards: 1)
         deck.learningOptions.steps = 2
         var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), at: now, random: SeededRandom(seed: 1)))
-        _ = mode.grade(.again, in: deck, at: now)
+        _ = mode.grade(.again, in: deck, at: now, calendar: .testing)
         deck.learningOptions.steps = 1
-        _ = mode.grade(.good, in: deck, at: now)
+        _ = mode.grade(.good, in: deck, at: now, calendar: .testing)
         #expect(mode.session.isFinished)
     }
 
@@ -477,6 +497,6 @@ struct SessionTests {
         mode.perform(.skip)
 
         #expect(mode.session.isFinished)
-        #expect(mode.grade(.good, in: deck, at: now) == nil)
+        #expect(mode.grade(.good, in: deck, at: now, calendar: .testing) == nil)
     }
 }
