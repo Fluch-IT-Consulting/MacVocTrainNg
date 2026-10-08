@@ -7,7 +7,9 @@ import Foundation
 /// mode records reviews and decides when a card is done.
 public struct Session: Sendable {
     public let id = UUID()
-    public let startedAt: Date
+    let startedAt: Date
+    /// When the last review was recorded; `nil` before the first.
+    private var lastReviewedAt: Date?
     public private(set) var currentCardID: Card.ID?
     public private(set) var totalCount: Int
     public private(set) var reviewCount = 0
@@ -32,11 +34,19 @@ public struct Session: Sendable {
     /// Cards already asked that would still be finished by `SessionCommand.finishUp`.
     public var startedCount: Int { queue.startedCount }
 
-    /// Counts the review of the current card and moves on to the next one.
+    /// The time from the start to the last review, 0 without a review. A session ends
+    /// with its last review, so the time stays the same once it is finished (#185).
+    public var duration: TimeInterval {
+        guard let lastReviewedAt else { return 0 }
+        return max(0, lastReviewedAt.timeIntervalSince(startedAt))
+    }
+
+    /// Counts the review of the current card at `now` and moves on to the next one.
     ///
     /// - Parameter isDone: Whether the current card leaves the session.
-    mutating func record(_ grade: Grade, isDone: Bool) {
+    mutating func record(_ grade: Grade, isDone: Bool, at now: Date) {
         guard let id = currentCardID else { return }
+        lastReviewedAt = now
         reviewCount += 1
         if grade.isRecall {
             recalledCount += 1

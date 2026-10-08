@@ -46,7 +46,7 @@ public enum SessionMode: Sendable {
             self = .study(study)
             return .rescheduled(DeckChange(upserts: [scheduled]))
         case var .practice(practice):
-            practice.record(grade, with: deck.learningOptions)
+            practice.record(grade, with: deck.learningOptions, at: now)
             self = .practice(practice)
             return .practiced
         }
