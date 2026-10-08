@@ -6,7 +6,9 @@ struct CardListView: View {
     @Environment(\.undoManager) private var undoManager
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
-    @State private var columns = TableColumnCustomization<CardRow>()
+    @State private var columnCustomization = TableColumnCustomization<CardRow>()
+    @FocusState private var tableIsFocused: Bool
+    @State private var refocusTable = false
     @State private var searchText = ""
     @State private var showingInspector = false
     @State private var table = CardTable()
@@ -46,29 +48,46 @@ struct CardListView: View {
 
             Divider()
 
-            Table(rows, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columns) {
+            Table(rows, selection: $selection, sortOrder: sortOrderKeepingFocus, columnCustomization: $columnCustomization) {
                 TableColumn("Question", value: \.question)
                     .customizationID("question")
+                    .disabledCustomizationBehavior([.reorder, .visibility])
                 TableColumn("Answer", value: \.answer)
                     .customizationID("answer")
+                    .disabledCustomizationBehavior([.reorder, .visibility])
                 TableColumn("Hint", value: \.hint)
                     .customizationID("hint")
+                    .disabledCustomizationBehavior([.reorder, .visibility])
                 TableColumn("Maturity", value: \.categoryRank) { row in
                     MaturityLabel(category: row.category)
                 }
                 .width(min: 90, ideal: 110)
                 .customizationID("maturity")
+                .disabledCustomizationBehavior([.reorder, .visibility])
                 TableColumn("Due", value: \.dueSortKey) { row in
                     // Formatted per visible cell rather than for all rows up front.
                     DueText(due: row.due, now: now)
                 }
                 .width(min: 80, ideal: 110)
                 .customizationID("due")
+                .disabledCustomizationBehavior([.reorder, .visibility])
             }
+            .focused($tableIsFocused)
             // A new sort order builds a new table: diffing the old order against the
-            // new one moves every row on its own and took about 10 s for 5830 cards
-            // (#168). The column widths live in `columns`, so they survive.
+            // new one moves every row on its own, which is slow with many cards (#168).
+            // The column widths live in `columnCustomization`, and the focus moves over
+            // through `sortOrderKeepingFocus`.
             .id(sortOrder)
+            .onChange(of: tableIsFocused) { _, isFocused in
+                // The new table can take the focus only after the old one has given it
+                // up, and only on the next turn of the run loop.
+                if !isFocused && refocusTable {
+                    refocusTable = false
+                    DispatchQueue.main.async {
+                        tableIsFocused = true
+                    }
+                }
+            }
             .contextMenu(forSelectionType: Card.ID.self) { ids in
                 if !ids.isEmpty {
                     Button("Show Details") {
@@ -111,6 +130,19 @@ struct CardListView: View {
             )
         } else {
             ContentUnavailableView.search(text: searchText)
+        }
+    }
+
+    /// Sets the sort order and hands the focus of the old table to the new one, see
+    /// `onChange(of: tableIsFocused)`. A focused search field keeps its focus.
+    private var sortOrderKeepingFocus: Binding<[KeyPathComparator<CardRow>]> {
+        Binding {
+            sortOrder
+        } set: { newOrder in
+            // The same order builds no new table, so there is no focus to hand over.
+            guard newOrder != sortOrder else { return }
+            refocusTable = tableIsFocused
+            sortOrder = newOrder
         }
     }
 
