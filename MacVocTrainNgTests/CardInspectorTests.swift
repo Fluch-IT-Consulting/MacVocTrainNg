@@ -113,6 +113,44 @@ extension WindowTests {
             window.close()
         }
 
+        /// ⌘Z, sent along the responder chain like the menu item.
+        private func commandZ() throws {
+            let responder = try #require(window.firstResponder)
+            #expect(responder.tryToPerform(Selector(("undo:")), with: nil))
+        }
+
+        /// Before, the field editor took back the typing first, and the document's undo
+        /// action stayed: the deck still counted as changed, the next ⌘Z changed nothing.
+        @Test func undoWhileTypingTakesBackTheEditAtOnce() async throws {
+            let answer = try await fields()[1]
+            let editor = try await edit(answer)
+            await type("ps", into: editor)
+            try await waitUntil("the deck holds the typed answer") { deckCard?.answer == "blomps" }
+            try await Task.sleep(for: .milliseconds(50))
+
+            try commandZ()
+            try await waitUntil("the field shows the answer from before") { editor.string == "blom" }
+            #expect(deckCard == card)
+            #expect(!undoManager.canUndo)
+            window.close()
+        }
+
+        /// All text fields of the app share one field editor. The next field still undoes
+        /// its typing on its own, not with the document's undo manager (#9).
+        @Test func theNextFieldKeepsItsOwnTypingUndo() async throws {
+            let fields = try await fields()
+            let editor = try await edit(fields[1])
+            await type("p", into: editor)
+            try await waitUntil("the deck holds the typed answer") { deckCard?.answer == "blomp" }
+            window.makeFirstResponder(nil)
+            try await Task.sleep(for: .milliseconds(50))
+
+            let next = try await edit(fields[2])
+            #expect(next.undoManager != nil)
+            #expect(next.undoManager !== undoManager)
+            window.close()
+        }
+
         @Test func anEmptyQuestionStaysOutOfTheDeck() async throws {
             let question = try await fields()[0]
             let editor = try await edit(question)
