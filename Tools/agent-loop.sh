@@ -8,6 +8,9 @@
 #   Tools/agent-loop.sh              every eligible issue, oldest first
 #   Tools/agent-loop.sh 197 189      only these, if eligible
 #   Tools/agent-loop.sh --dry-run    list what would run, change nothing
+#   Tools/agent-loop.sh --resume 191 ["message"]
+#                                    continue the last session of an issue that ended
+#                                    without a pull request or hand-back, in its worktree
 #
 # AGENT_MODEL and AGENT_EFFORT override the model and effort level of the sessions,
 # e.g. `AGENT_EFFORT=xhigh Tools/agent-loop.sh 177`.
@@ -17,6 +20,7 @@
 # agent's output goes to .claude/agent-runs/<issue>.log.
 
 set -euo pipefail
+SCRIPT=$0
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 
@@ -24,15 +28,36 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 AGENT_MODEL=${AGENT_MODEL:-claude-opus-5-5[1m]}
 AGENT_EFFORT=${AGENT_EFFORT:-high}
 
+usage() {
+    echo "usage: $SCRIPT [--dry-run] [<issue> …]" >&2
+    echo "       $SCRIPT --resume <issue> [<message>]" >&2
+    exit 2
+}
+
+fail() {
+    echo "✗ $1" >&2
+    exit 1
+}
+
 DRY_RUN=false
+RESUME=""
+RESUME_MESSAGE=""
 typeset -a requested
-for arg in "$@"; do
-    case $arg in
-        --dry-run) DRY_RUN=true ;;
-        <->) requested+=("$arg") ;;
-        *) echo "usage: $0 [--dry-run] [<issue> …]" >&2; exit 2 ;;
-    esac
-done
+if [[ ${1:-} == --resume ]]; then
+    if (( $# < 2 || $# > 3 )) || [[ $2 != <-> ]]; then
+        usage
+    fi
+    RESUME=$2
+    RESUME_MESSAGE=${3:-}
+else
+    for arg in "$@"; do
+        case $arg in
+            --dry-run) DRY_RUN=true ;;
+            <->) requested+=("$arg") ;;
+            *) usage ;;
+        esac
+    done
+fi
 
 PROMPT_FILE=docs/agents/afk-prompt.md
 LOG_DIR=.claude/agent-runs
@@ -78,7 +103,81 @@ has_branch() {
     git show-ref --quiet "refs/heads/$1" || git ls-remote --exit-code --heads origin "$1" >/dev/null
 }
 
-typeset -a queue queued summary
+# Runs a headless session in worktree $1 with the prompt on stdin and appends its
+# output to log $2. Further arguments go to claude, e.g. --resume <session>.
+run_agent() {
+    local worktree=$1 log=$2
+    shift 2
+    (cd "$worktree" && claude -p "$@" --model "$AGENT_MODEL" --effort "$AGENT_EFFORT" \
+        --permission-mode dontAsk \
+        --allowedTools "${ALLOWED_TOOLS[@]}" \
+        --disallowedTools "${DISALLOWED_TOOLS[@]}" \
+        --output-format stream-json --verbose) \
+        >> "$log" 2>&1
+}
+
+typeset -a summary
+
+# Adds the outcome of the session on issue $1 (branch $2, worktree $3, log $4) to the
+# summary and tidies up after it.
+evaluate() {
+    local number=$1 branch=$2 worktree=$3 log=$4 pr labels
+    pr=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+    labels=$(gh issue view "$number" --json labels --jq '[.labels[].name] | join(", ")')
+    if [[ -n $pr ]]; then
+        if git worktree remove "$worktree" && git branch --quiet -D "$branch"; then
+            summary+=("#$number  ✓ $pr")
+        else
+            summary+=("#$number  ✓ $pr (worktree kept: $worktree)")
+        fi
+    elif [[ ", $labels, " != *", ready-for-agent, "* ]]; then
+        # Handed back: unassign, so the issue becomes eligible again once relabelled.
+        gh issue edit "$number" --remove-assignee @me >/dev/null
+        summary+=("#$number  ? handed back ($labels), worktree $worktree")
+    else
+        summary+=("#$number  ✗ no pull request, see $log, worktree $worktree;")
+        summary+=("      continue with: Tools/agent-loop.sh --resume $number")
+    fi
+}
+
+print_summary() {
+    echo
+    if (( ${#summary} == 0 )); then
+        echo "No eligible issues."
+    else
+        printf '%s\n' $summary
+    fi
+}
+
+# What a resumed session is told when the caller gives no message.
+RESUME_DEFAULT="Die Sitzung wurde unterbrochen, bevor sie fertig war. Prüf den Stand im \
+Worktree, in Git und auf GitHub (Zweig, Commits, Pull Request, CI-Läufe) und bring den \
+Ablauf aus deinem Auftrag zu Ende: mit einem Pull Request oder einer Rückgabe über das \
+Issue. Starte nichts im Hintergrund."
+
+if [[ -n $RESUME ]]; then
+    number=$RESUME
+    type=$(gh issue view "$number" --json issueType --jq '.issueType.name // "-"')
+    branch=$(branch_for "$type" "$number") || fail "#$number has no issue type."
+    worktree=$WORKTREE_DIR/${branch//\//-}
+    log=$ROOT/$LOG_DIR/$number.log
+    [[ -d $worktree ]] || fail "#$number has no worktree $worktree to resume in; run Tools/agent-loop.sh $number for a fresh start."
+    [[ -f $log ]] || fail "#$number has no log $log, so there is no session to resume."
+    session=$(grep '"subtype":"init"' "$log" | tail -1 | grep -o '"session_id":"[^"]*"' | cut -d'"' -f4) || true
+    [[ -n $session ]] || fail "$log names no session."
+
+    echo "▸ #$number resuming session $session"
+    agent_status=0
+    print -r -- "${RESUME_MESSAGE:-$RESUME_DEFAULT}" | run_agent "$worktree" "$log" --resume "$session" || agent_status=$?
+    evaluate "$number" "$branch" "$worktree" "$log"
+    if (( agent_status != 0 )); then
+        summary+=("claude exited with status $agent_status, see $log")
+    fi
+    print_summary
+    exit 0
+fi
+
+typeset -a queue queued
 candidates=$(eligible)
 for entry in ${(f)candidates}; do
     number=${entry%%$'\t'*}
@@ -127,30 +226,11 @@ for entry in $queue; do
     fi
 
     log=$ROOT/$LOG_DIR/$number.log
+    : > "$log"
     agent_status=0
     sed -e "s/{{ISSUE}}/$number/g" -e "s|{{BRANCH}}|$branch|g" "$PROMPT_FILE" \
-        | (cd "$worktree" && claude -p --model "$AGENT_MODEL" --effort "$AGENT_EFFORT" \
-            --permission-mode dontAsk \
-            --allowedTools "${ALLOWED_TOOLS[@]}" \
-            --disallowedTools "${DISALLOWED_TOOLS[@]}" \
-            --output-format stream-json --verbose) \
-        > "$log" 2>&1 || agent_status=$?
-
-    pr=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
-    labels=$(gh issue view "$number" --json labels --jq '[.labels[].name] | join(", ")')
-    if [[ -n $pr ]]; then
-        if git worktree remove "$worktree" && git branch --quiet -D "$branch"; then
-            summary+=("#$number  ✓ $pr")
-        else
-            summary+=("#$number  ✓ $pr (worktree kept: $worktree)")
-        fi
-    elif [[ ", $labels, " != *", ready-for-agent, "* ]]; then
-        # Handed back: unassign, so the issue becomes eligible again once relabelled.
-        gh issue edit "$number" --remove-assignee @me >/dev/null
-        summary+=("#$number  ? handed back ($labels), worktree $worktree")
-    else
-        summary+=("#$number  ✗ no pull request, see $log, worktree $worktree")
-    fi
+        | run_agent "$worktree" "$log" || agent_status=$?
+    evaluate "$number" "$branch" "$worktree" "$log"
 
     if (( agent_status != 0 )); then
         summary+=("stopped: claude exited with status $agent_status, see $log")
@@ -158,9 +238,4 @@ for entry in $queue; do
     fi
 done
 
-echo
-if (( ${#summary} == 0 )); then
-    echo "No eligible issues."
-else
-    printf '%s\n' $summary
-fi
+print_summary
