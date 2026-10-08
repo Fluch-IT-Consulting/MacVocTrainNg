@@ -27,7 +27,7 @@ extension WindowTests {
             undoManager = makeUndoManager(for: document)
             window = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: CardListView(document: document))
+            window.contentView = NSHostingView(rootView: CardListView(document: document, isEditable: true))
             // Key for real where the test host is active, as in CI. Another window, such
             // as the open panel of the document app, may be key there.
             window.makeKeyAndOrderFront(nil)

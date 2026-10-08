@@ -3,6 +3,8 @@ import SwiftUI
 /// Actions of the focused document window, for the menu bar.
 struct DeckActions {
     var isInSession: Bool
+    /// `false` while the deck can only be viewed, see `DocumentView.isEditable`.
+    var isEditable: Bool
     var canStartSession: Bool
     var startSession: () -> Void
     var show: (DocumentView.Screen) -> Void
@@ -31,7 +33,7 @@ struct AppCommands: Commands {
                 LegacyImport.run()
             }
             Button("Import Cards…") { actions?.importCards() }
-                .disabled(actions == nil || actions?.isInSession == true)
+                .disabled(actions?.isEditable != true || actions?.isInSession == true)
             Button("Export Cards…") { actions?.exportCards() }
                 .disabled(actions == nil)
         }
@@ -53,7 +55,7 @@ struct AppCommands: Commands {
             Divider()
 
             Button("Learning Options…") { actions?.showOptions() }
-                .disabled(actions == nil || actions?.isInSession == true)
+                .disabled(actions?.isEditable != true || actions?.isInSession == true)
         }
     }
 }

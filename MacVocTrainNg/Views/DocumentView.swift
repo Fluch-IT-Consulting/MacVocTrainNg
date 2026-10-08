@@ -3,6 +3,9 @@ import VocabCore
 
 /// The content of a document window: the card list or the statistics, or a
 /// session that temporarily takes over the whole window.
+///
+/// Shows one document for its whole life: the window gives each document a view of
+/// its own, see `MacVocTrainApp`.
 struct DocumentView: View {
     enum Screen: String {
         case cards
@@ -12,6 +15,10 @@ struct DocumentView: View {
     @ObservedObject var document: VocabularyDocument
     /// Where the document is saved; `nil` until it is saved for the first time.
     var fileURL: URL?
+    /// `false` while the deck can only be viewed, e.g. an old version in the version
+    /// browser or a file that can't be written. Nothing then changes the deck or starts
+    /// a session; the controls say so by being disabled.
+    var isEditable: Bool
     /// The document's undo manager, which SwiftUI hands only to views. The document
     /// gets it from here. A sheet's environment holds the undo manager of the sheet's
     /// own window instead (#48).
@@ -28,7 +35,7 @@ struct DocumentView: View {
                 SessionView(model: session) { self.session = nil }
             } else {
                 switch screen {
-                case .cards: CardListView(document: document)
+                case .cards: CardListView(document: document, isEditable: isEditable)
                 case .statistics: StatisticsView(document: document)
                 }
             }
@@ -46,6 +53,7 @@ struct DocumentView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     StartStudyButton(dueCards: document.dueCards, action: startSession)
+                        .disabled(!isEditable)
                 }
                 ToolbarItem {
                     Button {
@@ -54,6 +62,7 @@ struct DocumentView: View {
                         Label("Learning Options", systemImage: "slider.horizontal.3")
                     }
                     .help("Learning Options")
+                    .disabled(!isEditable)
                 }
             }
         }
@@ -63,15 +72,13 @@ struct DocumentView: View {
         .sheet(item: $importPreview) { preview in
             ImportPreviewView(document: document, preview: preview)
         }
-        // Again whenever either changes: SwiftUI may replace the document in this window,
-        // e.g. when reverting to a saved version.
-        .onChange(of: ObjectIdentifier(document), initial: true, giveUndoManagerToDocument)
         .onChange(of: undoManager, initial: true, giveUndoManagerToDocument)
         .focusedSceneValue(
             \.deckActions,
             DeckActions(
                 isInSession: session != nil,
-                canStartSession: session == nil && document.dueCards.count > 0,
+                isEditable: isEditable,
+                canStartSession: isEditable && session == nil && document.dueCards.count > 0,
                 startSession: startSession,
                 show: { screen = $0 },
                 showOptions: { showingOptions = true },
@@ -110,6 +117,7 @@ struct DocumentView: View {
     }
 
     private func importCards() {
+        guard isEditable else { return }
         importPreview = CardImport.chooseFile(existing: document.deck.cards, created: document.clock.now)
     }
 
@@ -122,7 +130,7 @@ struct DocumentView: View {
     }
 
     private func startSession() {
-        guard session == nil else { return }
+        guard isEditable, session == nil else { return }
         let model = SessionViewModel(document: document)
         if !model.isFinished {
             session = model

@@ -8,7 +8,11 @@ struct MacVocTrainApp: App {
 
     var body: some Scene {
         DocumentGroup(newDocument: { VocabularyDocument() }) { file in
-            DocumentView(document: file.document, fileURL: file.fileURL)
+            // SwiftUI hands the window a new document when NSDocument reads the file again,
+            // e.g. on reverting to a saved version. The window then starts afresh: a
+            // session or sheet would go on changing the old document, which nobody saves.
+            DocumentView(document: file.document, fileURL: file.fileURL, isEditable: file.isEditable)
+                .id(ObjectIdentifier(file.document))
         }
         .commands {
             AppCommands()

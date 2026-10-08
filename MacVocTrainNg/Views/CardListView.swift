@@ -3,6 +3,8 @@ import VocabCore
 
 struct CardListView: View {
     @ObservedObject var document: VocabularyDocument
+    /// `false` while the deck can only be viewed, see `DocumentView.isEditable`.
+    var isEditable: Bool
     @State private var selection = Set<Card.ID>()
     @State private var sortOrder = [KeyPathComparator(\CardRow.position)]
     @State private var columnCustomization = TableColumnCustomization<CardRow>()
@@ -22,7 +24,7 @@ struct CardListView: View {
         }
         .searchable(text: $searchText, prompt: "Search cards")
         .inspector(isPresented: $showingInspector) {
-            CardInspector(document: document, selection: selection, onDelete: delete)
+            CardInspector(document: document, selection: selection, isEditable: isEditable, onDelete: delete)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .toolbar {
@@ -44,6 +46,7 @@ struct CardListView: View {
             AddCardForm(document: document) { id in
                 selection = [id]
             }
+            .disabled(!isEditable)
             .padding(12)
 
             Divider()
@@ -84,13 +87,16 @@ struct CardListView: View {
                         selection = ids
                         showingInspector = true
                     }
-                    Button("Reset Learning State") {
-                        document.resetLearningState(of: ids)
+                    Group {
+                        Button("Reset Learning State") {
+                            document.resetLearningState(of: ids)
+                        }
+                        Divider()
+                        Button("Delete", role: .destructive) {
+                            delete(ids)
+                        }
                     }
-                    Divider()
-                    Button("Delete", role: .destructive) {
-                        delete(ids)
-                    }
+                    .disabled(!isEditable)
                 }
             } primaryAction: { ids in
                 selection = ids
@@ -165,6 +171,7 @@ struct CardListView: View {
     /// Context menu, delete key and inspector all delete through here, so the selection
     /// loses the cards too: `Table` keeps the IDs of removed rows selected (#184).
     private func delete(_ ids: Set<Card.ID>) {
+        guard isEditable else { return }
         document.delete(ids)
         selection.subtract(ids)
     }
