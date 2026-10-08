@@ -62,7 +62,9 @@ Wartezeit, und Abstände zählen in Lerntagen. Dafür genügt das Speichermodell
   übersetzen, so wie der Import heute die Level.
 - **Vorerst die eigenen Gewichte.** Die App rechnet mit den Standardgewichten von
   open-spaced-repetition. Der Verlauf hält jede Abfrage mit Zeitpunkt und Bewertung fest,
-  damit sich die Gewichte später an den Lernenden anpassen lassen.
+  damit sich die Gewichte später an den Lernenden anpassen lassen. Erledigt durch
+  [ADR 0002](0002-optimierer-als-swift-port.md): Seitdem berechnet die App die Gewichte
+  aus dem Verlauf eines Stapels; die Standardgewichte sind nur noch die Startwerte.
 
 ## Import aus MacVocTrain 1
 
@@ -77,13 +79,19 @@ wird, wann MacVocTrain 1 sie abgefragt hätte:
   fällig ist sie diesen Abstand nach ihrer letzten Abfrage. Die Schwierigkeit ist
   unbekannt und startet neutral bei 5. Das Level zählt als Zahl ihrer Abfragen.
 - Die täglichen Zähler je Level werden zum Fortschritt: Jedes Level zählt im Tagesstand
-  mit der Stabilität seines Abstands. Level 0 zählte in MacVocTrain 1 neue Karten und
-  Karten nach einer falschen Eingabe zusammen; der Import teilt den Zähler deshalb
-  geschätzt auf. Als neu zählen höchstens so viele Karten, wie beim Import nie abgefragt
-  sind, der Rest als unsicher. Eine Karte, die beim Import nie abgefragt ist, war es an
-  jedem früheren Tag auch, an dem es sie gab: Am letzten alten Tag stimmt die Aufteilung
-  genau, und der Fortschritt macht am Importtag keinen Sprung. An Tagen, bevor diese
+  mit der Stabilität seines Abstands, ohne Streuung. Level 0 zählte in MacVocTrain 1 neue
+  Karten und Karten nach einer falschen Eingabe zusammen; der Import teilt den Zähler
+  deshalb geschätzt auf. Als neu zählen höchstens so viele Karten, wie beim Import nie
+  abgefragt sind, der Rest als unsicher. Eine Karte, die beim Import nie abgefragt ist, war
+  es an jedem früheren Tag auch, an dem es sie gab: Am letzten alten Tag stimmt die
+  Aufteilung genau, sie macht am Importtag also keinen Sprung. An Tagen, bevor diese
   Karten angelegt wurden, zählen dafür Karten nach einer falschen Eingabe als neu.
+- Den Tagesstand des Importtags bildet die App aus den Karten selbst. Karten ab Level 1
+  zählen darin mit ihrer Streuung. Schiebt sie die Stabilität einer Karte über eine der
+  Grenzen des Tagesstands (1, 2, 4, 8 … Tage), zählt die Karte am Importtag in einem
+  anderen Bereich als am letzten alten Tag, an 4, 16, 64 und 256 Tagen auch mit einem
+  anderen Reifegrad: Eine Karte auf Level 10 (15,5 Tage) mit +5 % zählt am letzten alten
+  Tag als „Jung“, am Importtag als „Gefestigt“.
 
 Die Stabilität ist die Zahl der Tage, bis die Abrufwahrscheinlichkeit auf 90 % fällt. Der
 Import nimmt also an, dass der Lernende eine Karte zu ihrem Termin in MacVocTrain 1 noch
