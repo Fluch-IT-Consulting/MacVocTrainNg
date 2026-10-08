@@ -57,6 +57,7 @@ struct SessionView: View {
                 .monospacedDigit()
                 .foregroundStyle(session.mistakeIDs.isEmpty ? Color.secondary : Grade.again.color)
                 .help("Mistakes")
+                .accessibilityLabel(Text("\(session.mistakeIDs.count) mistakes"))
             Spacer()
             if !model.isFinished {
                 Button("End Session") { confirmingEnd = true }
