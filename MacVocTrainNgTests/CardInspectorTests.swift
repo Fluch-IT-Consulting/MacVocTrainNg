@@ -28,7 +28,7 @@ extension WindowTests {
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.delegate = delegate
-            window.contentView = NSHostingView(rootView: CardInspector(document: document, selection: [card.id], onDelete: { _ in }))
+            window.contentView = NSHostingView(rootView: CardInspector(document: document, selection: [card.id], isEditable: true, onDelete: { _ in }))
             window.orderFront(nil)
         }
 

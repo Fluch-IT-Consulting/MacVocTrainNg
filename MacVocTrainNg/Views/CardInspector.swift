@@ -6,24 +6,29 @@ import VocabCore
 struct CardInspector: View {
     @ObservedObject var document: VocabularyDocument
     var selection: Set<Card.ID>
+    /// `false` while the deck can only be viewed: the inspector then only shows the cards.
+    var isEditable: Bool
     /// Deletes cards and takes them out of the selection, which belongs to the card list.
     var onDelete: (Set<Card.ID>) -> Void
 
     var body: some View {
         Group {
             if selection.count == 1, let id = selection.first, let card = document.card(withID: id) {
-                CardDetail(document: document, card: card)
+                CardDetail(document: document, card: card, isEditable: isEditable)
                     .id(card.id)
             } else if selection.count > 1 {
                 VStack(spacing: 12) {
                     Text("\(selection.count) cards selected")
                         .font(.headline)
-                    Button("Reset Learning State") {
-                        document.resetLearningState(of: selection)
+                    Group {
+                        Button("Reset Learning State") {
+                            document.resetLearningState(of: selection)
+                        }
+                        Button("Delete", role: .destructive) {
+                            onDelete(selection)
+                        }
                     }
-                    Button("Delete", role: .destructive) {
-                        onDelete(selection)
-                    }
+                    .disabled(!isEditable)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -40,15 +45,17 @@ private struct CardDetail: View {
 
     @ObservedObject var document: VocabularyDocument
     let card: Card
+    let isEditable: Bool
     @State private var question: String
     @State private var answer: String
     @State private var hint: String
     @FocusState private var focus: Field?
     @State private var window = WindowReference()
 
-    init(document: VocabularyDocument, card: Card) {
+    init(document: VocabularyDocument, card: Card, isEditable: Bool) {
         self.document = document
         self.card = card
+        self.isEditable = isEditable
         _question = State(initialValue: card.question)
         _answer = State(initialValue: card.answer)
         _hint = State(initialValue: card.hint)
@@ -64,6 +71,7 @@ private struct CardDetail: View {
                 TextField("Hint", text: $hint, axis: .vertical)
                     .focused($focus, equals: .hint)
             }
+            .disabled(!isEditable)
             .onSubmit(endEdit)
 
             Section("Learning State") {
@@ -94,6 +102,7 @@ private struct CardDetail: View {
                     Button("Reset Learning State") {
                         document.resetLearningState(of: [card.id])
                     }
+                    .disabled(!isEditable)
                 }
             }
 
