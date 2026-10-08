@@ -22,15 +22,27 @@
 # commit. Publishing the draft creates the tag and updates the Homebrew cask
 # (.github/workflows/tap-bump.yml). It needs a clean checkout of origin/main and a
 # version without a release, and refuses to sign ad hoc.
+#
+# --build-only only builds and checks the app, with warnings as errors, and stops
+# before signing, the disk image and notarisation. The CI (.github/workflows/ci.yml)
+# runs it, so the release settings live only here.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+usage() {
+    echo "usage: $0 [--draft | --build-only]" >&2
+    exit 2
+}
+
 DRAFT=false
+BUILD_ONLY=false
+(( $# <= 1 )) || usage
 case "${1:-}" in
     "") ;;
     --draft) DRAFT=true ;;
-    *) echo "usage: $0 [--draft]" >&2; exit 2 ;;
+    --build-only) BUILD_ONLY=true ;;
+    *) usage ;;
 esac
 
 fail() {
@@ -58,15 +70,25 @@ if $DRAFT; then
     fi
 fi
 
+BUILD_SETTINGS=(ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO)
+if $BUILD_ONLY; then
+    BUILD_SETTINGS+=(SWIFT_TREAT_WARNINGS_AS_ERRORS=YES)
+fi
+
 echo "▸ Building $APP_NAME $VERSION (Release, Apple Silicon + Intel)"
 rm -rf "$BUILD_DIR"
 xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -configuration Release \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
-    ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+    "${BUILD_SETTINGS[@]}" \
     build -quiet
 
 APP="$BUILD_DIR/DerivedData/Build/Products/Release/$APP_NAME.app"
 echo "  architectures: $(lipo -archs "$APP/Contents/MacOS/$APP_NAME")"
+
+if $BUILD_ONLY; then
+    echo "✓ $APP"
+    exit 0
+fi
 
 IDENTITY="${SIGN_IDENTITY:-}"
 IDENTITY_NAME="$IDENTITY"

@@ -5,8 +5,9 @@
 # - builds the app and runs all tests, core and app, with warnings as errors,
 # - checks the String Catalog: every key in the app is in it, every key has a complete
 #   German translation (Tools/check-localizations.swift),
-# - builds the Release configuration for Apple Silicon and Intel like
-#   Tools/make-release.sh, also with warnings as errors, but without a disk image.
+# - builds the Release configuration for Apple Silicon and Intel with
+#   `Tools/make-release.sh --build-only`, also with warnings as errors, but without
+#   signing and disk image.
 #
 # Branch protection doesn't require an up-to-date branch, so the run on main checks
 # what the rebase merge actually produced.
@@ -62,10 +63,8 @@ jobs:
         if: ${{ !cancelled() }}
         run: swift Tools/check-localizations.swift build/DerivedData
 
-      # What Tools/make-release.sh builds: whole module, without DEBUG, both architectures.
+      # Whole module, without DEBUG, both architectures, with the settings the release
+      # uses; stops before signing and the disk image.
       - name: Build release
         if: ${{ !cancelled() }}
-        run: |
-          xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg \
-            -configuration Release -derivedDataPath build/DerivedData \
-            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES build
+        run: Tools/make-release.sh --build-only

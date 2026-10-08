@@ -122,9 +122,10 @@ swift Tools/check-localizations.swift
 
 Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 16.2) läuft bei jedem Pull
 Request und nach jedem Push auf `main`. Sie prüft swift-format, baut und testet mit
-Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut die
-Release-Konfiguration wie `Tools/make-release.sh` für Apple Silicon und Intel, ohne
-Disk-Image. Lokal bleiben Warnungen Warnungen.
+Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut mit
+`Tools/make-release.sh --build-only` die Release-Konfiguration für Apple Silicon und
+Intel. Der Schalter baut nur, mit Warnungen als Fehlern, und hört vor dem Signieren und
+dem Disk-Image auf. Sonst bleiben Warnungen lokal Warnungen.
 
 Commits, die nur umformatieren, stehen in `.git-blame-ignore-revs`. GitHub blendet sie in
 der Blame-Ansicht aus; damit `git blame` sie lokal auch überspringt, einmalig:
