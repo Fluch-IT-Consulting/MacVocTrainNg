@@ -25,7 +25,8 @@ _Vermeiden_: Back, Rückseite, Lösung; „Antwort“ für die Response oder die
 
 **Alternatives** (Alternativen):
 Mehrere gleichwertige Teile einer Answer, durch `/` getrennt. Ihre Reihenfolge ist egal;
-wer nur einen Teil nennt, antwortet Incomplete.
+wer nur einen Teil nennt, antwortet Incomplete. Eine Answer nur aus `/` und Leerraum, etwa
+`/`, ist wörtlich eine einzige Alternative.
 _Vermeiden_: Varianten, Synonyme
 
 **Hint** (Hinweis):
