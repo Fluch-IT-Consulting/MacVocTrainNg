@@ -47,7 +47,8 @@ final class PhoneDocument: ReferenceFileDocument, @unchecked Sendable {
     private var savedDeck: Deck
 
     init() {
-        deck = Deck()
+        let deck = Deck()
+        self.deck = deck
         savedDeck = deck
     }
 
