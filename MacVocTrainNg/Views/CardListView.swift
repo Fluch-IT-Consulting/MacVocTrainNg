@@ -14,6 +14,8 @@ struct CardListView: View {
     @State private var searchText = ""
     @State private var showingInspector = false
     @State private var table = CardTable()
+    /// The card that `CardEditSheet` edits, as it was when the sheet opened.
+    @State private var editedCard: Card?
 
     var body: some View {
         // Re-evaluated every minute because cards become due as time passes. The rows
@@ -24,8 +26,11 @@ struct CardListView: View {
         }
         .searchable(text: $searchText, prompt: "Search cards")
         .inspector(isPresented: $showingInspector) {
-            CardInspector(document: document, selection: selection, isEditable: isEditable, onDelete: delete)
+            CardInspector(document: document, selection: selection, isEditable: isEditable, onEdit: edit, onDelete: delete)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+        }
+        .sheet(item: $editedCard) { card in
+            CardEditSheet(document: document, card: card)
         }
         .toolbar {
             ToolbarItem {
@@ -88,6 +93,9 @@ struct CardListView: View {
                         showingInspector = true
                     }
                     Group {
+                        if ids.count == 1, let id = ids.first {
+                            Button("Edit…") { edit(id) }
+                        }
                         Button("Reset Learning State") {
                             document.resetLearningState(of: ids)
                         }
@@ -99,8 +107,13 @@ struct CardListView: View {
                     .disabled(!isEditable)
                 }
             } primaryAction: { ids in
+                // A double-click edits one card and shows the details of several.
                 selection = ids
-                showingInspector = true
+                if ids.count == 1, let id = ids.first {
+                    edit(id)
+                } else {
+                    showingInspector = true
+                }
             }
             .onDeleteCommand {
                 delete(selection)
@@ -166,6 +179,13 @@ struct CardListView: View {
 
     private func rows() -> [CardRow] {
         table.rows(of: document.deck.cards, sortedBy: sortOrder, matching: searchText)
+    }
+
+    /// Context menu, double-click and inspector all edit through here: nothing opens the
+    /// sheet while the deck can only be viewed.
+    private func edit(_ id: Card.ID) {
+        guard isEditable, let card = document.card(withID: id) else { return }
+        editedCard = card
     }
 
     /// Context menu, delete key and inspector all delete through here, so the selection

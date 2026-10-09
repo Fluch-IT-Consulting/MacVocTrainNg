@@ -123,8 +123,8 @@ struct CardTableTests {
         }
     }
 
-    /// Cards edited in place, as by typing in the inspector or by a review, give the
-    /// same rows as building the table from scratch (#232).
+    /// Cards changed in place, as by an edit or a review, give the same rows as
+    /// building the table from scratch (#232).
     @Test(arguments: [
         ([KeyPathComparator(\CardRow.position)], ""),
         ([KeyPathComparator(\CardRow.question)], ""),
@@ -164,15 +164,15 @@ struct CardTableTests {
         }
     }
 
-    /// Time of `rows(of:sortedBy:matching:)` per keystroke while the text of one card of
-    /// 5000 is typed, as the inspector writes it (#232). Prints the median and has no
-    /// time limit. Runs only with `CARD_TABLE_MEASURE` set; through `xcodebuild`, set
+    /// Time of `rows(of:sortedBy:matching:)` per edit while the text of one card of 5000
+    /// is edited again and again (#232). Prints the median and has no time limit. Runs
+    /// only with `CARD_TABLE_MEASURE` set; through `xcodebuild`, set
     /// `TEST_RUNNER_CARD_TABLE_MEASURE=1`, best with `-configuration Release`.
     @Test(
         .enabled(if: ProcessInfo.processInfo.environment["CARD_TABLE_MEASURE"] != nil),
         arguments: [("unsorted", [KeyPathComparator(\CardRow.position)], ""), ("by question", [KeyPathComparator(\CardRow.question)], ""), ("by question, search", [KeyPathComparator(\CardRow.question)], "ka")]
     )
-    func measureTyping(name: String, order: [KeyPathComparator<CardRow>], query: String) {
+    func measureEdits(name: String, order: [KeyPathComparator<CardRow>], query: String) {
         var random = SeededRandom(seed: 232)
         let letters = Array("abcdefghijklmnoprstuwyzłóżćęąś")
         func word() -> String {
@@ -183,12 +183,12 @@ struct CardTableTests {
         _ = table.rows(of: deck, sortedBy: order, matching: query)
 
         var durations: [Duration] = []
-        for keystroke in 0..<50 {
+        for edit in 0..<50 {
             let edited = deck[2500]
-            deck[2500] = edited.withAnswer(edited.answer + String(letters[keystroke % letters.count]))
+            deck[2500] = edited.withAnswer(edited.answer + String(letters[edit % letters.count]))
             durations.append(ContinuousClock().measure { _ = table.rows(of: deck, sortedBy: order, matching: query) })
         }
         let median = durations.sorted()[durations.count / 2]
-        print("CardTable, 5000 cards, \(name): \(median.formatted(.units(allowed: [.milliseconds], fractionalPart: .show(length: 2)))) per keystroke (median)")
+        print("CardTable, 5000 cards, \(name): \(median.formatted(.units(allowed: [.milliseconds], fractionalPart: .show(length: 2)))) per edit (median)")
     }
 }
