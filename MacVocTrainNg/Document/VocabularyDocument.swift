@@ -91,6 +91,8 @@ final class VocabularyDocument: ReferenceFileDocument {
         self.deck = deck
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
         startFollowingSystemTimeZone()
+        // SPIKE #246: shows when NSDocument reads the file again, e.g. on revert.
+        Spike246.log.notice("init(configuration:) read \(deck.cards.count) cards on \(Thread.isMainThread ? "main" : "background", privacy: .public) thread")
     }
 
     /// Observes the machine's time zone from the main actor, where the calendar changes.

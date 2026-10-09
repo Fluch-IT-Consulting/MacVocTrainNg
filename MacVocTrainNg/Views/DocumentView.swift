@@ -73,6 +73,8 @@ struct DocumentView: View {
             ImportPreviewView(document: document, preview: preview)
         }
         .onChange(of: undoManager, initial: true, giveUndoManagerToDocument)
+        // SPIKE #246: logs external changes to the deck.
+        .task(id: fileURL) { Spike246.attach(document, fileURL: fileURL) }
         .focusedSceneValue(
             \.deckActions,
             DeckActions(

@@ -1,0 +1,7 @@
+// SPIKE #246: signing of the iPhone spike app. Automatic signing; the team comes
+// from the untracked Config/Signing.local.xcconfig, as for the Mac app.
+// Without a team it builds and runs only in the simulator.
+DEVELOPMENT_TEAM =
+#include? "../../Config/Signing.local.xcconfig"
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
