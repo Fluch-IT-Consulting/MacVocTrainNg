@@ -10,8 +10,9 @@ wieder, wenn du sie sonst vergessen würdest.
 ## Funktionen
 
 - **Stapel**: einer pro Datei (`.voctrain`), lesbares JSON, Autosave, Versionen
-- **Kartenliste**: schnelles Erfassen (Frage ↩ Antwort ↩ Hinweis ↩), Suche (ignoriert
-  Akzente: „dzien“ findet „dzień“), Inspektor mit Lernstand und Verlauf, Undo für alles
+- **Kartenliste**: schnelles Erfassen (Frage ↩ Antwort ↩ Hinweis ↩), Bearbeiten in einem
+  Blatt (Doppelklick auf die Karte, ↩ sichert), Suche (ignoriert Akzente: „dzien“ findet
+  „dzień“), Inspektor mit Lernstand und Verlauf, Undo für alles
 - **Lernen**: Eingabe tippen, ↩. Alternativen einer Antwort mit `/` trennen
   (`Haus / Gebäude`); wer nur einen Teil nennt, ist „unvollständig“, ein Tippfehler ergibt
   „fast richtig“ und wird markiert. Bewertung mit 1–4 (Nochmal/Schwer/Gut/Leicht), ⌘Z
