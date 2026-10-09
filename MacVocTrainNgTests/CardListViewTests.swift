@@ -53,6 +53,17 @@ extension WindowTests {
             (window.firstResponder as? NSTextView)?.delegate as? NSTextField
         }
 
+        /// The question in the sheet that edits a card, once the sheet shows it.
+        private var sheetQuestion: String? {
+            window.attachedSheet?.contentView.flatMap { contentView in
+                descendants(of: contentView)
+                    .compactMap { $0 as? NSTextField }
+                    .filter(\.isEditable)
+                    .max { $0.convert($0.bounds, to: nil).maxY < $1.convert($1.bounds, to: nil).maxY }?
+                    .stringValue
+            }
+        }
+
         private func descendants(of view: NSView) -> [NSView] {
             view.subviews.flatMap { [$0] + descendants(of: $0) }
         }
@@ -62,15 +73,16 @@ extension WindowTests {
             return try #require(tableView)
         }
 
-        /// Clicks at `point` of `view`. The mouse-up is queued first: the view tracks the
-        /// mouse until it comes.
-        private func click(at point: NSPoint, in view: NSView) throws {
+        /// Clicks at `point` of `view`; with a `clickCount` of 2 as the second click of a
+        /// double-click. The mouse-up is queued first: the view tracks the mouse until it
+        /// comes.
+        private func click(at point: NSPoint, in view: NSView, clickCount: Int = 1) throws {
             let location = view.convert(point, to: nil)
             func event(_ type: NSEvent.EventType) throws -> NSEvent {
                 try #require(
                     NSEvent.mouseEvent(
                         with: type, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+                        windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: clickCount, pressure: 1
                     )
                 )
             }
@@ -142,6 +154,32 @@ extension WindowTests {
             try click(at: NSPoint(x: rect.midX, y: rect.midY), in: table)
             try await waitUntil("the row is selected") { table.selectedRowIndexes == [1] }
             #expect(window.firstResponder === table)
+        }
+
+        /// A double-click on a row opens the sheet that edits its card, but only while the
+        /// deck can be changed (#241).
+        @Test(arguments: [true, false])
+        func doubleClickOnRowEditsItsCard(isEditable: Bool) async throws {
+            window.contentView = NSHostingView(rootView: CardListView(document: document, isEditable: isEditable))
+            defer {
+                if let sheet = window.attachedSheet {
+                    window.endSheet(sheet)
+                }
+                window.close()
+            }
+            let table = try await showList()
+
+            let rect = table.rect(ofRow: 1)
+            let center = NSPoint(x: rect.midX, y: rect.midY)
+            try click(at: center, in: table)
+            try click(at: center, in: table, clickCount: 2)
+            try await waitUntil("the row is selected") { table.selectedRowIndexes == [1] }
+            if isEditable {
+                try await waitUntil("the sheet edits the card of the row") { sheetQuestion == "blim" }
+            } else {
+                try await settle()
+                #expect(window.attachedSheet == nil)
+            }
         }
     }
 }

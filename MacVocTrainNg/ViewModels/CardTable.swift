@@ -32,9 +32,10 @@ struct CardRow: Identifiable {
 /// Keeps the rows, the search index and the sorted order between view updates, so
 /// typing a search or selecting rows stays fast with many cards. When cards change,
 /// only the changed and added cards are sorted in again; a full sort happens only
-/// when the sort order changes. When only some cards changed in place, as with every
-/// keystroke in the inspector, only their rows and index entries are built again
-/// (#232). It is not observable: the view asks for its rows while it renders.
+/// when the sort order changes. When only some cards changed in place, as with an
+/// edit or a reset of their learning state, only their rows and index entries are
+/// built again (#232). It is not observable: the view asks for its rows while it
+/// renders.
 @MainActor
 final class CardTable {
     private var cards: [Card] = []
