@@ -237,6 +237,38 @@ struct DeckChangeTests {
         #expect(deck.learningOptions.parameters == options.parameters)
     }
 
+    @Test func changesToTheContentStampTheirTimeInWholeSeconds() throws {
+        let card = Card(question: "dom", answer: "Haus")
+        var deck = Deck()
+        var stepsOption = LearningOptions()
+        stepsOption.steps = 3
+        let options = stepsOption
+        let changes: [(Deck) -> DeckChange?] = [
+            { DeckChange.adding([card], to: $0) },
+            { DeckChange.editingText(of: card.id, to: CardText(question: "dom", answer: "Heim")!, in: $0) },
+            { _ in DeckChange(upserts: [self.studiedCard()]) },
+            { DeckChange.resettingLearningState(of: [$0.cards[1].id], in: $0) },
+            { DeckChange.changingLearningOptions(options, in: $0, calendar: .testing) },
+            { DeckChange.removing([card.id], from: $0) },
+        ]
+        for (index, makeChange) in changes.enumerated() {
+            let now = start.addingTimeInterval(Double(index) * 100 + 0.5)
+            let inverse = deck.apply(try #require(makeChange(deck)), at: now, calendar: .testing)
+            #expect(deck.contentModified == start.addingTimeInterval(Double(index) * 100), "change \(index)")
+            // Undoing changes the content again.
+            var undone = deck
+            _ = undone.apply(inverse, at: now.addingTimeInterval(10), calendar: .testing)
+            #expect(undone.contentModified == start.addingTimeInterval(Double(index) * 100 + 10), "undo \(index)")
+        }
+    }
+
+    @Test func aChangeThatLeavesTheContentLeavesItsStamp() {
+        var deck = Deck(cards: [Card(question: "dom", answer: "Haus")], contentModified: start)
+        let inverse = deck.apply(DeckChange(upserts: [studiedCard()], contentStamp: .keep), at: start.addingTimeInterval(100), calendar: .testing)
+        _ = deck.apply(inverse, at: start.addingTimeInterval(200), calendar: .testing)
+        #expect(deck.contentModified == start)
+    }
+
     @Test func dueCardsAreCountedAtTheGivenTime() {
         let due = start.addingTimeInterval(3600)
         let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: due))

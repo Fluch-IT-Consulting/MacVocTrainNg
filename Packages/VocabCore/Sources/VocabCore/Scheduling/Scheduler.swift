@@ -20,8 +20,15 @@ public struct Scheduler: Sendable {
 
     public var fsrs: FSRS { FSRS(parameters: learningOptions.parameters) }
 
-    /// The card after a review with `grade`; `random` fuzzes its interval if enabled.
-    public func review<R: RandomNumberGenerator>(_ card: Card, grade: Grade, at now: Date, using random: inout R) -> Card {
+    /// The card after a review with `grade`, asked in `mode`; `random` fuzzes its
+    /// interval if enabled.
+    public func review<R: RandomNumberGenerator>(
+        _ card: Card,
+        grade: Grade,
+        at now: Date,
+        mode: ReviewMode = .typed,
+        using random: inout R
+    ) -> Card {
         let previous = card.learningState
         let elapsedDays = previous.map { self.elapsedDays(since: $0, at: now) } ?? 0
         let memory = fsrs.review(
@@ -71,8 +78,35 @@ public struct Scheduler: Sendable {
             reviews: (previous?.reviews ?? 0) + 1,
             lapses: lapses
         )
-        updated.log.append(ReviewLogEntry(date: now, grade: grade))
+        updated.log.append(ReviewLogEntry(date: now, grade: grade, mode: mode))
         return updated
+    }
+
+    /// `card` after studying the reviews of `log` from scratch, oldest first: the
+    /// learning state, phase, step, due date and counters included. The intervals are
+    /// fuzzed with `random(forReviewOf:at:)`, so every device replays the same log to
+    /// the same card.
+    ///
+    /// `log` should reach back to the card's first review; `DeckChange.merging` replays
+    /// the log merged from two versions of a deck.
+    func replaying(_ log: [ReviewLogEntry], of card: Card) -> Card {
+        var replayed = card
+        replayed.resetLearningState()
+        for entry in log {
+            var random = Self.random(forReviewOf: card.id, at: entry.date)
+            replayed = review(replayed, grade: entry.grade, at: entry.date, mode: entry.mode, using: &random)
+        }
+        return replayed
+    }
+
+    /// The random source for fuzzing the review of the card with `id` at `date`, the
+    /// same on every device. Counts whole seconds, like `reviews.jsonl`.
+    static func random(forReviewOf id: Card.ID, at date: Date) -> SeededRandom {
+        let (high, low) = withUnsafeBytes(of: id.uuid) {
+            ($0.loadUnaligned(fromByteOffset: 0, as: UInt64.self), $0.loadUnaligned(fromByteOffset: 8, as: UInt64.self))
+        }
+        let seconds = UInt64(bitPattern: Int64(date.timeIntervalSince1970.rounded(.down)))
+        return SeededRandom(seed: high ^ (low &* 0x9E37_79B9_7F4A_7C15) ^ seconds)
     }
 
     /// The card with stability and difficulty replayed from its review log with the

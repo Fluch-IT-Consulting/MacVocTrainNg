@@ -223,7 +223,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
         assert(undoManager != nil, "The document changes without an undo manager; DocumentView sets it.")
         var deck = deck
-        let inverse = deck.apply(change, day: calendar.dayNumber(for: clock.now))
+        let inverse = deck.apply(change, at: clock.now, calendar: calendar)
         self.deck = deck
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, _ in
             document.perform(inverse, actionName: actionName, alongside: companion?.reversed)

@@ -78,14 +78,25 @@ extension LearningState {
     }
 }
 
+/// How a review was asked.
+public enum ReviewMode: Sendable {
+    /// The learner typed a response, and the app suggested a grade. The Mac asks so.
+    case typed
+    /// The learner revealed the answer and graded without a response.
+    case revealed
+}
+
 /// One review in a study session.
 public struct ReviewLogEntry: Hashable, Sendable {
     public var date: Date
     public var grade: Grade
+    /// Kept so an analysis can tell whether revealed reviews skew the model.
+    public var mode: ReviewMode
 
-    public init(date: Date, grade: Grade) {
+    public init(date: Date, grade: Grade, mode: ReviewMode = .typed) {
         self.date = date
         self.grade = grade
+        self.mode = mode
     }
 }
 

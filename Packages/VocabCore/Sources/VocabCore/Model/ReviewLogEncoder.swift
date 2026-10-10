@@ -6,9 +6,11 @@ import Foundation
 ///
 /// ```
 /// {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791216000,"grade":3}
+/// {"card":"6F9619FF-8B86-D011-B42D-00C04FC964FF","date":1791302400,"grade":3,"mode":"revealed"}
 /// ```
 ///
-/// `date` is in whole seconds since 1970. The encoder keeps the encoded lines of
+/// `date` is in whole seconds since 1970. `mode` is left out for a typed review, and
+/// a missing or unknown one is read as typed: every review before it came was typed. The encoder keeps the encoded lines of
 /// every card and on the next call only encodes what changed, so encoding costs the
 /// same however long the log gets. Joining the lines and writing `reviews.jsonl`
 /// still grow with the log, but stay cheap. A card's lines are reused while its
@@ -72,7 +74,8 @@ public final class ReviewLogEncoder: @unchecked Sendable {
         let id = card.id.uuidString
         for entry in entries {
             let seconds = Int(entry.date.timeIntervalSince1970.rounded(.down))
-            data.append(contentsOf: "{\"card\":\"\(id)\",\"date\":\(seconds),\"grade\":\(entry.grade.rawValue)}\n".utf8)
+            let mode = entry.mode == .revealed ? ",\"mode\":\"revealed\"" : ""
+            data.append(contentsOf: "{\"card\":\"\(id)\",\"date\":\(seconds),\"grade\":\(entry.grade.rawValue)\(mode)}\n".utf8)
         }
     }
 
@@ -80,6 +83,11 @@ public final class ReviewLogEncoder: @unchecked Sendable {
         var card: UUID
         var date: Int
         var grade: Grade
+        var mode: String?
+
+        var entry: ReviewLogEntry {
+            ReviewLogEntry(date: Date(timeIntervalSince1970: Double(date)), grade: grade, mode: mode == "revealed" ? .revealed : .typed)
+        }
     }
 
     /// Replaces the review logs of `cards` with the ones in `data`. A line of a card
@@ -115,7 +123,7 @@ public final class ReviewLogEncoder: @unchecked Sendable {
             guard ids.contains(line.card) else {
                 throw DeckFile.Error.reviewsOfUnknownCard(line: lines[index].offset + 1)
             }
-            logs[line.card, default: []].append(ReviewLogEntry(date: Date(timeIntervalSince1970: Double(line.date)), grade: line.grade))
+            logs[line.card, default: []].append(line.entry)
         }
         for index in cards.indices {
             cards[index].log = logs[cards[index].id] ?? []

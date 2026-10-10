@@ -45,18 +45,29 @@ extension LearningOptions {
 /// A collection of cards together with its learning options and progress, stored
 /// as one package (see `DeckFile`).
 ///
-/// Cards and learning options change only through `apply(_:day:)`, which keeps
-/// `progress` in step with the cards.
+/// Cards and learning options change only through `apply(_:at:calendar:)`, which
+/// keeps `progress` and `contentModified` in step with the cards.
 public struct Deck: Hashable, Sendable {
     public internal(set) var learningOptions: LearningOptions
     public internal(set) var cards: [Card]
     /// One daily snapshot per study day on which the deck changed, oldest first.
     public internal(set) var progress: [DailySnapshot]
+    /// When the content last changed, in whole seconds: cards added, removed, edited or
+    /// reset, or the learning options. Reviews leave it, so a merge can tell which
+    /// version holds the newer content (`DeckChange.merging`). `nil` until the first
+    /// such change since the deck was created or saved by an app version without it.
+    public internal(set) var contentModified: Date?
 
-    public init(learningOptions: LearningOptions = LearningOptions(), cards: [Card] = [], progress: [DailySnapshot] = []) {
+    public init(
+        learningOptions: LearningOptions = LearningOptions(),
+        cards: [Card] = [],
+        progress: [DailySnapshot] = [],
+        contentModified: Date? = nil
+    ) {
         self.learningOptions = learningOptions
         self.cards = cards
         self.progress = progress
+        self.contentModified = contentModified
     }
 
     public func index(of id: Card.ID) -> Int? {

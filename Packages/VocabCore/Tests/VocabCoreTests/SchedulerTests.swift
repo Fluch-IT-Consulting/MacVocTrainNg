@@ -70,6 +70,30 @@ struct SchedulerTests {
         #expect(scheduler.replayingMemory(of: Card(question: "dom", answer: "Haus")) == nil)
     }
 
+    @Test func replayingTheLogWithoutFuzzingGivesTheSameCard() {
+        let card = reviewed([(0, .again), (0.1, .good), (0.2, .good), (30, .hard), (100, .again), (100.1, .good), (300, .easy)], by: scheduler)
+        #expect(scheduler.replaying(card.log, of: card) == card)
+    }
+
+    @Test func replayingFuzzesAlikeEveryTime() throws {
+        var fuzzing = scheduler
+        fuzzing.learningOptions.fuzzing = true
+        let card = reviewed([(0, .easy), (200, .good), (900, .good)], by: fuzzing)
+        let replayed = fuzzing.replaying(card.log, of: card)
+        #expect(replayed == fuzzing.replaying(card.log, of: Card(id: card.id, question: "dom", answer: "Haus")))
+        #expect(replayed.log == card.log)
+        #expect(replayed.learningState?.reviews == 3)
+        #expect(replayed.learningState?.phase == .review)
+        #expect(replayed.learningState?.stability == card.learningState?.stability)
+    }
+
+    @Test func reviewsRecordTheirMode() {
+        var random = SeededRandom(seed: 0)
+        let card = scheduler.review(Card(question: "dom", answer: "Haus"), grade: .good, at: now, mode: .revealed, using: &random)
+        #expect(card.log == [ReviewLogEntry(date: now, grade: .good, mode: .revealed)])
+        #expect(scheduler.replaying(card.log, of: card).log == card.log)
+    }
+
     @Test func againRestartsAndHardKeepsLearningStep() {
         var card = Card(question: "dom", answer: "Haus")
         card = scheduler.review(card, grade: .good, at: now)

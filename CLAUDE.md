@@ -30,8 +30,8 @@ The active developer dir may be the Command Line Tools; prefix with
   marks the document dirty. They register with the document's own `undoManager`, which
   `DocumentView` sets from its environment (tests set it themselves); callers don't pass
   one. Don't mutate `deck` elsewhere. Underneath, cards and learning
-  options change only through `Deck.apply(_:day:)`: it returns the inverse change and keeps
-  `progress` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
+  options change only through `Deck.apply(_:at:calendar:)`: it returns the inverse change
+  and keeps `progress` and `contentModified` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
   log can't be set from outside it (tests reach the full `Card.init` via `@testable`).
 - Reviews are undoable: the document applies the change `SessionMode.grade` returns and
   runs the restore of the `Session`, an opaque `UndoCompanion`, in the same undo action,

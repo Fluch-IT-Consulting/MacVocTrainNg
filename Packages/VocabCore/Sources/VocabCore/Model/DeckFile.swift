@@ -17,7 +17,8 @@ import Foundation
 ///
 /// Versions 1 (a single JSON file with the log inside each card) and 2 (the package
 /// with the keys before the glossary of #23) date from before the first release and
-/// are no longer read.
+/// are no longer read. Version 4 added `contentModified` and the review mode, which
+/// a merge needs (#249); version 3 reads with neither.
 ///
 /// When `currentVersion` goes up: a missing key takes its default, so a newer app
 /// version reads an older deck of the same version. The other way round, an older
@@ -30,7 +31,9 @@ import Foundation
 /// `unsupportedVersion`. Incompatible changes always raise it.
 public enum DeckFile {
     public static let format = "com.mfluch.voctrain.deck"
-    public static let currentVersion = 3
+    public static let currentVersion = 4
+    /// The oldest version this app version reads.
+    public static let oldestReadableVersion = 3
     public static let deckFileName = "deck.json"
     public static let reviewsFileName = "reviews.jsonl"
 
@@ -120,7 +123,7 @@ public enum DeckFile {
         guard version <= currentVersion else {
             throw Error.unsupportedVersion(version)
         }
-        guard version == currentVersion else {
+        guard version >= oldestReadableVersion else {
             throw Error.outdatedVersion(version)
         }
 
@@ -145,6 +148,8 @@ extension DeckFile {
         var learningOptions: OptionsRecord
         var cards: [CardRecord]
         var progress: [SnapshotRecord]
+        /// Left out until the content first changes.
+        var contentModified: Date?
 
         init(_ deck: Deck) {
             format = DeckFile.format
@@ -152,6 +157,7 @@ extension DeckFile {
             learningOptions = OptionsRecord(deck.learningOptions)
             cards = deck.cards.map(CardRecord.init)
             progress = deck.progress.map(SnapshotRecord.init)
+            contentModified = deck.contentModified
         }
 
         func deck() throws -> Deck {
@@ -163,7 +169,8 @@ extension DeckFile {
             return Deck(
                 learningOptions: try learningOptions.learningOptions(),
                 cards: cards.map(\.card),
-                progress: try progress.map { try $0.snapshot() }
+                progress: try progress.map { try $0.snapshot() },
+                contentModified: contentModified
             )
         }
     }
