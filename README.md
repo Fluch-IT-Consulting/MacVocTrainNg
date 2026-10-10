@@ -49,8 +49,11 @@ geladene DMG muss dagegen jedes Mal erlaubt werden.
 ## Projektstruktur
 
 ```
-MacVocTrainNg/              App (SwiftUI): `VocabularyDocument`, Ansichten, Lokalisierung
+MacVocTrainNg/              Mac-App (SwiftUI): Ansichten, Zusammenführen über iCloud Drive
 MacVocTrainNgTests/         Tests der App-Schicht (Undo, Lernablauf)
+VocTrain/                   iPhone-App zum Lernen unterwegs, bearbeitet keine Karten
+VocTrainTests/              Tests der iPhone-App
+Shared/                     In beiden Apps: `VocabularyDocument`, Lokalisierung
 Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Model/                    Card, Deck, Dateiformat
   Scheduling/               FSRS-6, Scheduler (Lernschritte, Fälligkeit), Lerntage
@@ -65,7 +68,7 @@ Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
 ```
 
 Die App-Schicht ist bewusst dünn; alles Fachliche steckt in `VocabCore` und ist ohne
-UI testbar. Eine iOS/iPadOS-App könnte das Paket direkt wiederverwenden.
+UI testbar. Die iPhone-App nutzt das Paket und das Dokument aus `Shared/` mit.
 
 ## Bauen und testen
 
@@ -73,6 +76,8 @@ Voraussetzung: Xcode 26.3, dieselbe Version wie die CI; es läuft ab macOS 15.6.
 selbst läuft ab macOS 14.
 
 - In Xcode: `MacVocTrainNg.xcodeproj` öffnen, ⌘R startet die App, ⌘U führt alle Tests aus.
+  Das Schema `VocTrain` baut und testet die iPhone-App, im Simulator oder auf einem
+  iPhone; dafür braucht es das Team in `Config/Signing.local.xcconfig` (siehe unten).
 - Nur den Kern testen (schnell, ohne Xcode-Projekt):
 
 ```bash
@@ -112,7 +117,7 @@ Formatierung mit swift-format (liegt Xcode bei, Einstellungen in `.swift-format`
 `lint --strict` prüft, `format -i` statt `lint --strict` korrigiert:
 
 ```bash
-xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
+xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
 
 Ob jeder Text der App im String Catalog steht und jeder Schlüssel dort eine deutsche
@@ -124,7 +129,8 @@ swift Tools/check-localizations.swift
 
 Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 26.3) läuft bei jedem Pull
 Request und nach jedem Push auf `main`. Sie prüft swift-format, baut und testet mit
-Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut mit
+Warnungen als Fehlern, die iPhone-App im Simulator ebenso, prüft die Übersetzungen
+wie oben und baut mit
 `Tools/make-release.sh --build-only` die Release-Konfiguration für Apple Silicon und
 Intel. Der Schalter baut nur, mit Warnungen als Fehlern, und hört vor dem Signieren und
 dem Disk-Image auf. Sonst bleiben Warnungen lokal Warnungen.

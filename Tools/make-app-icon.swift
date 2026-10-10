@@ -1,9 +1,10 @@
-// Renders the app icon into the asset catalog.
+// Renders the app icons into the asset catalogs of the Mac app and the iPhone app.
 // Usage: swift Tools/make-app-icon.swift   (from the repository root)
 
 import AppKit
 
-let outputDirectory = URL(fileURLWithPath: "MacVocTrainNg/Resources/Assets.xcassets/AppIcon.appiconset")
+let macDirectory = URL(fileURLWithPath: "MacVocTrainNg/Resources/Assets.xcassets/AppIcon.appiconset")
+let iOSDirectory = URL(fileURLWithPath: "VocTrain/Resources/Assets.xcassets/AppIcon.appiconset")
 
 func color(_ hex: UInt32, alpha: CGFloat = 1) -> CGColor {
     CGColor(
@@ -14,18 +15,26 @@ func color(_ hex: UInt32, alpha: CGFloat = 1) -> CGColor {
     )
 }
 
-/// Draws the icon on a 1024 × 1024 canvas (origin bottom left).
-func drawIcon(in context: CGContext) {
+/// Draws the icon on a 1024 × 1024 canvas (origin bottom left). With `fullBleed`, the
+/// tile fills the canvas without rounded corners and shadow: iOS rounds them itself.
+func drawIcon(in context: CGContext, fullBleed: Bool) {
     // Tile: macOS icon grid, 824 pt rounded square centred on the canvas.
     let tile = CGRect(x: 100, y: 100, width: 824, height: 824)
-    let tilePath = CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
-
-    context.saveGState()
-    context.setShadow(offset: CGSize(width: 0, height: -12), blur: 28, color: color(0x000000, alpha: 0.35))
-    context.addPath(tilePath)
-    context.setFillColor(color(0x1C5CAB))
-    context.fillPath()
-    context.restoreGState()
+    let tilePath: CGPath
+    if fullBleed {
+        // Enlarges the tile to the canvas; everything on it is drawn as for macOS.
+        context.scaleBy(x: 1024 / tile.width, y: 1024 / tile.height)
+        context.translateBy(x: -tile.minX, y: -tile.minY)
+        tilePath = CGPath(rect: tile, transform: nil)
+    } else {
+        tilePath = CGPath(roundedRect: tile, cornerWidth: 185, cornerHeight: 185, transform: nil)
+        context.saveGState()
+        context.setShadow(offset: CGSize(width: 0, height: -12), blur: 28, color: color(0x000000, alpha: 0.35))
+        context.addPath(tilePath)
+        context.setFillColor(color(0x1C5CAB))
+        context.fillPath()
+        context.restoreGState()
+    }
 
     context.saveGState()
     context.addPath(tilePath)
@@ -91,28 +100,39 @@ func drawIcon(in context: CGContext) {
     context.restoreGState()
 }
 
-func render(pixels: Int) -> Data {
+/// Renders the icon as PNG. The full-bleed icon has no alpha channel, as the App Store
+/// requires for iOS.
+func render(pixels: Int, fullBleed: Bool = false) -> Data {
     let context = CGContext(
         data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
         space: CGColorSpace(name: CGColorSpace.sRGB)!,
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        bitmapInfo: (fullBleed ? CGImageAlphaInfo.noneSkipLast : .premultipliedLast).rawValue
     )!
     context.interpolationQuality = .high
     context.scaleBy(x: CGFloat(pixels) / 1024, y: CGFloat(pixels) / 1024)
-    drawIcon(in: context)
+    drawIcon(in: context, fullBleed: fullBleed)
     let bitmap = NSBitmapImageRep(cgImage: context.makeImage()!)
     return bitmap.representation(using: .png, properties: [:])!
 }
 
-var images: [[String: String]] = []
+func writeContents(_ images: [[String: String]], to directory: URL) throws {
+    let contents: [String: Any] = ["images": images, "info": ["author": "xcode", "version": 1]]
+    let json = try JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .sortedKeys])
+    try json.write(to: directory.appendingPathComponent("Contents.json"))
+    print("Wrote \(images.count) icon images to \(directory.path)")
+}
+
+var macImages: [[String: String]] = []
 for points in [16, 32, 128, 256, 512] {
     for scale in [1, 2] {
         let name = "icon_\(points)x\(points)\(scale == 2 ? "@2x" : "").png"
-        try render(pixels: points * scale).write(to: outputDirectory.appendingPathComponent(name))
-        images.append(["idiom": "mac", "scale": "\(scale)x", "size": "\(points)x\(points)", "filename": name])
+        try render(pixels: points * scale).write(to: macDirectory.appendingPathComponent(name))
+        macImages.append(["idiom": "mac", "scale": "\(scale)x", "size": "\(points)x\(points)", "filename": name])
     }
 }
-let contents: [String: Any] = ["images": images, "info": ["author": "xcode", "version": 1]]
-let json = try JSONSerialization.data(withJSONObject: contents, options: [.prettyPrinted, .sortedKeys])
-try json.write(to: outputDirectory.appendingPathComponent("Contents.json"))
-print("Wrote \(images.count) icon images to \(outputDirectory.path)")
+try writeContents(macImages, to: macDirectory)
+
+// iOS takes a single image and scales it to every size.
+let iOSName = "icon_1024x1024.png"
+try render(pixels: 1024, fullBleed: true).write(to: iOSDirectory.appendingPathComponent(iOSName))
+try writeContents([["idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": iOSName]], to: iOSDirectory)
