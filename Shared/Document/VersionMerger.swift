@@ -3,12 +3,13 @@ import Foundation
 import Observation
 import VocabCore
 
-/// Keeps the deck of a document window whole when another device changes its file,
-/// e.g. the iPhone on iCloud Drive (#252).
+/// Keeps the deck of an open document whole when the other device, Mac or iPhone,
+/// changes its file on iCloud Drive (#252, #259).
 ///
-/// NSDocument reads the file again on its own when another process writes it, and the
-/// window gets a new document, see `DocumentWindow`. The merger lives as long as the
-/// window, so it sees each of its documents in turn:
+/// NSDocument on the Mac and UIDocument on the iPhone read the file again on their own
+/// when another process writes it, and the window or scene gets a new document, see
+/// `DocumentWindow` and `DocumentScreen`. The merger lives as long as the window or
+/// scene, so it sees each of its documents in turn:
 /// - It merges the deck of the document before into the new one: NSDocument sets
 ///   unsaved changes aside as an `NSFileVersion` before it reads again, where the
 ///   learner wouldn't find them. It doesn't if the file holds nothing the deck before
@@ -17,13 +18,14 @@ import VocabCore
 /// - It merges the versions iCloud Drive keeps in conflict with the file, saves, and
 ///   only then marks the conflicts resolved. An unresolved conflict keeps the iPhone
 ///   from opening the deck. It does so after opening, after reading again and when the
-///   file changes, as iCloud Drive may keep the version of this Mac and set the other
-///   device's aside.
+///   file changes, as iCloud Drive may keep the version of this device and set the
+///   other device's aside.
 /// - It saves a few seconds after every change, so the other device gets reviews
 ///   soon and conflicts become rare. The devices take turns rather than being used
 ///   at the same time, and iCloud Drive takes about a minute to bring a version
 ///   over, so waiting a few seconds for more changes costs little.
 /// - It says so when reading the file again ended a study session.
+/// - It lets go of the file while the iPhone app is in the background, see `suspend()`.
 ///
 /// Each merge is one undo action of the document, see `VocabularyDocument.merge(_:)`.
 /// The merge itself is idempotent, so merging once too often does no harm.
@@ -34,10 +36,11 @@ final class VersionMerger {
     /// Why a version in conflict couldn't be merged; the window shows it. Each version
     /// is reported once.
     var failure: String?
-    /// Whether the window shows a study session; `DocumentView` keeps it up to date.
+    /// Whether a study session is under way; the document's view keeps it up to date,
+    /// `DocumentView` on the Mac and `DeckView` on the iPhone.
     @ObservationIgnored var isInSession = false
 
-    /// The window's current document.
+    /// The current document of the window or scene.
     @ObservationIgnored private(set) var document: VocabularyDocument?
     /// The file of `document` while it can be changed, else `nil`.
     @ObservationIgnored private var fileURL: URL?
@@ -51,6 +54,10 @@ final class VersionMerger {
     @ObservationIgnored private(set) var saving: Task<Void, Never>?
     /// The merge scheduled after the file changed.
     @ObservationIgnored private(set) var checking: Task<Void, Never>?
+    /// Whether a change waits for the save scheduled after it.
+    @ObservationIgnored private var hasUnsavedChange = false
+    /// Whether the app is in the background, see `suspend()`.
+    @ObservationIgnored private(set) var isSuspended = false
     /// How long a save waits for more changes.
     private let saveDelay: Duration
     /// How long a merge waits after the file changed. During a write by another
@@ -68,8 +75,8 @@ final class VersionMerger {
         self.makeStore = makeStore
     }
 
-    /// Takes `document` as the window's document, saved at `fileURL`. Called by
-    /// `DocumentView` when it appears and when the file moves or can be changed or no
+    /// Takes `document` as the current document, saved at `fileURL`. Called by the
+    /// document's view when it appears and when the file moves or can be changed or no
     /// longer. Waits for the document's undo manager: merging changes the deck.
     func attach(_ document: VocabularyDocument, fileURL: URL?, isEditable: Bool) {
         guard document.undoManager != nil else { return }
@@ -78,10 +85,7 @@ final class VersionMerger {
         let previous = self.document
         if fileURL != self.fileURL {
             self.fileURL = fileURL
-            store = nil
-            if let fileURL {
-                store = makeStore(fileURL) { [weak self] in self?.fileDidChange() }
-            }
+            connectStore()
         }
         guard document !== previous else {
             mergeVersions()
@@ -143,6 +147,39 @@ final class VersionMerger {
         }
     }
 
+    /// Lets go of the file when the iPhone app goes to the background: a file presenter
+    /// of a suspended app may hold up the other processes that want the file (#246).
+    /// Saves a change first that waits for its save.
+    func suspend() {
+        guard !isSuspended else { return }
+        isSuspended = true
+        checking?.cancel()
+        if hasUnsavedChange, let store {
+            saving?.cancel()
+            hasUnsavedChange = false
+            saving = Task { try? await store.save() }
+        }
+        store = nil
+    }
+
+    /// Hears of changes to the file again when the app comes back, and merges the
+    /// versions that came meanwhile.
+    func resume() {
+        guard isSuspended else { return }
+        isSuspended = false
+        connectStore()
+        mergeVersions()
+    }
+
+    /// Hears of changes to the file while it can be changed and the app isn't in the
+    /// background.
+    private func connectStore() {
+        store = nil
+        if let fileURL, !isSuspended {
+            store = makeStore(fileURL) { [weak self] in self?.fileDidChange() }
+        }
+    }
+
     private func fileDidChange() {
         checking?.cancel()
         checking = Task { [weak self, checkDelay] in
@@ -155,11 +192,13 @@ final class VersionMerger {
     private func scheduleSave() {
         guard store != nil else { return }
         saving?.cancel()
+        hasUnsavedChange = true
         saving = Task { [weak self, saveDelay] in
             try? await Task.sleep(for: saveDelay)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, let self else { return }
+            hasUnsavedChange = false
             // A failed save leaves the change to autosave.
-            try? await self?.store?.save()
+            try? await store?.save()
         }
     }
 }
@@ -168,7 +207,7 @@ final class VersionMerger {
 @MainActor
 protocol DeckVersionStore: AnyObject {
     /// The versions iCloud Drive keeps in conflict with the file, as far as they are
-    /// on this Mac.
+    /// on this device.
     func unresolvedConflicts() -> [ConflictVersion]
     /// Writes the document's deck to the file now.
     func save() async throws

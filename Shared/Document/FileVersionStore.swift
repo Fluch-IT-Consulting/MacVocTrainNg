@@ -1,12 +1,15 @@
-import AppKit
+import Foundation
 import VocabCore
 
 /// The file of an open deck: its versions in conflict on iCloud Drive, and the
-/// NSDocument behind `DocumentGroup`, which saves it.
+/// document behind `DocumentGroup`, which saves it. Each app finds that document its
+/// own way: an NSDocument on the Mac, a UIDocument on the iPhone, see `save()` in the
+/// extensions of the two apps.
 ///
 /// Hears of every change to the file by another process through a file presenter of
-/// its own, next to the NSDocument's. The sandbox allows it with the entitlement for
-/// files the learner chose (#246).
+/// its own, next to the document's. The Mac's sandbox allows it with the entitlement
+/// for files the learner chose (#246); on the iPhone, the learner chose the file in
+/// the document browser.
 @MainActor
 final class FileVersionStore: DeckVersionStore {
     let url: URL
@@ -36,22 +39,8 @@ final class FileVersionStore: DeckVersionStore {
         }
     }
 
-    /// Saves in place, like autosave, even if NSDocument hasn't counted the change yet.
-    func save() async throws {
-        guard let document = NSDocumentController.shared.document(for: url), let fileURL = document.fileURL, let fileType = document.fileType else { return }
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
-            document.save(to: fileURL, ofType: fileType, for: .autosaveInPlaceOperation) { error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume()
-                }
-            }
-        }
-    }
-
     /// Only passes events on to the main actor, at once and without waiting: asking the
-    /// NSDocument from a callback while another process writes would wait for that
+    /// document from a callback while another process writes would wait for that
     /// process, which waits for the callback (#246).
     private final class Presenter: NSObject, NSFilePresenter, @unchecked Sendable {
         let presentedItemURL: URL?

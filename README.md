@@ -49,11 +49,12 @@ geladene DMG muss dagegen jedes Mal erlaubt werden.
 ## Projektstruktur
 
 ```
-MacVocTrainNg/              Mac-App (SwiftUI): Ansichten, Zusammenführen über iCloud Drive
+MacVocTrainNg/              Mac-App (SwiftUI): Ansichten, Import und Export
 MacVocTrainNgTests/         Tests der App-Schicht (Undo, Lernablauf)
 VocTrain/                   iPhone-App zum Lernen unterwegs, bearbeitet keine Karten
 VocTrainTests/              Tests der iPhone-App
-Shared/                     In beiden Apps: `VocabularyDocument`, Lokalisierung
+Shared/                     In beiden Apps: `VocabularyDocument`, Zusammenführen über
+                            iCloud Drive, Lokalisierung
 Packages/VocabCore/         Plattformunabhängige Logik als Swift Package
   Model/                    Card, Deck, Dateiformat
   Scheduling/               FSRS-6, Scheduler (Lernschritte, Fälligkeit), Lerntage
