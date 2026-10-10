@@ -113,7 +113,7 @@ struct DeckScreen: View {
             Section("Grade next due card") {
                 HStack {
                     ForEach([Grade.again, .hard, .good, .easy], id: \.self) { grade in
-                        Button("\(grade)") {
+                        Button(String(describing: grade)) {
                             EventLog.add("grade " + document.gradeNext(grade, undoManager: undoManager))
                         }
                         .buttonStyle(.bordered)
