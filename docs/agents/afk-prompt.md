@@ -13,8 +13,9 @@ von `origin/main`. Das Issue ist schon zugewiesen. Arbeite nur in diesem Verzeic
    Änderung fehlschlägt.
 3. Vor dem ersten Commit muss alles grün sein:
    - `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test`
-   - `swift Tools/check-localizations.swift` (liest, was der Build davor extrahiert hat)
-   - `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
+   - `xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test` (die iPhone-App)
+   - `swift Tools/check-localizations.swift` (liest, was die Builds davor extrahiert haben)
+   - `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
 
    Zwischendurch reicht für VocabCore `swift test --package-path Packages/VocabCore`.
    Layout behebt `xcrun swift-format format -i` mit denselben Pfaden.

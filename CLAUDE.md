@@ -1,7 +1,8 @@
 # MacVocTrain NG
 
-macOS vocabulary trainer (SwiftUI, Swift 6, macOS 14+). The user writes German; code,
-comments and base UI strings are English, German comes from the String Catalog.
+macOS vocabulary trainer (SwiftUI, Swift 6, macOS 14+) with an iPhone app to study on
+the go (iOS 17+). The user writes German; code, comments and base UI strings are
+English, German comes from the String Catalog.
 
 ## Commands
 
@@ -10,14 +11,16 @@ The active developer dir may be the Command Line Tools; prefix with
 
 - Core tests: `cd Packages/VocabCore && swift test`
 - App build + all tests: `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg test`
-- Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
+- iPhone app build + tests: `xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain -destination 'platform=iOS Simulator,name=iPhone 17' test`
+- Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
   (config in `.swift-format`); `format -i` instead of `lint --strict` fixes the layout.
   Name the paths: `build/` and `.build/` contain generated Swift files.
-- Translations: `swift Tools/check-localizations.swift` after a build with
-  `-derivedDataPath build/DerivedData`.
+- Translations: `swift Tools/check-localizations.swift` after the builds of both apps
+  with `-derivedDataPath build/DerivedData`.
 - CI: `.github/workflows/ci.yml`; its header comment lists what the job `test` checks.
-- Signing: `Config/Signing.xcconfig` signs ad hoc; the untracked
-  `Config/Signing.local.xcconfig` sets the team. No team ID in tracked files.
+- Signing: `Config/Signing.xcconfig` signs ad hoc, `Config/Signing-iOS.xcconfig` signs
+  the iPhone app automatically; the untracked `Config/Signing.local.xcconfig` sets the
+  team for both. No team ID in tracked files.
 
 ## Architecture
 
@@ -42,10 +45,12 @@ The active developer dir may be the Command Line Tools; prefix with
   `VocabularyDocument.merge(_:)`. File presenter callbacks must not ask the NSDocument
   synchronously: during another process's write, both would wait for each other.
 - The Xcode project uses synchronized folders: new files in `MacVocTrainNg/` or
-  `MacVocTrainNgTests/` are picked up automatically. `Shared/` holds what the Mac app
-  shares with the iPhone app (#254): the document and what it needs, and the one
-  String Catalog. Code moves there only when the iPhone app uses it and it needs no
-  AppKit; `VocabCore` stays the place for domain logic.
+  `MacVocTrainNgTests/` are picked up automatically, likewise in `VocTrain/` (the
+  iPhone app, which only studies and never edits cards) and `VocTrainTests/`.
+  `Shared/`, compiled into both apps, holds what the Mac app shares with the iPhone
+  app (#254): the document and what it needs, and the one String Catalog. Code moves
+  there only when the iPhone app uses it and it needs no AppKit; `VocabCore` stays the
+  place for domain logic.
 
 ## Conventions
 

@@ -1,0 +1,12 @@
+// Code signing for the iPhone app and its tests; replaces Signing.xcconfig for them.
+//
+// Automatic signing: Xcode creates the provisioning profile for the team. Without a
+// team, as in the CI, the app builds and runs only in the simulator. To run it on an
+// iPhone, set the team in the untracked Signing.local.xcconfig next to this file, as
+// for the Mac app; a free Apple account will do for your own devices.
+
+CODE_SIGN_IDENTITY = Apple Development
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

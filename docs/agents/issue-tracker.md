@@ -58,8 +58,9 @@ Warnungen, jeder Text übersetzt im String Catalog stehen und swift-format nicht
 
 ```
 xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
 swift Tools/check-localizations.swift
-xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
+xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
 
 Dasselbe prüft die CI bei jedem Pull Request, dazu den Release-Build.

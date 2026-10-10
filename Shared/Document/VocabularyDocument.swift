@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import VocabCore
 import os
 
-/// The SwiftUI document of one deck.
+/// The SwiftUI document of one deck, in the Mac app and in the iPhone app.
 ///
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes. They
@@ -64,9 +64,9 @@ final class VocabularyDocument: ReferenceFileDocument {
     private let reviewLog = ReviewLogEncoder()
     /// The undo manager of the document's window; every change registers its undo
     /// action here. SwiftUI creates the document but hands the undo manager only to
-    /// views, so `DocumentView` sets it, and tests set it themselves. Weak: it belongs
-    /// to the NSDocument behind `DocumentGroup`. Not part of the deck, so setting it
-    /// tells no observer.
+    /// views, so `DocumentView` sets it (`DeckView` on the iPhone), and tests set it
+    /// themselves. Weak: it belongs to the NSDocument or UIDocument behind
+    /// `DocumentGroup`. Not part of the deck, so setting it tells no observer.
     weak var undoManager: UndoManager?
     /// Switches the calendar when the machine's time zone changes; ends with the document.
     private var timeZoneObservation: AnyCancellable?
