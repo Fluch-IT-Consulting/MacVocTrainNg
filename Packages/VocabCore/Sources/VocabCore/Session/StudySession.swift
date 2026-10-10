@@ -10,6 +10,8 @@ public struct StudySession: Sendable {
     /// a review doesn't change which card comes next. As part of the session's value,
     /// undoing a review restores it: the same review again yields the same due date.
     private var fuzzing: SeededRandom
+    /// How the session asks its cards; every review records it in the card's log.
+    public let reviewMode: ReviewMode
 
     /// A session over all cards of `deck` that are due at `now`.
     ///
@@ -18,7 +20,10 @@ public struct StudySession: Sendable {
     ///     calendar of its own, see `review(_:of:with:at:calendar:)`.
     ///   - random: Decides the selection and order of the cards and the fuzz of the
     ///     intervals; the same seed gives the same session.
-    public init(deck: Deck, at now: Date, calendar: StudyCalendar, random: SeededRandom = SeededRandom()) {
+    ///   - reviewMode: How the cards are asked: typed on the Mac, revealed on the
+    ///     iPhone (#258).
+    public init(deck: Deck, at now: Date, calendar: StudyCalendar, random: SeededRandom = SeededRandom(), reviewMode: ReviewMode = .typed) {
+        self.reviewMode = reviewMode
         var random = random
         let ids = Self.selectCards(from: deck, at: now, calendar: calendar, using: &random)
         fuzzing = SeededRandom(seed: random.next())
@@ -37,7 +42,7 @@ public struct StudySession: Sendable {
     mutating func review(_ grade: Grade, of card: Card, with learningOptions: LearningOptions, at now: Date, calendar: StudyCalendar) -> Card? {
         guard card.id == session.currentCardID else { return nil }
         let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
-        let scheduled = scheduler.review(card, grade: grade, at: now, using: &fuzzing)
+        let scheduled = scheduler.review(card, grade: grade, at: now, mode: reviewMode, using: &fuzzing)
         session.record(grade, isDone: scheduled.learningState?.phase == .review, at: now)
         return scheduled
     }
