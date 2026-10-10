@@ -51,6 +51,11 @@
 			path = MacVocTrainNgTests;
 			sourceTree = "<group>";
 		};
+		7A0000000000000000000030 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +82,7 @@
 			children = (
 				7A0000000000000000000005 /* MacVocTrainNg */,
 				7A0000000000000000000025 /* MacVocTrainNgTests */,
+				7A0000000000000000000030 /* Shared */,
 				7A0000000000000000000014 /* VocabCore */,
 				7A000000000000000000002E /* Config */,
 				7A0000000000000000000003 /* Products */,
@@ -117,6 +123,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				7A0000000000000000000005 /* MacVocTrainNg */,
+				7A0000000000000000000030 /* Shared */,
 			);
 			name = MacVocTrainNg;
 			packageProductDependencies = (

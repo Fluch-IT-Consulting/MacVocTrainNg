@@ -9,7 +9,7 @@
 
 import Foundation
 
-let catalogPath = "MacVocTrainNg/Resources/Localizable.xcstrings"
+let catalogPath = "Shared/Resources/Localizable.xcstrings"
 let catalogTable = "Localizable"
 let language = "de"
 let pluralForms = ["one", "other"]
