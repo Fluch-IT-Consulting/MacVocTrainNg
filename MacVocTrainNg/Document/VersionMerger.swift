@@ -19,8 +19,10 @@ import VocabCore
 ///   from opening the deck. It does so after opening, after reading again and when the
 ///   file changes, as iCloud Drive may keep the version of this Mac and set the other
 ///   device's aside.
-/// - It saves soon after every change, so the other device gets reviews soon and
-///   conflicts become rare.
+/// - It saves a few seconds after every change, so the other device gets reviews
+///   soon and conflicts become rare. The devices take turns rather than being used
+///   at the same time, and iCloud Drive takes about a minute to bring a version
+///   over, so waiting a few seconds for more changes costs little.
 /// - It says so when reading the file again ended a study session.
 ///
 /// Each merge is one undo action of the document, see `VocabularyDocument.merge(_:)`.
@@ -57,7 +59,7 @@ final class VersionMerger {
     private let checkDelay: Duration
 
     init(
-        saveDelay: Duration = .milliseconds(500),
+        saveDelay: Duration = .seconds(5),
         checkDelay: Duration = .seconds(2),
         makeStore: @escaping @MainActor (URL, @escaping @MainActor @Sendable () -> Void) -> any DeckVersionStore = { FileVersionStore(url: $0, onChange: $1) }
     ) {
