@@ -47,6 +47,12 @@ _Vermeiden_: Answer, Antwort, Wiederholung, Rep
 Was der Lernende auf eine Question hin eintippt.
 _Vermeiden_: Answer, „deine Antwort“
 
+**Review mode** (Abfrageart):
+Wie eine Review lief: Typed (Getippt), der Lernende tippt eine Response, und die App
+schlägt eine Grade vor; oder Revealed (Aufgedeckt), der Lernende deckt die Answer auf und
+gibt die Grade ohne Response. Der Mac fragt Typed ab.
+_Vermeiden_: Karteikarten-Modus
+
 **Check result** (Prüfergebnis):
 Wie die Response zur Answer passt: Correct, Incomplete, Almost correct oder Wrong. Es
 schlägt eine Grade nur vor.
@@ -166,6 +172,12 @@ _Vermeiden_: Status, Learning, Lernend
 Eine Sammlung von Cards mit ihren Learning options und ihrem Progress, gespeichert in einer
 Datei. Sein Name ist der Dateiname.
 _Vermeiden_: Dokument, Datei, Kartei, Box, Index card box
+
+**Merge** (Zusammenführen):
+Zwei Fassungen desselben Decks zu einer machen, etwa die von Mac und iPhone nach einem
+Konflikt auf iCloud Drive. Die Review logs beider zählen; Cards und Learning options kommen
+aus der Fassung, deren Inhalt zuletzt geändert wurde. Reviews ändern den Inhalt nicht.
+_Vermeiden_: Synchronisieren, Abgleich
 
 **Learning options** (Lernoptionen):
 Die Einstellungen, die für ein Deck gelten, etwa Target recall, die Zahl der Steps und die
