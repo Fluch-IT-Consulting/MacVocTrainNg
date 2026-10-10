@@ -54,6 +54,9 @@ final class VersionMerger {
     @ObservationIgnored private(set) var saving: Task<Void, Never>?
     /// The merge scheduled after the file changed.
     @ObservationIgnored private(set) var checking: Task<Void, Never>?
+    /// The deck of the document before the current one, and whether a study session ran
+    /// on it, until `takeReplaced()` merges it.
+    @ObservationIgnored private var replaced: (deck: Deck, wasInSession: Bool)?
     /// Whether a change waits for the save scheduled after it.
     @ObservationIgnored private var hasUnsavedChange = false
     /// Whether the app is in the background, see `suspend()`.
@@ -87,41 +90,47 @@ final class VersionMerger {
             self.fileURL = fileURL
             connectStore()
         }
-        guard document !== previous else {
-            mergeVersions()
-            return
-        }
-
-        self.document = document
-        deckObservation = document.deckDidChange.sink { [weak self] in self?.scheduleSave() }
-        var recovered: Deck?
-        if let previous, store != nil, DeckChange.merging(document.deck, into: previous.deck, calendar: document.calendar) != nil {
-            // The file holds something the deck before lacks: another device changed it.
-            recovered = previous.deck
-            if isInSession {
-                endedSession = true
+        if document !== previous {
+            self.document = document
+            deckObservation = document.deckDidChange.sink { [weak self] in self?.scheduleSave() }
+            if let previous, replaced == nil {
+                replaced = (previous.deck, isInSession)
             }
+            isInSession = false
         }
-        isInSession = false
-        mergeVersions(recovering: recovered)
+        mergeVersions()
     }
 
-    /// Merges the versions in conflict with the file and `recovered`, after the merges
-    /// asked for before.
+    /// Merges the versions in conflict with the file and the deck replaced, after the
+    /// merges asked for before.
     @discardableResult
-    func mergeVersions(recovering recovered: Deck? = nil) -> Task<Void, Never> {
+    func mergeVersions() -> Task<Void, Never> {
         let before = merging
         let task = Task { [weak self] in
             await before?.value
-            await self?.mergeNow(recovering: recovered)
+            await self?.mergeNow()
         }
         merging = task
         return task
     }
 
-    private func mergeNow(recovering recovered: Deck?) async {
+    /// The deck of the document before, if the file holds something it lacks: another
+    /// device changed the file. Waits for a file that can be changed: the iPhone reads
+    /// the file again while it can't (#259), and an old version in the version browser
+    /// on the Mac can't ever be changed.
+    private func takeReplaced() -> Deck? {
+        guard store != nil, let document, let replaced else { return nil }
+        self.replaced = nil
+        guard DeckChange.merging(document.deck, into: replaced.deck, calendar: document.calendar) != nil else { return nil }
+        if replaced.wasInSession {
+            endedSession = true
+        }
+        return replaced.deck
+    }
+
+    private func mergeNow() async {
         guard let document, let store else { return }
-        var versions = recovered.map { [$0] } ?? []
+        var versions = takeReplaced().map { [$0] } ?? []
         var conflicts: [ConflictVersion] = []
         for conflict in store.unresolvedConflicts() {
             do {

@@ -157,6 +157,27 @@ struct VersionMergerTests {
         #expect(reread.deck.card(withID: dom.id)?.log.count == 1)
     }
 
+    /// UIDocument reads the file again while the file can't be changed, and only then
+    /// lets it be changed again (#259).
+    @Test func theIPhoneReadingTheFileAgainEndsTheStudySession() async {
+        let merger = makeMerger()
+        let (before, undoManagerBefore) = open(base)
+        merger.attach(before, fileURL: url, isEditable: true)
+        merger.isInSession = true
+        study(dom, in: before, undoManagerBefore)
+
+        merger.attach(before, fileURL: url, isEditable: false)
+        let (reread, _) = open(reviewing(kot, in: base, at: day(2)))
+        merger.attach(reread, fileURL: url, isEditable: false)
+        await merger.merging?.value
+        #expect(!merger.endedSession)
+
+        merger.attach(reread, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(merger.endedSession)
+        #expect(reread.deck.cards.map(\.log.count) == [1, 1])
+    }
+
     /// Reverting to the saved or an older version reads a file that holds nothing new.
     @Test func revertingKeepsTheVersionRead() async {
         let merger = makeMerger()
