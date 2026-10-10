@@ -22,8 +22,9 @@ struct VersionMergerTests {
         start.addingTimeInterval(days * 86400)
     }
 
-    func makeMerger() -> VersionMerger {
-        VersionMerger(saveDelay: .zero, checkDelay: .zero) { [store] _, onChange in
+    func makeMerger(saveDelay: Duration = .zero) -> VersionMerger {
+        VersionMerger(saveDelay: saveDelay, checkDelay: .zero) { [store] _, onChange in
+            store.connections += 1
             store.onChange = onChange
             return store
         }
@@ -183,6 +184,42 @@ struct VersionMergerTests {
         #expect(store.events == ["save"])
     }
 
+    /// The iPhone app in the background lets go of the file (#259).
+    @Test func theBackgroundLetsGoOfTheFileAndTheReturnMerges() async {
+        let (document, _) = open(base)
+        let merger = makeMerger()
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+
+        merger.suspend()
+        // Another device reviewed meanwhile, and iCloud Drive set its version aside.
+        store.conflicts = [FakeConflict(deck: reviewing(kot, in: base, at: day(2)), store: store)]
+        await merger.mergeVersions().value
+        #expect(document.deck.card(withID: kot.id)?.log.isEmpty == true)
+
+        merger.resume()
+        await merger.merging?.value
+        #expect(store.connections == 2)
+        #expect(document.deck.card(withID: kot.id)?.log.count == 1)
+        #expect(store.events == ["save", "resolve"])
+    }
+
+    @Test func aChangeWaitingForItsSaveIsSavedBeforeTheBackground() async {
+        let (document, undoManager) = open(base)
+        let merger = makeMerger(saveDelay: .seconds(3600))
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+
+        study(dom, in: document, undoManager)
+        merger.suspend()
+        await merger.saving?.value
+        #expect(store.events == ["save"])
+
+        merger.resume()
+        await merger.merging?.value
+        #expect(store.events == ["save"])
+    }
+
     /// E.g. an old version in the version browser, or a new deck not saved yet.
     @Test(arguments: [true, false])
     func aDeckThatCantChangeOrHasNoFileIsLeftAlone(isEditable: Bool) async {
@@ -215,6 +252,8 @@ final class FakeVersionStore: DeckVersionStore {
     var conflicts: [FakeConflict] = []
     /// "save" and "resolve", in the order they happened.
     var events: [String] = []
+    /// How often `VersionMerger` began to hear of changes to the file.
+    var connections = 0
     /// The handler `VersionMerger` gave the store for changes to the file.
     var onChange: (@MainActor @Sendable () -> Void)?
 

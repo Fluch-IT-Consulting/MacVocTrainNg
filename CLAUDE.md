@@ -39,11 +39,13 @@ The active developer dir may be the Command Line Tools; prefix with
 - Reviews are undoable: the document applies the change `SessionMode.grade` returns and
   runs the restore of the `Session`, an opaque `UndoCompanion`, in the same undo action,
   after the card. The document knows no sessions.
-- NSDocument reads a deck again on its own when another device changes the file; the
-  window then gets a new document. `VersionMerger` outlives it and merges what the
+- NSDocument, or UIDocument on the iPhone, reads a deck again on its own when another
+  device changes the file; the window or scene then gets a new document.
+  `VersionMerger` (in `Shared/`, used by both apps) outlives it and merges what the
   file lacks and the versions iCloud Drive keeps in conflict, through
-  `VocabularyDocument.merge(_:)`. File presenter callbacks must not ask the NSDocument
-  synchronously: during another process's write, both would wait for each other.
+  `VocabularyDocument.merge(_:)`. File presenter callbacks must not ask the document
+  synchronously: during another process's write, both would wait for each other. The
+  iPhone app lets go of the file in the background.
 - The Xcode project uses synchronized folders: new files in `MacVocTrainNg/` or
   `MacVocTrainNgTests/` are picked up automatically, likewise in `VocTrain/` (the
   iPhone app, which only studies and never edits cards) and `VocTrainTests/`.
