@@ -129,7 +129,8 @@ swift Tools/check-localizations.swift
 
 Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 26.3) läuft bei jedem Pull
 Request und nach jedem Push auf `main`. Sie prüft swift-format, baut und testet mit
-Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut mit
+Warnungen als Fehlern, die iPhone-App im Simulator ebenso, prüft die Übersetzungen
+wie oben und baut mit
 `Tools/make-release.sh --build-only` die Release-Konfiguration für Apple Silicon und
 Intel. Der Schalter baut nur, mit Warnungen als Fehlern, und hört vor dem Signieren und
 dem Disk-Image auf. Sonst bleiben Warnungen lokal Warnungen.
