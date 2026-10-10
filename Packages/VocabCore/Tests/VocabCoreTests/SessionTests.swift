@@ -420,6 +420,16 @@ struct SessionTests {
         #expect(deck.contentModified == nil)
     }
 
+    @Test func reviewsRecordTheSessionsReviewMode() {
+        for reviewMode in [ReviewMode.typed, .revealed] {
+            var deck = deck(newCards: 1)
+            var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1), reviewMode: reviewMode)
+            review(&study, deck: &deck, .again)
+            review(&study, deck: &deck, .good)
+            #expect(deck.cards[0].log.map(\.mode) == [reviewMode, reviewMode])
+        }
+    }
+
     @Test func gradingInPracticeChangesNoCard() {
         let deck = deck(newCards: 2)
         var mode = SessionMode.practice(Practice(practicing: deck.cards.map(\.id), at: now, random: SeededRandom(seed: 1)))
