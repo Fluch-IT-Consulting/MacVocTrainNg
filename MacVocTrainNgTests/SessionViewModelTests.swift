@@ -377,7 +377,7 @@ struct SessionViewModelTests {
         let document = makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
-        weak var closed = model
+        weak let closed = model
         model = nil
         #expect(closed == nil)
         let scheduled = document.deck
@@ -395,7 +395,7 @@ struct SessionViewModelTests {
         let scheduled = document.deck
         undoManager.undo()
         #expect(model?.isPracticing == true)
-        weak var closed = model
+        weak let closed = model
         model = nil
         #expect(closed == nil)
 
@@ -424,7 +424,7 @@ struct SessionViewModelTests {
         model?.input = card.answer
         step(undoManager) { model?.submit() }
         let reviewed = try #require(document.card(withID: card.id))
-        weak var closed = model
+        weak let closed = model
         model = nil
         #expect(closed == nil)
 
