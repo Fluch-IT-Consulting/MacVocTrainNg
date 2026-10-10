@@ -3,8 +3,10 @@
 #
 # - lints with swift-format like the local check before a pull request,
 # - builds the app and runs all tests, core and app, with warnings as errors,
-# - checks the String Catalog: every key in the app is in it, every key has a complete
-#   German translation (Tools/check-localizations.swift),
+# - builds the iPhone app and runs its tests in the simulator, also with warnings as
+#   errors (#254),
+# - checks the String Catalog: every key in either app is in it, every key has a
+#   complete German translation (Tools/check-localizations.swift),
 # - builds the Release configuration for Apple Silicon and Intel with
 #   `Tools/make-release.sh --build-only`, also with warnings as errors, but without
 #   signing and disk image.
@@ -45,7 +47,7 @@ jobs:
 
       - name: Lint
         run: |
-          xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests \
+          xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared \
             Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 
       # Signed ad hoc (Config/Signing.xcconfig): the runner has no certificate.
@@ -58,7 +60,25 @@ jobs:
             -destination platform=macOS -derivedDataPath build/DerivedData \
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
 
-      # Reads the keys the build above extracted into build/DerivedData.
+      # On an iPhone simulator of the newest iOS this Xcode brings; the runner has
+      # several. Into the same DerivedData, so the next step checks both apps.
+      - name: Build and test iPhone app
+        if: ${{ !cancelled() }}
+        run: |
+          simulator=$(xcrun simctl list devices available --json | jq -r '
+            [.devices | to_entries[] | select(.key | test("\\.iOS-"))
+              | (.key | capture("iOS-(?<v>[0-9-]+)$").v | split("-") | map(tonumber)) as $version
+              | .value[] | select(.name | startswith("iPhone")) | {version: $version, udid}]
+            | sort_by(.version) | last | .udid // empty')
+          if [ -z "$simulator" ]; then
+            echo "No iPhone simulator available" >&2
+            exit 1
+          fi
+          xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain \
+            -destination "id=$simulator" -derivedDataPath build/DerivedData \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+
+      # Reads the keys the builds above extracted into build/DerivedData.
       - name: Check translations
         if: ${{ !cancelled() }}
         run: swift Tools/check-localizations.swift build/DerivedData
