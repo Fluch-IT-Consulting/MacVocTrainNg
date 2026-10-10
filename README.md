@@ -69,7 +69,8 @@ UI testbar. Eine iOS/iPadOS-App könnte das Paket direkt wiederverwenden.
 
 ## Bauen und testen
 
-Voraussetzung: Xcode 16 oder neuer, macOS 14 oder neuer.
+Voraussetzung: Xcode 26.3, dieselbe Version wie die CI; es läuft ab macOS 15.6. Die App
+selbst läuft ab macOS 14.
 
 - In Xcode: `MacVocTrainNg.xcodeproj` öffnen, ⌘R startet die App, ⌘U führt alle Tests aus.
 - Nur den Kern testen (schnell, ohne Xcode-Projekt):
@@ -121,7 +122,7 @@ Ob jeder Text der App im String Catalog steht und jeder Schlüssel dort eine deu
 swift Tools/check-localizations.swift
 ```
 
-Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 16.2) läuft bei jedem Pull
+Die CI (`.github/workflows/ci.yml`, macOS-Runner mit Xcode 26.3) läuft bei jedem Pull
 Request und nach jedem Push auf `main`. Sie prüft swift-format, baut und testet mit
 Warnungen als Fehlern, prüft die Übersetzungen wie oben und baut mit
 `Tools/make-release.sh --build-only` die Release-Konfiguration für Apple Silicon und
