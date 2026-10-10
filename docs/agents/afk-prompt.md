@@ -78,7 +78,7 @@ einfach noch einmal auf.
   Stell die Datei dann mit `git checkout origin/main -- MacVocTrainNg.xcodeproj/project.pbxproj`
   wieder her.
 - Stage Dateien einzeln mit Namen, nie `git add -A` oder `git add .`.
-- `MacVocTrainNg/Resources/Localizable.xcstrings` ist kompaktes JSON (zwei Leerzeichen
+- `Shared/Resources/Localizable.xcstrings` ist kompaktes JSON (zwei Leerzeichen
   Einrückung, Schlüssel sortiert). Neue Übersetzungen fügst du in diesem Format ein,
   ohne den Rest der Datei umzuformatieren.
 - Die Zeilenlänge in `.swift-format` bleibt, wie sie ist. Zu lange Zeilen kürzt du

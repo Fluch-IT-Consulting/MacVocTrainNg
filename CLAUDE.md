@@ -10,7 +10,7 @@ The active developer dir may be the Command Line Tools; prefix with
 
 - Core tests: `cd Packages/VocabCore && swift test`
 - App build + all tests: `xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg test`
-- Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
+- Lint: `xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools`
   (config in `.swift-format`); `format -i` instead of `lint --strict` fixes the layout.
   Name the paths: `build/` and `.build/` contain generated Swift files.
 - Translations: `swift Tools/check-localizations.swift` after a build with
@@ -25,7 +25,7 @@ The active developer dir may be the Command Line Tools; prefix with
   `Scheduler` applies a `Grade` to a `Card` (FSRS-6 in `FSRS.swift`, ported from py-fsrs);
   `SessionMode` runs a `StudySession` or a `Practice` and records reviews, each over
   a shared `Session` that only tracks card IDs and order.
-- `MacVocTrainNg/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
+- `Shared/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
   marks the document dirty. They register with the document's own `undoManager`, which
   `DocumentView` sets from its environment (tests set it themselves); callers don't pass
@@ -42,14 +42,17 @@ The active developer dir may be the Command Line Tools; prefix with
   `VocabularyDocument.merge(_:)`. File presenter callbacks must not ask the NSDocument
   synchronously: during another process's write, both would wait for each other.
 - The Xcode project uses synchronized folders: new files in `MacVocTrainNg/` or
-  `MacVocTrainNgTests/` are picked up automatically.
+  `MacVocTrainNgTests/` are picked up automatically. `Shared/` holds what the Mac app
+  shares with the iPhone app (#254): the document and what it needs, and the one
+  String Catalog. Code moves there only when the iPhone app uses it and it needs no
+  AppKit; `VocabCore` stays the place for domain logic.
 
 ## Conventions
 
 - New user-facing strings: add the German translation to
-  `MacVocTrainNg/Resources/Localizable.xcstrings` (Xcode may not run to sync it), in
-  state `translated`; a string whose wording depends on a count needs plural forms in
-  both `en` and `de`. The CI fails on a key missing from the catalog or without German.
+  `Shared/Resources/Localizable.xcstrings`, which both apps share (Xcode may not run to
+  sync it), in state `translated`; a string whose wording depends on a count needs
+  plural forms in both `en` and `de`. The CI fails on a key missing from the catalog or without German.
 - Code ported from another project: add its license to `THIRD_PARTY_NOTICES.md` and
   `MacVocTrainNg/Resources/Credits.html` (the About window).
 - Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
