@@ -20,7 +20,7 @@ extension UndoManager {
         actionName: String,
         handler: @escaping @MainActor (Target, UndoManager) -> Void
     ) {
-        nonisolated(unsafe) weak var undoManager = self
+        weak let undoManager = self
         registerUndo(withTarget: target) { target in
             MainActor.assumeIsolated {
                 guard let undoManager else { return }
