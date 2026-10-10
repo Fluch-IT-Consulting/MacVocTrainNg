@@ -13,6 +13,8 @@ struct VersionMergerTests {
     let dom = Card(question: "dom", answer: "Haus")
     let kot = Card(question: "kot", answer: "Katze")
     let store = FakeVersionStore()
+    /// The undo managers of the documents opened, which the documents hold weakly.
+    private let undoManagers = UndoManagers()
 
     var base: Deck { Deck(cards: [dom, kot]) }
 
@@ -27,11 +29,12 @@ struct VersionMergerTests {
         }
     }
 
-    /// A document as NSDocument reads it from the file, with its undo manager, which
-    /// the test keeps.
+    /// A document as NSDocument reads it from the file, with its undo manager.
     func open(_ deck: Deck) -> (VocabularyDocument, UndoManager) {
         let document = VocabularyDocument(deck: deck, clock: ManualClock(day(5)).studyClock, calendar: .testing)
-        return (document, makeUndoManager(for: document))
+        let undoManager = makeUndoManager(for: document)
+        undoManagers.all.append(undoManager)
+        return (document, undoManager)
     }
 
     /// The change a review with Good on another device makes.
@@ -198,6 +201,12 @@ struct VersionMergerTests {
         #expect(!conflict.isResolved)
         #expect(store.events.isEmpty)
     }
+}
+
+/// Keeps undo managers for as long as a test runs.
+@MainActor
+private final class UndoManagers {
+    var all: [UndoManager] = []
 }
 
 /// The file of a deck in a test: no presenter, no NSDocument.
