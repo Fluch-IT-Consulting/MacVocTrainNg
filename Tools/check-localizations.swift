@@ -1,15 +1,18 @@
-// Checks the String Catalog against the app (#191): every key the compiler extracts
+// Checks the String Catalog against the apps (#191): every key the compiler extracts
 // is in the catalog, and every key in the catalog has a German translation: in state
-// translated, not empty, and with the plural forms German needs.
+// translated, not empty, and with the plural forms German needs. The Mac app and the
+// iPhone app share the catalog.
 // Usage: swift Tools/check-localizations.swift [DerivedData]   (from the repository root)
 //
-// Reads the keys from the .stringsdata files a build of the app leaves in its
+// Reads the keys from the .stringsdata files the builds of the apps leave in their
 // DerivedData (SWIFT_EMIT_LOC_STRINGS), by default build/DerivedData. That format is
 // internal to Xcode: if a new Xcode changes it, the check fails rather than passes.
+// Checks the keys of the apps that were built; the CI builds both.
 
 import Foundation
 
 let catalogPath = "Shared/Resources/Localizable.xcstrings"
+let appTargets = ["MacVocTrainNg", "VocTrain"]
 let catalogTable = "Localizable"
 let language = "de"
 let pluralForms = ["one", "other"]
@@ -53,14 +56,15 @@ struct ExtractedKey {
     var location: String
 }
 
-/// The .stringsdata files of the app target, from every configuration and architecture built.
+/// The .stringsdata files of the app targets, from every configuration, platform and
+/// architecture built.
 func stringsDataFiles() -> [URL] {
     let projectBuild = derivedData.appendingPathComponent("Build/Intermediates.noindex/MacVocTrainNg.build")
     guard let files = FileManager.default.enumerator(at: projectBuild, includingPropertiesForKeys: nil) else {
         return []
     }
-    return files.compactMap { $0 as? URL }.filter {
-        $0.pathExtension == "stringsdata" && $0.path.contains("/MacVocTrainNg.build/Objects-normal/")
+    return files.compactMap { $0 as? URL }.filter { file in
+        file.pathExtension == "stringsdata" && appTargets.contains { file.path.contains("/\($0).build/Objects-normal/") }
     }
 }
 
