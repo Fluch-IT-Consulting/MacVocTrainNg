@@ -24,7 +24,7 @@ extension WindowTests {
         }
 
         private func show(isEditable: Bool) {
-            window.contentView = NSHostingView(rootView: DocumentView(document: document, fileURL: nil, isEditable: isEditable))
+            window.contentView = NSHostingView(rootView: DocumentView(document: document, fileURL: nil, isEditable: isEditable, merger: VersionMerger()))
             window.orderFront(nil)
         }
 
