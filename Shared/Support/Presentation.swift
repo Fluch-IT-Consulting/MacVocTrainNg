@@ -1,7 +1,7 @@
 import SwiftUI
 import VocabCore
 
-// User-facing names and colours for values of the core model.
+// User-facing names and colours for values of the core model, in both apps.
 
 extension MaturityCategory {
     var title: String {
@@ -99,6 +99,7 @@ enum Format {
 extension Color {
     /// A colour that adapts to light and dark appearance.
     init(light: UInt32, dark: UInt32) {
+        #if os(macOS)
         self.init(
             nsColor: NSColor(name: nil) { appearance in
                 let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
@@ -110,5 +111,17 @@ extension Color {
                     alpha: 1
                 )
             })
+        #else
+        self.init(
+            uiColor: UIColor { traits in
+                let hex = traits.userInterfaceStyle == .dark ? dark : light
+                return UIColor(
+                    red: CGFloat((hex >> 16) & 0xFF) / 255,
+                    green: CGFloat((hex >> 8) & 0xFF) / 255,
+                    blue: CGFloat(hex & 0xFF) / 255,
+                    alpha: 1
+                )
+            })
+        #endif
     }
 }
