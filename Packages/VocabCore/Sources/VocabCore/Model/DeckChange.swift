@@ -1,7 +1,8 @@
 import Foundation
 
-/// One change to a deck: cards to replace or add, cards to remove and new learning
-/// options. `Deck.apply(_:day:)` makes it and returns the change that reverts it.
+/// One change to a deck: cards to replace or add, cards to remove, new learning
+/// options and new progress. `Deck.apply(_:at:calendar:)` makes it and returns the
+/// change that reverts it.
 ///
 /// Only VocabCore builds changes: outside it, the factory methods below and
 /// `SessionMode.grade(_:in:at:calendar:)` are the only way. So the app can't set a
@@ -13,13 +14,32 @@ public struct DeckChange: Sendable {
     var removals: [Card.ID]
     /// New learning options; `nil` keeps them.
     var learningOptions: LearningOptions?
+    /// New progress, before the snapshot of the day the change is applied on; `nil`
+    /// keeps it. Only a merge and its inverse replace it.
+    var progress: [DailySnapshot]?
+    var contentStamp: ContentStamp
 
-    /// - Parameter upserts: Cards that replace the cards with the same ID; cards with a
-    ///   new ID are appended.
-    init(upserts: [Card] = [], removals: [Card.ID] = [], learningOptions: LearningOptions? = nil) {
+    /// What a change does to `Deck.contentModified`.
+    enum ContentStamp: Sendable {
+        /// Reviews leave the content as it is.
+        case keep
+        /// A change to the content stamps the time it is applied, and so does its
+        /// inverse: undoing a change changes the content, too.
+        case now
+        /// A merge takes the stamp of the version whose content it keeps; its inverse
+        /// restores the old one.
+        case set(Date?)
+    }
+
+    /// - Parameters:
+    ///   - upserts: Cards that replace the cards with the same ID; cards with a new
+    ///     ID are appended.
+    ///   - contentStamp: `.now` unless the change leaves the content, like a review.
+    init(upserts: [Card] = [], removals: [Card.ID] = [], learningOptions: LearningOptions? = nil, contentStamp: ContentStamp = .now) {
         self.upserts = upserts.map { ($0, nil) }
         self.removals = removals
         self.learningOptions = learningOptions
+        self.contentStamp = contentStamp
     }
 }
 
@@ -81,21 +101,39 @@ extension DeckChange {
 }
 
 extension Deck {
-    /// Applies `change` and returns the change that reverts it.
+    /// Applies `change` at `now` and returns the change that reverts it.
     ///
-    /// A change to the cards records their distribution as the snapshot for `day`;
-    /// learning options alone move no card between the bins of a snapshot. Applying
-    /// the inverse records the snapshot again rather than restoring the old one. That
-    /// holds when the inverse comes on a later study day, too, e.g. undoing a review
-    /// the next morning: a snapshot shows the cards at the end of its day, and at the
-    /// end of the earlier day the change was still in effect. So only the snapshot of
-    /// `day` changes, never an earlier one.
-    public mutating func apply(_ change: DeckChange, day: Int) -> DeckChange {
-        var inverse = DeckChange()
+    /// A change to the cards records their distribution as the snapshot for the study
+    /// day of `now`; learning options alone move no card between the bins of a
+    /// snapshot. Applying the inverse records the snapshot again rather than restoring
+    /// the old one. That holds when the inverse comes on a later study day, too, e.g.
+    /// undoing a review the next morning: a snapshot shows the cards at the end of its
+    /// day, and at the end of the earlier day the change was still in effect. So only
+    /// the snapshot of that day changes, never an earlier one, except for a merge,
+    /// which replaces the progress as a whole.
+    public mutating func apply(_ change: DeckChange, at now: Date, calendar: StudyCalendar) -> DeckChange {
+        var inverse = DeckChange(contentStamp: .keep)
+
+        switch change.contentStamp {
+        case .keep:
+            break
+        case .now:
+            inverse.contentStamp = .now
+            // Whole seconds, as `deck.json` stores it.
+            contentModified = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
+        case let .set(date):
+            inverse.contentStamp = .set(contentModified)
+            contentModified = date
+        }
 
         if let learningOptions = change.learningOptions {
             inverse.learningOptions = self.learningOptions
             self.learningOptions = learningOptions
+        }
+
+        if let progress = change.progress {
+            inverse.progress = self.progress
+            self.progress = progress
         }
 
         // Every step below passes over the cards once: a change may touch all of them.
@@ -125,8 +163,8 @@ extension Deck {
             cards = Self.inserting(insertions, into: cards)
         }
 
-        if !change.upserts.isEmpty || !change.removals.isEmpty {
-            updateProgress(day: day)
+        if !change.upserts.isEmpty || !change.removals.isEmpty || change.progress != nil {
+            updateProgress(day: calendar.dayNumber(for: now))
         }
         return inverse
     }

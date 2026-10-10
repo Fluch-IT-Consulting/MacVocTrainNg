@@ -14,8 +14,13 @@ struct DeckFileTests {
         var card = Card(question: "dom", answer: "Haus / Gebäude", hint: "Substantiv", created: date)
         card.learningState = LearningState(phase: .review, step: 0, stability: 12.5, difficulty: 4.2, lastReview: date, due: date.addingTimeInterval(86400), reviews: 3, lapses: 1)
         // One review short, like a card imported from MacVocTrain 1 with a learning state.
-        card.log = [ReviewLogEntry(date: date.addingTimeInterval(-86400), grade: .again), ReviewLogEntry(date: date, grade: .hard)]
-        return Deck(learningOptions: learningOptions, cards: [card, Card(question: "kot", answer: "Katze", created: date)], progress: [DailySnapshot(day: 20_000, bins: [1, 1])])
+        card.log = [ReviewLogEntry(date: date.addingTimeInterval(-86400), grade: .again), ReviewLogEntry(date: date, grade: .hard, mode: .revealed)]
+        return Deck(
+            learningOptions: learningOptions,
+            cards: [card, Card(question: "kot", answer: "Katze", created: date)],
+            progress: [DailySnapshot(day: 20_000, bins: [1, 1])],
+            contentModified: date
+        )
     }
 
     func file(_ wrapper: FileWrapper, _ name: String) -> String {
@@ -53,12 +58,31 @@ struct DeckFileTests {
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: deck)) == deck)
     }
 
-    /// A `deck.json` of version 3 as the app writes it, with every kind of value.
+    /// A `deck.json` of version 4 as the app writes it, with every kind of value.
     @Test func fixedDeckReadsAndWritesBackUnchanged() throws {
+        let url = try #require(Bundle.module.url(forResource: "Resources/deck-v4", withExtension: "json"))
+        let data = try Data(contentsOf: url)
+        let deck = try DeckFile.decode(data)
+        expectFixedDeck(deck)
+        #expect(deck.contentModified == date)
+
+        #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == String(decoding: data, as: UTF8.self))
+    }
+
+    /// Version 3 lacks `contentModified` and is written back as version 4.
+    @Test func fixedDeckOfVersion3IsRead() throws {
         let url = try #require(Bundle.module.url(forResource: "Resources/deck-v3", withExtension: "json"))
         let data = try Data(contentsOf: url)
         let deck = try DeckFile.decode(data)
+        expectFixedDeck(deck)
+        #expect(deck.contentModified == nil)
 
+        let written = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "\"version\" : 3", with: "\"version\" : 4")
+        #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == written)
+    }
+
+    /// The values of the fixed decks.
+    func expectFixedDeck(_ deck: Deck) {
         #expect(deck.cards.map(\.question) == ["dom", "pies", "kot"])
         #expect(deck.cards[0].hint == "Substantiv")
         #expect(deck.cards[0].created == date.addingTimeInterval(-7 * 86400))
@@ -69,8 +93,6 @@ struct DeckFileTests {
         #expect(deck.learningOptions.newCardsPerSession == 15)
         #expect(deck.learningOptions.parameters == .default)
         #expect(deck.progress.map(\.day) == [CivilDate(isoString: "2026-10-04")!.dayNumber, CivilDate(isoString: "2026-10-05")!.dayNumber])
-
-        #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == String(decoding: data, as: UTF8.self))
     }
 
     @Test func packageHoldsDeckAndReviewLogSeparately() throws {
@@ -81,9 +103,9 @@ struct DeckFileTests {
 
         let deckJSON = file(wrapper, DeckFile.deckFileName)
         #expect(deckJSON.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
-        #expect(deckJSON.contains("\"version\" : 3"))
+        #expect(deckJSON.contains("\"version\" : 4"))
         #expect(deckJSON.contains("\"question\" : \"dom\""))
-        for key in ["learningOptions", "targetRecall", "steps", "learningState", "reviews", "hint", "progress"] {
+        for key in ["learningOptions", "targetRecall", "steps", "learningState", "reviews", "hint", "progress", "contentModified"] {
             #expect(deckJSON.contains("\"\(key)\" :"), "missing key \(key)")
         }
         #expect(!deckJSON.contains("\"log\""))
@@ -93,7 +115,7 @@ struct DeckFileTests {
         #expect(
             file(wrapper, DeckFile.reviewsFileName) == """
                 {"card":"\(id)","date":1791129600,"grade":1}
-                {"card":"\(id)","date":1791216000,"grade":2}
+                {"card":"\(id)","date":1791216000,"grade":2,"mode":"revealed"}
 
                 """)
     }
@@ -221,6 +243,16 @@ struct DeckFileTests {
         wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
         wrapper.addRegularFile(withContents: Data(lines.utf8), preferredFilename: DeckFile.reviewsFileName)
         #expect(throws: DeckFile.Error.damagedReviewLog(line: 3)) { try DeckFile.decode(wrapper) }
+    }
+
+    /// Only revealed reviews name their mode; a missing or unknown one reads as typed.
+    @Test func reviewModesAreReadBack() throws {
+        let deck = sampleDeck()
+        let id = deck.cards[0].id.uuidString
+        let wrapper = try package(of: deck, appendingReviews: ["{\"card\":\"\(id)\",\"date\":1791302400,\"grade\":3,\"mode\":\"spoken\"}"])
+        let fileDeck = try DeckFile.decode(wrapper)
+        #expect(fileDeck.cards[0].log.map(\.mode) == [.typed, .revealed, .typed])
+        #expect(Array(fileDeck.cards[0].log.prefix(2)) == deck.cards[0].log)
     }
 
     @Test func packageWithoutDeckIsRejected() {

@@ -1,0 +1,114 @@
+{
+  "cards" : [
+    {
+      "answer" : "Haus / Gebäude",
+      "created" : "2026-09-28T16:00:00Z",
+      "hint" : "Substantiv",
+      "id" : "6F9619FF-8B86-D011-B42D-00C04FC964FF",
+      "learningState" : {
+        "difficulty" : 4.25,
+        "due" : "2026-10-17T16:00:00Z",
+        "lapses" : 1,
+        "lastReview" : "2026-10-05T16:00:00Z",
+        "phase" : "review",
+        "reviews" : 3,
+        "stability" : 12.5,
+        "step" : 0
+      },
+      "question" : "dom"
+    },
+    {
+      "answer" : "Hund",
+      "created" : "2026-10-04T16:00:00Z",
+      "id" : "0B5E7A1C-3D2F-4E6A-9B8C-7D1E2F3A4B5C",
+      "learningState" : {
+        "difficulty" : 7.5,
+        "due" : "2026-10-05T16:10:00Z",
+        "lapses" : 1,
+        "lastReview" : "2026-10-05T16:00:00Z",
+        "phase" : "relearning",
+        "reviews" : 2,
+        "stability" : 0.75,
+        "step" : 1
+      },
+      "question" : "pies"
+    },
+    {
+      "answer" : "Katze",
+      "created" : "2026-10-05T16:00:00Z",
+      "id" : "A1B2C3D4-E5F6-4789-8ABC-DEF012345678",
+      "question" : "kot"
+    }
+  ],
+  "contentModified" : "2026-10-05T16:00:00Z",
+  "format" : "com.mfluch.voctrain.deck",
+  "learningOptions" : {
+    "cardsPerSession" : null,
+    "caseSensitive" : true,
+    "fuzzing" : false,
+    "maximumInterval" : 36500,
+    "newCardsPerSession" : 15,
+    "parameters" : [
+      0.212,
+      1.2931,
+      2.3065,
+      8.2956,
+      6.4133,
+      0.8334,
+      3.0194,
+      0.001,
+      1.8722,
+      0.1666,
+      0.796,
+      1.4835,
+      0.0614,
+      0.2629,
+      1.6483,
+      0.6014,
+      1.8729,
+      0.5425,
+      0.0912,
+      0.0658,
+      0.1542
+    ],
+    "steps" : 2,
+    "targetRecall" : 0.85
+  },
+  "progress" : [
+    {
+      "bins" : [
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "day" : "2026-10-04"
+    },
+    {
+      "bins" : [
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "day" : "2026-10-05"
+    }
+  ],
+  "version" : 4
+}

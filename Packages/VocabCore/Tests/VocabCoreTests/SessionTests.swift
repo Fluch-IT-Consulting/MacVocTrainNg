@@ -416,6 +416,8 @@ struct SessionTests {
         _ = deck.apply(change, day: 100)
         #expect(deck.cards.filter { !$0.isNew } == [expected])
         #expect(mode.session.reviewCount == 1)
+        // A review leaves the content, see `DeckChange.merging`.
+        #expect(deck.contentModified == nil)
     }
 
     @Test func gradingInPracticeChangesNoCard() {
