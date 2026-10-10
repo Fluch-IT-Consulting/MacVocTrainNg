@@ -5,7 +5,7 @@ import VocabCore
 /// session that temporarily takes over the whole window.
 ///
 /// Shows one document for its whole life: the window gives each document a view of
-/// its own, see `MacVocTrainApp`.
+/// its own, see `DocumentWindow`.
 struct DocumentView: View {
     enum Screen: String {
         case cards
@@ -19,6 +19,8 @@ struct DocumentView: View {
     /// browser or a file that can't be written. Nothing then changes the deck or starts
     /// a session; the controls say so by being disabled.
     var isEditable: Bool
+    /// Merges the versions of the deck from other devices; outlives the view.
+    var merger: VersionMerger
     /// The document's undo manager, which SwiftUI hands only to views. The document
     /// gets it from here. A sheet's environment holds the undo manager of the sheet's
     /// own window instead (#48).
@@ -72,7 +74,15 @@ struct DocumentView: View {
         .sheet(item: $importPreview) { preview in
             ImportPreviewView(document: document, preview: preview)
         }
-        .onChange(of: undoManager, initial: true, giveUndoManagerToDocument)
+        .onChange(of: undoManager, initial: true) {
+            giveUndoManagerToDocument()
+            attachToMerger()
+        }
+        .onChange(of: fileURL, attachToMerger)
+        .onChange(of: isEditable, attachToMerger)
+        .onChange(of: session == nil) { _, hasNoSession in
+            merger.isInSession = !hasNoSession
+        }
         .focusedSceneValue(
             \.deckActions,
             DeckActions(
@@ -114,6 +124,10 @@ struct DocumentView: View {
 
     private func giveUndoManagerToDocument() {
         document.undoManager = undoManager
+    }
+
+    private func attachToMerger() {
+        merger.attach(document, fileURL: fileURL, isEditable: isEditable)
     }
 
     private func importCards() {

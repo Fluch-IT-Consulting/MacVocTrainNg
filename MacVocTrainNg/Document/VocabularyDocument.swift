@@ -211,22 +211,47 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(change, actionName: String(localized: "Change Learning Options"))
     }
 
+    /// Merges other versions of the deck into it, in turn, as one undo action, see
+    /// `DeckChange.merging(_:into:calendar:)`. Returns whether the deck changed.
+    ///
+    /// Groups its undo action itself: it runs outside of events too, when the file
+    /// changed, and closing the group is what tells SwiftUI of the change.
+    @discardableResult
+    func merge(_ versions: [Deck]) -> Bool {
+        var merged = deck
+        var changes: [DeckChange] = []
+        for version in versions {
+            guard let change = DeckChange.merging(version, into: merged, calendar: calendar) else { continue }
+            _ = merged.apply(change, at: clock.now, calendar: calendar)
+            changes.append(change)
+        }
+        guard !changes.isEmpty else { return false }
+        undoManager?.beginUndoGrouping()
+        perform(changes, actionName: String(localized: "Merge Versions"))
+        undoManager?.endUndoGrouping()
+        return true
+    }
+
     // MARK: - Undo machinery
 
-    /// Applies `change` and registers its inverse as the undo action with `undoManager`.
-    /// The undo action runs `companion` once the deck holds the inverse; the redo action
-    /// it registers runs the companion reversed.
+    private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
+        perform([change], actionName: actionName, alongside: companion)
+    }
+
+    /// Applies `changes` in turn and registers their inverses as one undo action with
+    /// `undoManager`. The undo action runs `companion` once the deck holds the inverses;
+    /// the redo action it registers runs the companion reversed.
     ///
     /// Without an undo manager the change could not be undone, and SwiftUI would not
     /// learn of it: autosave might never write it. Debug builds stop there; the released
     /// app still changes the deck.
-    private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
+    private func perform(_ changes: [DeckChange], actionName: String, alongside companion: UndoCompanion? = nil) {
         assert(undoManager != nil, "The document changes without an undo manager; DocumentView sets it.")
         var deck = deck
-        let inverse = deck.apply(change, at: clock.now, calendar: calendar)
+        let inverses = changes.map { deck.apply($0, at: clock.now, calendar: calendar) }
         self.deck = deck
         undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, _ in
-            document.perform(inverse, actionName: actionName, alongside: companion?.reversed)
+            document.perform(Array(inverses.reversed()), actionName: actionName, alongside: companion?.reversed)
             companion?.undo()
         }
     }

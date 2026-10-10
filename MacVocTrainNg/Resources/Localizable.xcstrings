@@ -440,6 +440,16 @@
         }
       }
     },
+    "Another version of this deck could not be merged": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine andere Fassung dieses Stapels ließ sich nicht zusammenführen"
+          }
+        }
+      }
+    },
     "Answer": {
       "localizations": {
         "de": {
@@ -1270,6 +1280,16 @@
         }
       }
     },
+    "Merge Versions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fassungen zusammenführen"
+          }
+        }
+      }
+    },
     "Mistakes": {
       "localizations": {
         "de": {
@@ -2010,6 +2030,16 @@
         }
       }
     },
+    "The deck was changed on another device and opened anew. The reviews of the session are kept.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Stapel wurde auf einem anderen Gerät geändert und neu geöffnet. Die Abfragen der Sitzung bleiben erhalten."
+          }
+        }
+      }
+    },
     "The parameters could not be computed.": {
       "localizations": {
         "de": {
@@ -2056,6 +2086,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Verlauf dieses Stapels ist beschädigt (Zeile %lld)."
+          }
+        }
+      }
+    },
+    "The study session has ended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Lernsitzung wurde beendet"
           }
         }
       }
