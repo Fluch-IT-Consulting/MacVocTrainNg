@@ -24,6 +24,17 @@ struct DeckView: View {
         let dueCount = document.dueCards.count
 
         List {
+            if merger.endedSession {
+                Notice(title: "The study session has ended", message: Text("The deck was changed on another device and opened anew. The reviews of the session are kept.")) {
+                    merger.endedSession = false
+                }
+            }
+            if let failure = merger.failure {
+                Notice(title: "Another version of this deck could not be merged", message: Text(failure)) {
+                    merger.failure = nil
+                }
+            }
+
             Section {
                 LabeledContent("Cards", value: document.deck.cards.count, format: .number)
                 LabeledContent("Due Now", value: dueCount, format: .number)
@@ -34,6 +45,7 @@ struct DeckView: View {
 
             Section {
                 Button {
+                    merger.endedSession = false
                     study = StudyModel(document: document)
                 } label: {
                     Label(dueCount > 0 ? "Study (\(dueCount))" : "Study", systemImage: "graduationcap")
@@ -66,5 +78,25 @@ struct DeckView: View {
     /// When the next card becomes due; new cards are due at once.
     private var nextDue: Date? {
         document.deck.cards.compactMap(\.learningState?.due).min()
+    }
+}
+
+/// What the `VersionMerger` reports, at the top of the deck until dismissed.
+private struct Notice: View {
+    var title: LocalizedStringKey
+    var message: Text
+    var dismiss: () -> Void
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Label(title, systemImage: "exclamationmark.triangle")
+                    .font(.headline)
+                message
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Button("Dismiss", action: dismiss)
+        }
     }
 }
