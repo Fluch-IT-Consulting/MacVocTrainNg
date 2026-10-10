@@ -7,11 +7,14 @@ import SwiftUI
 @main
 struct VocTrainApp: App {
     var body: some Scene {
-        DocumentGroup(newDocument: { VocabularyDocument() }) { file in
-            DeckView(document: file.document)
-                // As on the Mac, reading the file again hands the scene a new document,
-                // which gets a view of its own.
-                .id(ObjectIdentifier(file.document))
-        }
+        DocumentGroup(
+            newDocument: { VocabularyDocument() },
+            editor: { file in
+                DeckView(document: file.document)
+                    // As on the Mac, reading the file again hands the scene a new document,
+                    // which gets a view of its own.
+                    .id(ObjectIdentifier(file.document))
+            }
+        )
     }
 }
