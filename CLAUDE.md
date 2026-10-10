@@ -60,7 +60,7 @@ The active developer dir may be the Command Line Tools; prefix with
   plural forms in both `en` and `de`. The CI fails on a key missing from the catalog or without German.
 - Code ported from another project: add its license to `THIRD_PARTY_NOTICES.md` and
   `MacVocTrainNg/Resources/Credits.html` (the About window).
-- Chart/status colours live in `Support/Presentation.swift`; the maturity ramp is a
+- Chart/status colours live in `Shared/Support/Presentation.swift`; the maturity ramp is a
   validated one-hue ordinal ramp, keep it that way.
 - A deck is a package (`deck.json` + `reviews.jsonl`, see `DeckFile`); its keys are the
   glossary terms. Only the private records in `DeckFile` know its keys; domain types
