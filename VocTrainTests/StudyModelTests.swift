@@ -31,7 +31,7 @@ struct StudyModelTests {
 
         grade(model, .good, undoManager: undoManager)
         #expect(model.session.reviewCount == 0)
-        #expect(document.deck.cards.allSatisfy(\.isNew))
+        #expect(document.deck.cards.allSatisfy { $0.isNew })
 
         model.reveal()
         #expect(model.stage == .revealed)
