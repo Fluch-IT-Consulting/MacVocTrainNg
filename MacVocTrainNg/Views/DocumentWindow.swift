@@ -14,10 +14,12 @@ struct DocumentWindow: View {
     var body: some View {
         DocumentView(document: file.document, fileURL: file.fileURL, isEditable: file.isEditable, merger: merger)
             .id(ObjectIdentifier(file.document))
-            .alert("The study session has ended", isPresented: $merger.endedSession) {} message: {
+            .alert("The study session has ended", isPresented: $merger.endedSession) {
+            } message: {
                 Text("The deck was changed on another device and opened anew. The reviews of the session are kept.")
             }
-            .alert("Another version of this deck could not be merged", isPresented: isShowingFailure, presenting: merger.failure) { _ in } message: { failure in
+            .alert("Another version of this deck could not be merged", isPresented: isShowingFailure, presenting: merger.failure) { _ in
+            } message: { failure in
                 Text(failure)
             }
     }
