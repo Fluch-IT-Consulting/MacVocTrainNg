@@ -36,8 +36,8 @@ final class VersionMerger {
     /// Why a version in conflict couldn't be merged; the window shows it. Each version
     /// is reported once.
     var failure: String?
-    /// Whether a study session is under way; the document's view keeps it up to date,
-    /// `DocumentView` on the Mac and `DeckView` on the iPhone.
+    /// Whether a study session is under way; the document's view keeps it up to date
+    /// through `documentSync`.
     @ObservationIgnored var isInSession = false
 
     /// The current document of the window or scene.

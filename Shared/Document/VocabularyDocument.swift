@@ -8,7 +8,7 @@ import os
 ///
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes. They
-/// register with `undoManager`, which `DocumentView` sets, so no view that changes
+/// register with `undoManager`, which `documentSync` sets, so no view that changes
 /// the deck has to find the right undo manager itself (#48, #136).
 ///
 /// Who wants to hear of changes to the deck uses one of two ways, depending on what
@@ -64,7 +64,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     private let reviewLog = ReviewLogEncoder()
     /// The undo manager of the document's window; every change registers its undo
     /// action here. SwiftUI creates the document but hands the undo manager only to
-    /// views, so `DocumentView` sets it (`DeckView` on the iPhone), and tests set it
+    /// views, so the document's view sets it through `documentSync`, and tests set it
     /// themselves. Weak: it belongs to the NSDocument or UIDocument behind
     /// `DocumentGroup`. Not part of the deck, so setting it tells no observer.
     weak var undoManager: UndoManager?
@@ -246,7 +246,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// learn of it: autosave might never write it. Debug builds stop there; the released
     /// app still changes the deck.
     private func perform(_ changes: [DeckChange], actionName: String, alongside companion: UndoCompanion? = nil) {
-        assert(undoManager != nil, "The document changes without an undo manager; DocumentView sets it.")
+        assert(undoManager != nil, "The document changes without an undo manager; documentSync sets it.")
         var deck = deck
         let inverses = changes.map { deck.apply($0, at: clock.now, calendar: calendar) }
         self.deck = deck

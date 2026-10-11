@@ -15,9 +15,6 @@ struct DeckView: View {
     var isEditable: Bool
     /// Merges the versions of the deck from the Mac; outlives the view.
     var merger: VersionMerger
-    /// The document's undo manager, which SwiftUI hands only to views. The document
-    /// gets it from here, as from `DocumentView` on the Mac.
-    @Environment(\.undoManager) private var undoManager
     @State private var study: StudyModel?
 
     var body: some View {
@@ -57,22 +54,10 @@ struct DeckView: View {
                 }
             }
         }
-        .onChange(of: undoManager, initial: true) {
-            document.undoManager = undoManager
-            attachToMerger()
-        }
-        .onChange(of: fileURL, attachToMerger)
-        .onChange(of: isEditable, attachToMerger)
-        .onChange(of: study == nil) { _, hasNoSession in
-            merger.isInSession = !hasNoSession
-        }
+        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: study != nil)
         .fullScreenCover(item: $study) { model in
             StudyView(model: model) { study = nil }
         }
-    }
-
-    private func attachToMerger() {
-        merger.attach(document, fileURL: fileURL, isEditable: isEditable)
     }
 
     /// When the next card becomes due; new cards are due at once.
