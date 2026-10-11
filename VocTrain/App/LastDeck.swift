@@ -49,14 +49,18 @@ struct LastDeck {
     /// a document is open already, e.g. one opened from the Files app or restored by
     /// the system.
     ///
+    /// Waits until the browser has come on screen and a moment longer, see
+    /// `DocumentBrowser.isOnScreen`; after five seconds without it, opens all the same.
+    ///
     /// The deck is forgotten before it opens: the deck screen remembers it again once it
     /// shows it, so a deck that can't be opened isn't tried at every launch.
     @MainActor func reopen() async {
         var attempts = 0
-        while DocumentBrowser.all().isEmpty, attempts < 30 {
+        while !DocumentBrowser.isOnScreen, attempts < 50 {
             attempts += 1
             try? await Task.sleep(for: .milliseconds(100))
         }
+        try? await Task.sleep(for: .milliseconds(500))
         guard !DocumentBrowser.hasOpenDocument, let url = resolve() else { return }
         // The access lasts as long as the app runs: the document may need it until it
         // closes, and SwiftUI doesn't say when that is.

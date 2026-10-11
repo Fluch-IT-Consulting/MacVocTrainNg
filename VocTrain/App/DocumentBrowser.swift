@@ -23,6 +23,16 @@ enum DocumentBrowser {
         return false
     }
 
+    /// Whether a browser is in a window and done coming on screen. A deck opened while
+    /// the browser is still being presented over the launch view shows a blank page on
+    /// the iPhone: SwiftUI builds the deck screen but never puts it into the document's
+    /// view controller (#282).
+    static var isOnScreen: Bool {
+        all().contains { browser in
+            browser.viewIfLoaded?.window != nil && !browser.isBeingPresented && browser.transitionCoordinator == nil
+        }
+    }
+
     /// Whether a document is open or opening. SwiftUI keeps its UIDocument to itself,
     /// but it is among the file presenters of the app, see `FileVersionStore.save()`.
     static var hasOpenDocument: Bool {
