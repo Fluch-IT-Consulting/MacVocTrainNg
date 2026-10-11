@@ -8,6 +8,8 @@ import SwiftUI
 /// stays, so it can keep what the old document held that the file lacks. See
 /// `DocumentWindow` in the Mac app. The deck view shows what the merger reports: an
 /// alert from here would come while the session leaves the screen, and get lost.
+///
+/// The deck it shows opens again at the next launch, see `LastDeck`.
 struct DocumentScreen: View {
     var file: ReferenceFileDocumentConfiguration<VocabularyDocument>
     @State private var merger = VersionMerger()
@@ -16,6 +18,11 @@ struct DocumentScreen: View {
     var body: some View {
         DeckView(document: file.document, fileURL: file.fileURL, isEditable: file.isEditable, merger: merger)
             .id(ObjectIdentifier(file.document))
+            .onChange(of: file.fileURL, initial: true) { _, url in
+                if let url {
+                    LastDeck().remember(url)
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .background: merger.suspend()
