@@ -25,7 +25,8 @@ struct StudyView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    if !model.isFinished {
+                    // In landscape the progress sits between the grade buttons.
+                    if !model.isFinished && verticalSizeClass != .compact {
                         progress
                     }
                 }
@@ -54,14 +55,14 @@ struct StudyView: View {
     }
 
     /// In portrait the buttons sit below the card. In landscape the iPhone is too low
-    /// for that, so they take a column to the right of the card, both centred in height.
+    /// for that: the card takes the full width, the buttons one row below it, half to
+    /// each side of the progress.
     @ViewBuilder
     private func cardArea(_ card: Card) -> some View {
         if verticalSizeClass == .compact {
-            HStack(spacing: 24) {
+            VStack(spacing: 12) {
                 cardText(card, centered: true)
-                actions
-                    .frame(width: 260)
+                buttonRow
             }
             .padding()
         } else {
@@ -110,7 +111,16 @@ struct StudyView: View {
     @ViewBuilder
     private var actions: some View {
         if model.stage == .revealed {
-            GradeButtons(onGrade: model.grade)
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    GradeButton(grade: .hard, onGrade: model.grade)
+                    GradeButton(grade: .easy, onGrade: model.grade)
+                }
+                HStack(spacing: 12) {
+                    GradeButton(grade: .again, isTall: true, onGrade: model.grade)
+                    GradeButton(grade: .good, isTall: true, onGrade: model.grade)
+                }
+            }
         } else {
             Button {
                 model.reveal()
@@ -122,39 +132,59 @@ struct StudyView: View {
             .controlSize(.large)
         }
     }
-}
 
-/// Again and Good large, as they are the usual grades; Hard and Easy small. Good stays
-/// the grade for a word one knew, so cards don't jump to long intervals.
-private struct GradeButtons: View {
-    var onGrade: @MainActor (Grade) -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                button(.hard, prominent: false)
-                button(.easy, prominent: false)
+    /// Again, Hard, the progress, Easy, Good. Before the answer shows, a button on each
+    /// side shows it, one for each thumb.
+    private var buttonRow: some View {
+        HStack(spacing: 12) {
+            if model.stage == .revealed {
+                GradeButton(grade: .again, onGrade: model.grade)
+                GradeButton(grade: .hard, onGrade: model.grade)
+            } else {
+                showAnswerButton
             }
-            HStack(spacing: 12) {
-                button(.again, prominent: true)
-                button(.good, prominent: true)
+            progress
+            if model.stage == .revealed {
+                GradeButton(grade: .easy, onGrade: model.grade)
+                GradeButton(grade: .good, onGrade: model.grade)
+            } else {
+                showAnswerButton
+                    .accessibilityHidden(true)
             }
         }
     }
 
-    @ViewBuilder
-    private func button(_ grade: Grade, prominent: Bool) -> some View {
+    private var showAnswerButton: some View {
+        Button {
+            model.reveal()
+        } label: {
+            Text("Show Answer")
+                .frame(maxWidth: .infinity, minHeight: 32)
+        }
+        .buttonStyle(.borderedProminent)
+    }
+}
+
+/// Again and Good stand out, as they are the usual grades; in portrait they are also
+/// taller than Hard and Easy. Good stays the grade for a word one knew, so cards don't
+/// jump to long intervals.
+private struct GradeButton: View {
+    var grade: Grade
+    var isTall = false
+    var onGrade: @MainActor (Grade) -> Void
+
+    var body: some View {
         let button = Button {
             onGrade(grade)
         } label: {
             Text(grade.title)
-                .frame(maxWidth: .infinity, minHeight: prominent ? 56 : 32)
+                .frame(maxWidth: .infinity, minHeight: isTall ? 56 : 32)
         }
         .tint(grade.color)
-        if prominent {
+        if grade == .again || grade == .good {
             button
                 .buttonStyle(.borderedProminent)
-                .font(.title3.weight(.semibold))
+                .font(isTall ? .title3.weight(.semibold) : .body.weight(.semibold))
         } else {
             button
                 .buttonStyle(.bordered)
