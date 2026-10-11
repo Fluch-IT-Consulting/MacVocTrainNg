@@ -15,7 +15,7 @@ import os
 /// it is:
 /// - Views watch the document with `@ObservedObject`. `objectWillChange` sends before
 ///   every change, as SwiftUI expects.
-/// - Everything else, like `DueCardCounter` and `SessionViewModel`, subscribes to
+/// - Everything else, like `DueCardCounter` and `SessionDriver`, subscribes to
 ///   `deckDidChange`. It sends after every change, once `deck` holds the new state.
 ///
 /// Why the document doesn't switch to Observation: `docs/adr/0003-dokument-bleibt-observableobject.md`.
@@ -200,7 +200,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// Stores a card rescheduled after a review in a study session, with the change
     /// `SessionMode.grade(_:in:at:calendar:)` returns. Undo and redo of the review run
     /// `companion` right after the card, in the same undo action; the session brings
-    /// back its place with it, see `SessionViewModel.grade`.
+    /// back its place with it, see `SessionDriver.grade(_:)`.
     func applyReview(_ change: DeckChange, alongside companion: UndoCompanion) {
         perform(change, actionName: String(localized: "Review"), alongside: companion)
     }
