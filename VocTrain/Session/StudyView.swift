@@ -135,32 +135,36 @@ struct StudyView: View {
         }
     }
 
-    /// Again, Hard, the progress, Easy, Good. Before the answer shows, the right half
-    /// holds the button that shows it; the left half stays empty, so the progress stays
-    /// in the middle.
+    /// Again, Hard, the progress, Easy, Good. Before the answer shows, a short Show
+    /// button takes the place of Good; the other places stay empty, so the progress
+    /// stays in the middle.
     private var buttonRow: some View {
         HStack(spacing: 12) {
             if model.stage == .revealed {
                 GradeButton(grade: .again, onGrade: model.grade)
                 GradeButton(grade: .hard, onGrade: model.grade)
-            } else {
-                Color.clear
-                    .frame(maxWidth: .infinity, maxHeight: 0)
-            }
-            progress
-            if model.stage == .revealed {
+                progress
                 GradeButton(grade: .easy, onGrade: model.grade)
                 GradeButton(grade: .good, onGrade: model.grade)
             } else {
+                emptyPlace
+                emptyPlace
+                progress
+                emptyPlace
                 Button {
                     model.reveal()
                 } label: {
-                    Text("Show Answer")
+                    Text("Show")
                         .frame(maxWidth: .infinity, minHeight: 32)
                 }
                 .buttonStyle(.borderedProminent)
             }
         }
+    }
+
+    private var emptyPlace: some View {
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: 0)
     }
 }
 
