@@ -630,12 +630,12 @@
         }
       }
     },
-    "Computing needs %lld usable reviews: reviews on a later study day than the previous review of the same card.": {
+    "Computing needs %lld usable reviews: typed reviews on a later study day than the previous review of the same card.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Berechnung braucht %lld verwertbare Abfragen: Abfragen an einem späteren Lerntag als die vorige Abfrage derselben Karte."
+            "value": "Die Berechnung braucht %lld verwertbare Abfragen: getippte Abfragen an einem späteren Lerntag als die vorige Abfrage derselben Karte."
           }
         }
       }

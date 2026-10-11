@@ -84,13 +84,22 @@ public enum ReviewMode: Sendable {
     case typed
     /// The learner revealed the answer and graded without a response.
     case revealed
+
+    /// Share of the stability FSRS adds on a recall that the card keeps; see `Scheduler`.
+    /// Applies neither to a lapse nor to a card's first review.
+    public var stabilityGainShare: Double {
+        switch self {
+        case .typed: 1
+        case .revealed: 1.0 / 3
+        }
+    }
 }
 
 /// One review in a study session.
 public struct ReviewLogEntry: Hashable, Sendable {
     public var date: Date
     public var grade: Grade
-    /// Kept so an analysis can tell whether revealed reviews skew the model.
+    /// A recalled revealed review gains less stability, see `ReviewMode.stabilityGainShare`.
     public var mode: ReviewMode
 
     public init(date: Date, grade: Grade, mode: ReviewMode = .typed) {

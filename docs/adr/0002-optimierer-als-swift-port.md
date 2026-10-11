@@ -47,8 +47,8 @@ Abfragen und die Grenzen je Gewicht. Abweichungen:
 
 ## Welche Abfragen zählen
 
-Lernbeispiel ist jede Abfrage, die an einem späteren Lerntag als die vorige derselben
-Karte stattfand, zusammen mit allen Abfragen davor. Abfragen am selben Tag gehen nur als
+Lernbeispiel ist jede getippte Abfrage, die an einem späteren Lerntag als die vorige
+derselben Karte stattfand, zusammen mit allen Abfragen davor (siehe ADR 0004). Abfragen am selben Tag gehen nur als
 Vorgeschichte ein. Karten aus MacVocTrain 1 fehlt der Verlauf vor dem Import; sie zählen
 nicht mit. Erkennbar ist ein vollständiger Verlauf daran, dass er so viele Einträge hat,
 wie der Lernstand Abfragen zählt.
