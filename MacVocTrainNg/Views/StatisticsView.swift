@@ -83,7 +83,7 @@ private struct SummaryTiles: View {
             Tile(
                 title: "Recall Probability",
                 value: summary.averageRecallProbability.map(Format.percent) ?? "–",
-                help: "Average recall probability of all studied cards right now."
+                help: "Average recall probability of the cards in the review phase right now."
             )
             Tile(
                 title: "Reviewed Today",
