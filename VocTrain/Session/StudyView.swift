@@ -92,34 +92,52 @@ struct StudyView: View {
         }
     }
 
-    /// Centred, the card keeps room for the hidden answer, so the question doesn't
-    /// move up when the answer shows. It scrolls only if it doesn't fit, so that it is
-    /// centred in the space it has, like the buttons below it.
     private func cardText(_ card: Card, centered: Bool) -> some View {
         Group {
             if centered {
-                ViewThatFits(in: .vertical) {
-                    cardContent(card, reservesAnswer: true)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    ScrollView {
-                        cardContent(card, reservesAnswer: true)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
+                fixedDividerCard(card)
             } else {
                 ScrollView {
-                    cardContent(card, reservesAnswer: false)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 48)
+                    VStack(spacing: 16) {
+                        question(of: card)
+                        if model.stage == .revealed {
+                            Divider()
+                            answer(of: card)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
                 }
             }
         }
+        .multilineTextAlignment(.center)
         // The whole card shows the answer, not only the button.
         .contentShape(Rectangle())
         .onTapGesture { model.reveal() }
     }
 
-    private func cardContent(_ card: Card, reservesAnswer: Bool) -> some View {
+    /// The divider stays in one place, whatever the card says: the question above it,
+    /// the answer below. It sits a little above the middle, as the row of buttons below
+    /// weighs more than the text. Text too long for its half gets smaller.
+    private func fixedDividerCard(_ card: Card) -> some View {
+        let revealed = model.stage == .revealed
+        return VStack(spacing: 16) {
+            question(of: card)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            Group {
+                Divider()
+                answer(of: card)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .opacity(revealed ? 1 : 0)
+            .accessibilityHidden(!revealed)
+            Color.clear
+                .frame(height: 24)
+        }
+        .minimumScaleFactor(0.5)
+    }
+
+    private func question(of card: Card) -> some View {
         VStack(spacing: 16) {
             Text(card.question)
                 .font(.largeTitle.weight(.semibold))
@@ -128,18 +146,12 @@ struct StudyView: View {
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
-            if model.stage == .revealed || reservesAnswer {
-                let revealed = model.stage == .revealed
-                Group {
-                    Divider()
-                    Text(card.answer)
-                        .font(.largeTitle)
-                }
-                .opacity(revealed ? 1 : 0)
-                .accessibilityHidden(!revealed)
-            }
         }
-        .multilineTextAlignment(.center)
+    }
+
+    private func answer(of card: Card) -> some View {
+        Text(card.answer)
+            .font(.largeTitle)
     }
 
     @ViewBuilder
