@@ -69,12 +69,16 @@ extension DeckChange {
         return edited == card ? nil : DeckChange(upserts: [edited])
     }
 
-    /// Makes the cards with `ids` in `deck` new again, keeping their content. Cards
-    /// that are new already and have no log stay out; `nil` if that leaves none.
-    public static func resettingLearningState(of ids: Set<Card.ID>, in deck: Deck) -> DeckChange? {
+    /// Makes the cards with `ids` in `deck` new again, keeping their content, and notes
+    /// `now` as their `learningStateReset`, so a merge leaves out the reviews before it.
+    /// Cards that are new already and have no log stay out; `nil` if that leaves none.
+    public static func resettingLearningState(of ids: Set<Card.ID>, in deck: Deck, at now: Date) -> DeckChange? {
+        // Whole seconds, as `deck.json` stores dates, so the deck read back is the same.
+        let reset = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
         let cards = deck.cards.filter { ids.contains($0.id) && (!$0.isNew || !$0.log.isEmpty) }.map { card in
             var card = card
             card.resetLearningState()
+            card.learningStateReset = reset
             return card
         }
         return cards.isEmpty ? nil : DeckChange(upserts: cards)

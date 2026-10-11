@@ -163,17 +163,19 @@ struct DeckChangeTests {
         let other = Card(question: "pies", answer: "Hund", learningState: studied.learningState)
         var deck = Deck(cards: [studied, new, other])
 
-        let change = try #require(DeckChange.resettingLearningState(of: [studied.id, new.id], in: deck))
+        let change = try #require(DeckChange.resettingLearningState(of: [studied.id, new.id], in: deck, at: start.addingTimeInterval(0.5)))
         _ = deck.apply(change, day: 100)
-        #expect(deck.cards[0] == Card(id: studied.id, question: "dom", answer: "Haus"))
+        var reset = Card(id: studied.id, question: "dom", answer: "Haus")
+        reset.learningStateReset = start  // in whole seconds, as the file keeps it
+        #expect(deck.cards[0] == reset)
         #expect(deck.cards[1] == new)
         #expect(deck.cards[2] == other)
     }
 
     @Test func resettingNewCardsChangesNothing() {
         let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
-        #expect(DeckChange.resettingLearningState(of: [deck.cards[0].id], in: deck) == nil)
-        #expect(DeckChange.resettingLearningState(of: [UUID()], in: deck) == nil)
+        #expect(DeckChange.resettingLearningState(of: [deck.cards[0].id], in: deck, at: start) == nil)
+        #expect(DeckChange.resettingLearningState(of: [UUID()], in: deck, at: start) == nil)
     }
 
     @Test func unchangedLearningOptionsChangeNothing() {
@@ -247,7 +249,7 @@ struct DeckChangeTests {
             { DeckChange.adding([card], to: $0) },
             { DeckChange.editingText(of: card.id, to: CardText(question: "dom", answer: "Heim")!, in: $0) },
             { _ in DeckChange(upserts: [self.studiedCard()]) },
-            { DeckChange.resettingLearningState(of: [$0.cards[1].id], in: $0) },
+            { DeckChange.resettingLearningState(of: [$0.cards[1].id], in: $0, at: self.start) },
             { DeckChange.changingLearningOptions(options, in: $0, calendar: .testing) },
             { DeckChange.removing([card.id], from: $0) },
         ]

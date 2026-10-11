@@ -15,6 +15,7 @@ struct DeckFileTests {
         card.learningState = LearningState(phase: .review, step: 0, stability: 12.5, difficulty: 4.2, lastReview: date, due: date.addingTimeInterval(86400), reviews: 3, lapses: 1)
         // One review short, like a card imported from MacVocTrain 1 with a learning state.
         card.log = [ReviewLogEntry(date: date.addingTimeInterval(-86400), grade: .again), ReviewLogEntry(date: date, grade: .hard, mode: .revealed)]
+        card.learningStateReset = date.addingTimeInterval(-2 * 86400)
         return Deck(
             learningOptions: learningOptions,
             cards: [card, Card(question: "kot", answer: "Katze", created: date)],
@@ -65,6 +66,7 @@ struct DeckFileTests {
         let deck = try DeckFile.decode(data)
         expectFixedDeck(deck)
         #expect(deck.contentModified == date)
+        #expect(deck.cards[1].learningStateReset == date.addingTimeInterval(-22 * 3600))
 
         #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == String(decoding: data, as: UTF8.self))
     }
@@ -105,7 +107,7 @@ struct DeckFileTests {
         #expect(deckJSON.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
         #expect(deckJSON.contains("\"version\" : 4"))
         #expect(deckJSON.contains("\"question\" : \"dom\""))
-        for key in ["learningOptions", "targetRecall", "steps", "learningState", "reviews", "hint", "progress", "contentModified"] {
+        for key in ["learningOptions", "targetRecall", "steps", "learningState", "learningStateReset", "reviews", "hint", "progress", "contentModified"] {
             #expect(deckJSON.contains("\"\(key)\" :"), "missing key \(key)")
         }
         #expect(!deckJSON.contains("\"log\""))

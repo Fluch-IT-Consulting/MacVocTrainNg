@@ -10,6 +10,9 @@ extension DeckChange {
     ///   any more drops out with its reviews.
     /// - The review logs of a card are joined. A review in both versions, at the same
     ///   second with the same grade, counts once.
+    /// - A card's reviews before its latest reset (`Card.learningStateReset`) drop out:
+    ///   a version that hasn't seen the reset counts as a new card with only the
+    ///   reviews since, replayed from scratch (#273).
     /// - The learning state of a card comes from the version that holds all its
     ///   reviews, replayed with the parameters of the content if they differ there
     ///   (`Scheduler.replayingMemory(of:)`). If each version has reviews the other
@@ -44,6 +47,7 @@ extension DeckChange {
                 )
                 merged.learningState = learned.learningState
                 merged.log = learned.log
+                merged.learningStateReset = learned.learningStateReset
             }
             if let existing = mine[card.id] {
                 if merged != existing { change.upserts.append((merged, nil)) }
@@ -110,6 +114,8 @@ extension DeckChange {
     /// The card of one of both versions, with the learning state and review log the
     /// merge gives it; its other properties don't count.
     private static func learning(of mine: Version, and theirs: Version, scheduler: Scheduler) -> Card {
+        let mine = resetting(mine, like: theirs.card, scheduler: scheduler)
+        let theirs = resetting(theirs, like: mine.card, scheduler: scheduler)
         let onlyMine = reviews(of: mine.card.log, missingFrom: theirs.card.log)
         let onlyTheirs = reviews(of: theirs.card.log, missingFrom: mine.card.log)
 
@@ -130,6 +136,16 @@ extension DeckChange {
             return scheduler.replaying(joined, of: mine.card)
         }
         return continuing(mine, theirs, scheduler: scheduler)
+    }
+
+    /// `version` after the reset of the learning state `other` holds, if `version`
+    /// hasn't seen it: a new card again, with only the reviews since replayed. The
+    /// version itself if its own reset is as late.
+    private static func resetting(_ version: Version, like other: Card, scheduler: Scheduler) -> Version {
+        guard let reset = other.learningStateReset, reset > version.card.learningStateReset ?? .distantPast else { return version }
+        var card = scheduler.replaying(version.card.log.filter { $0.date >= reset }, of: version.card)
+        card.learningStateReset = reset
+        return Version(card: card, parameters: scheduler.learningOptions.parameters, hasContent: version.hasContent)
     }
 
     /// For logs that don't reach back to the first review, as after an import from
