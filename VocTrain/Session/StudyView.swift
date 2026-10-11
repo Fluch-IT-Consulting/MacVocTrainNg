@@ -21,7 +21,7 @@ struct StudyView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if !model.isFinished {
-                        Button("End Session", action: onClose)
+                        Button("End Session", systemImage: "chevron.backward", action: onClose)
                     }
                 }
                 ToolbarItem(placement: .principal) {
@@ -40,7 +40,7 @@ struct StudyView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            // iOS 26 adds a back button of its own, which only did what End Session does.
+            // iOS 26 adds a back button of its own; End Session takes its place.
             .navigationBarBackButtonHidden()
         }
     }
