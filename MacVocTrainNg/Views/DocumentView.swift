@@ -21,10 +21,6 @@ struct DocumentView: View {
     var isEditable: Bool
     /// Merges the versions of the deck from other devices; outlives the view.
     var merger: VersionMerger
-    /// The document's undo manager, which SwiftUI hands only to views. The document
-    /// gets it from here. A sheet's environment holds the undo manager of the sheet's
-    /// own window instead (#48).
-    @Environment(\.undoManager) private var undoManager
     /// Survives quitting when the window is restored; the session doesn't.
     @SceneStorage("screen") private var screen: Screen = .cards
     @State private var session: SessionViewModel?
@@ -74,15 +70,7 @@ struct DocumentView: View {
         .sheet(item: $importPreview) { preview in
             ImportPreviewView(document: document, preview: preview)
         }
-        .onChange(of: undoManager, initial: true) {
-            giveUndoManagerToDocument()
-            attachToMerger()
-        }
-        .onChange(of: fileURL, attachToMerger)
-        .onChange(of: isEditable, attachToMerger)
-        .onChange(of: session == nil) { _, hasNoSession in
-            merger.isInSession = !hasNoSession
-        }
+        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: session != nil)
         .focusedSceneValue(
             \.deckActions,
             DeckActions(
@@ -121,14 +109,6 @@ struct DocumentView: View {
         }
     }
     #endif
-
-    private func giveUndoManagerToDocument() {
-        document.undoManager = undoManager
-    }
-
-    private func attachToMerger() {
-        merger.attach(document, fileURL: fileURL, isEditable: isEditable)
-    }
 
     private func importCards() {
         guard isEditable else { return }

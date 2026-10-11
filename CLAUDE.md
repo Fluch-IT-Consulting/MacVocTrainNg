@@ -31,7 +31,7 @@ The active developer dir may be the Command Line Tools; prefix with
 - `Shared/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
   marks the document dirty. They register with the document's own `undoManager`, which
-  `DocumentView` sets from its environment (tests set it themselves); callers don't pass
+  the document's view sets from its environment through `documentSync` (tests set it themselves); callers don't pass
   one. Don't mutate `deck` elsewhere. Underneath, cards and learning
   options change only through `Deck.apply(_:at:calendar:)`: it returns the inverse change
   and keeps `progress` and `contentModified` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
