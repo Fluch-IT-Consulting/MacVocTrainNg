@@ -1900,6 +1900,16 @@
         }
       }
     },
+    "Show": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeigen"
+          }
+        }
+      }
+    },
     "Show Answer": {
       "localizations": {
         "de": {
