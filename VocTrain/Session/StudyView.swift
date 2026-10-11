@@ -54,44 +54,53 @@ struct StudyView: View {
     }
 
     /// In portrait the buttons sit below the card. In landscape the iPhone is too low
-    /// for that, so they take a column to the right of the card, at the thumb.
+    /// for that, so they take a column to the right of the card, both centred in height.
     @ViewBuilder
     private func cardArea(_ card: Card) -> some View {
         if verticalSizeClass == .compact {
-            HStack(alignment: .bottom, spacing: 24) {
-                cardText(card, topPadding: 8)
+            HStack(spacing: 24) {
+                cardText(card, centered: true)
                 actions
                     .frame(width: 260)
             }
             .padding()
         } else {
             VStack(spacing: 24) {
-                cardText(card, topPadding: 48)
+                cardText(card, centered: false)
                 actions
             }
             .padding()
         }
     }
 
-    private func cardText(_ card: Card, topPadding: CGFloat) -> some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Text(card.question)
-                    .font(.largeTitle.weight(.semibold))
-                if !card.hint.isEmpty {
-                    Text(card.hint)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+    /// Centred, the card keeps room for the hidden answer, so the question doesn't
+    /// move up when the answer shows.
+    private func cardText(_ card: Card, centered: Bool) -> some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 16) {
+                    Text(card.question)
+                        .font(.largeTitle.weight(.semibold))
+                    if !card.hint.isEmpty {
+                        Text(card.hint)
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    if model.stage == .revealed || centered {
+                        let revealed = model.stage == .revealed
+                        Group {
+                            Divider()
+                            Text(card.answer)
+                                .font(.largeTitle)
+                        }
+                        .opacity(revealed ? 1 : 0)
+                        .accessibilityHidden(!revealed)
+                    }
                 }
-                if model.stage == .revealed {
-                    Divider()
-                    Text(card.answer)
-                        .font(.largeTitle)
-                }
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: centered ? geometry.size.height : nil)
+                .padding(.top, centered ? 0 : 48)
             }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.top, topPadding)
         }
         // The whole card shows the answer, not only the button.
         .contentShape(Rectangle())
