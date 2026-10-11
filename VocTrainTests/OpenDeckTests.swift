@@ -5,7 +5,9 @@ import VocabCore
 @testable import VocTrain
 
 /// Opening, saving and reading again a deck with the app's own UIDocument (#285).
-@MainActor
+/// A test that waits for the UIDocument in vain fails after a minute instead of
+/// holding up the run.
+@MainActor @Suite(.timeLimit(.minutes(1)))
 struct OpenDeckTests {
     let directory: URL
 
@@ -63,12 +65,7 @@ struct OpenDeckTests {
         let deck = OpenDeck(url: url)
         let first = try await waitForDocument(of: deck)
 
-        let changed = try DeckFile.fileWrapper(for: Deck(cards: [makeCard("dom"), makeCard("kot")]))
-        var error: NSError?
-        NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &error) { url in
-            try? changed.write(to: url, options: .atomic, originalContentsURL: nil)
-        }
-        #expect(error == nil)
+        try await writeCoordinated(Deck(cards: [makeCard("dom"), makeCard("kot")]), to: url)
 
         try await wait { deck.document !== first }
         #expect(deck.document?.deck.cards.count == 2)
@@ -83,6 +80,29 @@ struct OpenDeckTests {
         let url = directory.appending(path: "Polish.voctrain", directoryHint: .isDirectory)
         try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
         return url
+    }
+
+    /// Writes `deck` to `url` as another process would, coordinated and off the main
+    /// thread: the UIDocument, a file presenter, gives the file up for the write on the
+    /// main thread, so a coordinated write there would wait for itself.
+    private func writeCoordinated(_ deck: Deck, to url: URL) async throws {
+        try await Task.detached {
+            var coordinationError: NSError?
+            var writeError: (any Error)?
+            NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { url in
+                do {
+                    try DeckFile.fileWrapper(for: deck).write(to: url, options: .atomic, originalContentsURL: nil)
+                } catch {
+                    writeError = error
+                }
+            }
+            if let coordinationError {
+                throw coordinationError
+            }
+            if let writeError {
+                throw writeError
+            }
+        }.value
     }
 
     private func waitForDocument(of deck: OpenDeck) async throws -> VocabularyDocument {

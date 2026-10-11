@@ -66,11 +66,14 @@ final class OpenDeck {
         }
     }
 
-    /// Saves what is unsaved and lets go of the file.
+    /// Saves what is unsaved and lets go of the file. A file that failed to open is
+    /// closed already.
     func close() async {
         merger.suspend()
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            file.close { @Sendable _ in continuation.resume() }
+        if !file.documentState.contains(.closed) {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                file.close { @Sendable _ in continuation.resume() }
+            }
         }
         if isAccessingFile {
             url.stopAccessingSecurityScopedResource()
