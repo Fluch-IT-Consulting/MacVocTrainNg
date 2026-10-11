@@ -45,6 +45,22 @@ struct StudyView: View {
         }
     }
 
+    /// The progress in the row of buttons: the bar at the height of their middle, the
+    /// numbers small below it.
+    private var rowProgress: some View {
+        let session = model.session
+        return ProgressView(value: Double(session.completedCount), total: Double(max(session.totalCount, 1)))
+            .frame(width: 120)
+            .overlay(alignment: .top) {
+                Text("\(session.completedCount) / \(session.totalCount)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                    .offset(y: 8)
+            }
+    }
+
     private var progress: some View {
         let session = model.session
         return VStack(spacing: 4) {
@@ -77,37 +93,53 @@ struct StudyView: View {
     }
 
     /// Centred, the card keeps room for the hidden answer, so the question doesn't
-    /// move up when the answer shows.
+    /// move up when the answer shows. It scrolls only if it doesn't fit, so that it is
+    /// centred in the space it has, like the buttons below it.
     private func cardText(_ card: Card, centered: Bool) -> some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 16) {
-                    Text(card.question)
-                        .font(.largeTitle.weight(.semibold))
-                    if !card.hint.isEmpty {
-                        Text(card.hint)
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                    if model.stage == .revealed || centered {
-                        let revealed = model.stage == .revealed
-                        Group {
-                            Divider()
-                            Text(card.answer)
-                                .font(.largeTitle)
-                        }
-                        .opacity(revealed ? 1 : 0)
-                        .accessibilityHidden(!revealed)
+        Group {
+            if centered {
+                ViewThatFits(in: .vertical) {
+                    cardContent(card, reservesAnswer: true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    ScrollView {
+                        cardContent(card, reservesAnswer: true)
+                            .frame(maxWidth: .infinity)
                     }
                 }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: centered ? geometry.size.height : nil)
-                .padding(.top, centered ? 0 : 48)
+            } else {
+                ScrollView {
+                    cardContent(card, reservesAnswer: false)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 48)
+                }
             }
         }
         // The whole card shows the answer, not only the button.
         .contentShape(Rectangle())
         .onTapGesture { model.reveal() }
+    }
+
+    private func cardContent(_ card: Card, reservesAnswer: Bool) -> some View {
+        VStack(spacing: 16) {
+            Text(card.question)
+                .font(.largeTitle.weight(.semibold))
+            if !card.hint.isEmpty {
+                Text(card.hint)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            if model.stage == .revealed || reservesAnswer {
+                let revealed = model.stage == .revealed
+                Group {
+                    Divider()
+                    Text(card.answer)
+                        .font(.largeTitle)
+                }
+                .opacity(revealed ? 1 : 0)
+                .accessibilityHidden(!revealed)
+            }
+        }
+        .multilineTextAlignment(.center)
     }
 
     @ViewBuilder
@@ -143,13 +175,13 @@ struct StudyView: View {
             if model.stage == .revealed {
                 GradeButton(grade: .again, onGrade: model.grade)
                 GradeButton(grade: .hard, onGrade: model.grade)
-                progress
+                rowProgress
                 GradeButton(grade: .easy, onGrade: model.grade)
                 GradeButton(grade: .good, onGrade: model.grade)
             } else {
                 emptyPlace
                 emptyPlace
-                progress
+                rowProgress
                 emptyPlace
                 Button {
                     model.reveal()
