@@ -1,10 +1,12 @@
 import Foundation
 import VocabCore
+import os
 
 /// The file of an open deck: its versions in conflict on iCloud Drive, and the
 /// document behind `DocumentGroup`, which saves it. Each app finds that document its
 /// own way: an NSDocument on the Mac, a UIDocument on the iPhone, see `save()` in the
-/// extensions of the two apps.
+/// extensions of the two apps. If it finds none, `save()` throws rather than return as
+/// if it had saved (#265).
 ///
 /// Hears of every change to the file by another process through a file presenter of
 /// its own, next to the document's. The Mac's sandbox allows it with the entitlement
@@ -14,6 +16,7 @@ import VocabCore
 final class FileVersionStore: DeckVersionStore {
     let url: URL
     private let presenter: Presenter
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mfluch.voctrain", category: "FileVersionStore")
 
     /// - Parameter onChange: Runs on the main actor after another process changed the
     ///   file or iCloud Drive set a version in conflict aside.
@@ -25,6 +28,19 @@ final class FileVersionStore: DeckVersionStore {
 
     deinit {
         NSFileCoordinator.removeFilePresenter(presenter)
+    }
+
+    /// The error `save()` throws when it finds no document for the file. It shouldn't
+    /// happen: the way the app finds the document behind `DocumentGroup` broke, perhaps
+    /// with an update of the SDK. The merger then keeps the conflicts, and the device's
+    /// log says so.
+    struct DocumentNotFound: Error {}
+
+    /// Logs that `save()` found no document for the file, and returns the error to throw.
+    func documentNotFound() -> DocumentNotFound {
+        let name = url.lastPathComponent
+        Self.logger.error("Found no document to save \(name, privacy: .private)")
+        return DocumentNotFound()
     }
 
     /// Leaves out versions iCloud Drive hasn't downloaded yet; a later merge gets them.

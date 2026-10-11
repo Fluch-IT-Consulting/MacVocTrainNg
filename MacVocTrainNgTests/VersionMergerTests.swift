@@ -111,6 +111,27 @@ struct VersionMergerTests {
         #expect(!conflict.isResolved)
     }
 
+    /// E.g. when the app no longer finds the document behind `DocumentGroup` (#265).
+    @Test func conflictsStayUntilTheMergeIsSaved() async {
+        let conflict = FakeConflict(deck: reviewing(kot, in: base, at: day(2)), store: store)
+        store.conflicts = [conflict]
+        store.saveError = FileVersionStore.DocumentNotFound()
+        let (document, _) = open(base)
+        // Only the merge saves: the save scheduled after its change would come any time.
+        let merger = makeMerger(saveDelay: .seconds(3600))
+
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(document.deck.card(withID: kot.id)?.log.count == 1)
+        #expect(!conflict.isResolved)
+        #expect(store.events == ["save"])
+
+        store.saveError = nil
+        await merger.mergeVersions().value
+        #expect(conflict.isResolved)
+        #expect(store.events == ["save", "resolve"])
+    }
+
     @Test func aChangedFileIsMergedAfterItsConflicts() async {
         let (document, _) = open(base)
         let merger = makeMerger()
@@ -277,6 +298,8 @@ final class FakeVersionStore: DeckVersionStore {
     var connections = 0
     /// The handler `VersionMerger` gave the store for changes to the file.
     var onChange: (@MainActor @Sendable () -> Void)?
+    /// What `save()` throws, if anything.
+    var saveError: (any Error)?
 
     func unresolvedConflicts() -> [ConflictVersion] {
         conflicts.filter { !$0.isResolved }.map { conflict in
@@ -293,6 +316,9 @@ final class FakeVersionStore: DeckVersionStore {
 
     func save() async throws {
         events.append("save")
+        if let saveError {
+            throw saveError
+        }
     }
 }
 
