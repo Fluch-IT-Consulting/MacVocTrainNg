@@ -104,3 +104,11 @@ The five standard roles, label equals role name. See `docs/agents/triage-labels.
 
 Single context: `CONTEXT.md` and `docs/adr/` at the root, created when needed.
 See `docs/agents/domain.md`.
+
+### Wiki
+
+The GitHub wiki (German, a repository of its own: `MacVocTrainNg.wiki.git`) explains how
+to use the apps and how the algorithms work; its pages name the code they describe in
+a `Code:` line. A pull request that changes what a page describes names the page and
+the change in its body under `Wiki:`. After the merge, the page is brought up to date;
+pushing to the wiki needs the owner's go-ahead.
