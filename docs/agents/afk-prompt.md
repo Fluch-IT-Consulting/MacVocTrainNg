@@ -25,7 +25,9 @@ von `origin/main`. Das Issue ist schon zugewiesen. Arbeite nur in diesem Verzeic
    einen Schritt macht.
 5. `git push -u origin {{BRANCH}}`, dann `gh pr create --base main --head {{BRANCH}}`.
    Der Titel ist der Satz des Issues, der Rumpf sagt, was sich geändert hat und wie
-   es geprüft wurde, und endet mit `Closes #{{ISSUE}}`.
+   es geprüft wurde, und endet mit `Closes #{{ISSUE}}`. Ändert der Pull Request, was
+   eine Seite des Wikis beschreibt (siehe `CLAUDE.md`), nennt der Rumpf unter `Wiki:`
+   die Seite und was sich dort ändert. Das Wiki selbst änderst du nicht.
 6. Gib zum Schluss den Link zum Pull Request aus.
 
 ## Wenn du nicht weiterkommst
