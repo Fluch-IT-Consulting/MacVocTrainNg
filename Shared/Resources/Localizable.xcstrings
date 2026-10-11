@@ -740,6 +740,16 @@
         }
       }
     },
+    "Decks are created and edited in MacVocTrain on the Mac. Here you only study them.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stapel werden in MacVocTrain auf dem Mac angelegt und bearbeitet. Hier lernst du sie nur."
+          }
+        }
+      }
+    },
     "Default": {
       "localizations": {
         "de": {
@@ -2136,6 +2146,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diese Karte wurde noch nicht gelernt."
+          }
+        }
+      }
+    },
+    "This deck has no cards": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Stapel hat keine Karten"
           }
         }
       }
