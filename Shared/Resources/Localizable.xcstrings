@@ -790,6 +790,16 @@
         }
       }
     },
+    "Decks are created in MacVocTrain on the Mac. Open one it saved, e.g. in iCloud Drive.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stapel werden in MacVocTrain auf dem Mac angelegt. Öffne einen, den es gesichert hat, etwa in iCloud Drive."
+          }
+        }
+      }
+    },
     "Default": {
       "localizations": {
         "de": {
@@ -1490,6 +1500,16 @@
         }
       }
     },
+    "No Deck Open": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kein Stapel geöffnet"
+          }
+        }
+      }
+    },
     "No Progress Yet": {
       "localizations": {
         "de": {
@@ -1546,6 +1566,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Jetzt"
+          }
+        }
+      }
+    },
+    "Open Deck…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stapel öffnen …"
           }
         }
       }
@@ -2256,6 +2286,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Die aktuellen Parameter sagen deine Abfragen schon am besten voraus."
+          }
+        }
+      }
+    },
+    "The deck could not be opened": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Stapel ließ sich nicht öffnen"
+          }
+        }
+      }
+    },
+    "The deck could not be read.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Stapel ließ sich nicht lesen."
           }
         }
       }

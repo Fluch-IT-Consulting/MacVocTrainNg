@@ -8,7 +8,7 @@ import VocabCore
 ///
 /// NSDocument on the Mac and UIDocument on the iPhone read the file again on their own
 /// when another process writes it, and the window or scene gets a new document, see
-/// `DocumentWindow` and `DocumentScreen`. The merger lives as long as the window or
+/// `DocumentWindow` and `OpenDeck`. The merger lives as long as the window or
 /// scene, so it sees each of its documents in turn:
 /// - It merges the deck of the document before into the new one: NSDocument sets
 ///   unsaved changes aside as an `NSFileVersion` before it reads again, where the

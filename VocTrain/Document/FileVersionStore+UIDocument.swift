@@ -1,9 +1,9 @@
 import UIKit
 
 extension FileVersionStore {
-    /// Saves in place through the UIDocument behind `DocumentGroup`, even if it hasn't
-    /// counted the change yet. SwiftUI keeps the UIDocument to itself, but it is among
-    /// the file presenters of the app. Throws `DocumentNotFound` if it isn't.
+    /// Saves in place through the deck's UIDocument, `DeckFileDocument`, even if it
+    /// hasn't counted the change yet. It is among the file presenters of the app while
+    /// the deck is open. Throws `DocumentNotFound` if it isn't.
     func save() async throws {
         let documents = NSFileCoordinator.filePresenters.compactMap { $0 as? UIDocument }
         guard let document = documents.first(where: { Self.isSameFile($0.fileURL, url) }) else { throw documentNotFound() }

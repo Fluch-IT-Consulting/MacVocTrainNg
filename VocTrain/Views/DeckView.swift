@@ -4,8 +4,8 @@ import VocabCore
 /// The screen of an open deck: how many cards are due, when the next one is, and the
 /// start of a study session.
 ///
-/// Shows one document for its whole life: the scene gives each document a view of its
-/// own, see `DocumentScreen`.
+/// Shows one document for its whole life: each document gets a view of its own, see
+/// `DeckScreen`.
 struct DeckView: View {
     @ObservedObject var document: VocabularyDocument
     /// Where the document is saved.
@@ -15,6 +15,8 @@ struct DeckView: View {
     var isEditable: Bool
     /// Merges the versions of the deck from the Mac; outlives the view.
     var merger: VersionMerger
+    /// The undo manager of the deck's file, which counts the changes to save.
+    var undoManager: UndoManager
     @State private var study: StudyModel?
 
     var body: some View {
@@ -61,7 +63,7 @@ struct DeckView: View {
                 }
             }
         }
-        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: study != nil)
+        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: study != nil, undoManager: undoManager)
         .fullScreenCover(item: $study) { model in
             StudyView(model: model) { study = nil }
         }
@@ -73,8 +75,7 @@ struct DeckView: View {
     }
 }
 
-/// Explains a deck without cards (#266): the document browser offers to create a
-/// deck, but this app never adds cards.
+/// Explains a deck without cards (#266): this app never adds cards.
 private struct EmptyDeckNotice: View {
     var body: some View {
         Section {

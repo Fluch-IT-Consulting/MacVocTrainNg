@@ -65,8 +65,9 @@ final class VocabularyDocument: ReferenceFileDocument {
     /// The undo manager of the document's window; every change registers its undo
     /// action here. SwiftUI creates the document but hands the undo manager only to
     /// views, so the document's view sets it through `documentSync`, and tests set it
-    /// themselves. Weak: it belongs to the NSDocument or UIDocument behind
-    /// `DocumentGroup`. Not part of the deck, so setting it tells no observer.
+    /// themselves. Weak: it belongs to the NSDocument behind `DocumentGroup` on the Mac,
+    /// to the app's own UIDocument on the iPhone. Not part of the deck, so setting it
+    /// tells no observer.
     weak var undoManager: UndoManager?
     /// Switches the calendar when the machine's time zone changes; ends with the document.
     private var timeZoneObservation: AnyCancellable?
@@ -153,6 +154,12 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     nonisolated func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
         try DeckFile.fileWrapper(for: snapshot, reviewLog: reviewLog)
+    }
+
+    /// The deck as a file, for the iPhone app's own UIDocument (#285). Runs on any
+    /// thread, like `snapshot`.
+    nonisolated func fileWrapper() throws -> FileWrapper {
+        try DeckFile.fileWrapper(for: savedDeck.withLock { $0 }, reviewLog: reviewLog)
     }
 
     // MARK: - Queries
