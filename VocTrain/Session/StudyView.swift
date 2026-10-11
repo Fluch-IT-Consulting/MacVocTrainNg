@@ -40,6 +40,8 @@ struct StudyView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            // iOS 26 adds a back button of its own, which only did what End Session does.
+            .navigationBarBackButtonHidden()
         }
     }
 
