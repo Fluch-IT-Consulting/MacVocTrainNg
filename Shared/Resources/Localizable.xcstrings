@@ -480,12 +480,12 @@
         }
       }
     },
-    "Average recall probability of all studied cards right now.": {
+    "Average recall probability of the cards in the review phase right now.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Durchschnittliche Abrufwahrscheinlichkeit aller gelernten Karten im Moment."
+            "value": "Durchschnittliche Abrufwahrscheinlichkeit der Karten in der Wiederholungsphase im Moment."
           }
         }
       }
