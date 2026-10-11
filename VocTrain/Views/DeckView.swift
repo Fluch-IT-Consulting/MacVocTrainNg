@@ -35,6 +35,10 @@ struct DeckView: View {
                 }
             }
 
+            if document.deck.cards.isEmpty {
+                EmptyDeckNotice()
+            }
+
             Section {
                 LabeledContent("Cards", value: document.deck.cards.count, format: .number)
                 LabeledContent("Due Now", value: dueCount, format: .number)
@@ -78,6 +82,22 @@ struct DeckView: View {
     /// When the next card becomes due; new cards are due at once.
     private var nextDue: Date? {
         document.deck.cards.compactMap(\.learningState?.due).min()
+    }
+}
+
+/// Explains a deck without cards (#266): the document browser offers to create a
+/// deck, but this app never adds cards.
+private struct EmptyDeckNotice: View {
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 4) {
+                Label("This deck has no cards", systemImage: "rectangle.stack")
+                    .font(.headline)
+                Text("Decks are created and edited in MacVocTrain on the Mac. Here you only study them.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
