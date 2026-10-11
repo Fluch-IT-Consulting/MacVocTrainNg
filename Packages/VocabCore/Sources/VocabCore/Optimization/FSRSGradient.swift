@@ -6,6 +6,8 @@ import Foundation
 /// The forward pass repeats the formulas of `FSRS` with the bounds of fsrs-rs (stability
 /// also at most `maximumStability`) and records which branch each review took, so the
 /// backward pass follows the same path. Gradients stop where a bound is exceeded.
+/// Like `Scheduler`, it scales the stability gain of a recalled revealed review by
+/// `ReviewMode.stabilityGainShare`.
 struct FSRSGradient {
     static let maximumStability = 36500.0
     /// Predictions are clamped to `minimumProbability...(1 - minimumProbability)`
@@ -76,6 +78,8 @@ struct FSRSGradient {
         var sameDayRaw = 0.0
         var sameDayValue = 0.0
         var sameDayRawActive = false
+        /// The share of the stability gain the review kept; 1 if not scaled.
+        var gainShare = 1.0
         var preClampS: Double
         var preClampD: Double
     }
@@ -114,7 +118,7 @@ struct FSRSGradient {
         let r = retrievability(elapsedDays: elapsedDays, stability: lastS)
         step.retrievability = r
 
-        let newS: Double
+        var newS: Double
         if elapsedDays == 0 {
             step.branch = .sameDay
             step.sameDayRaw = exp(w[17] * (rating - 3 + w[18])) * pow(lastS, -w[19])
@@ -134,6 +138,10 @@ struct FSRSGradient {
                 exp(w[8]) * (11 - lastD) * pow(lastS, -w[9]) * (exp((1 - r) * w[10]) - 1)
                 * hardPenalty * easyBonus
             newS = lastS * (increase + 1)
+        }
+        if grade.isRecall && newS > lastS {
+            step.gainShare = review.mode.stabilityGainShare
+            newS = lastS + (newS - lastS) * step.gainShare
         }
 
         let deltaD = -w[6] * (rating - 3)
@@ -190,8 +198,10 @@ struct FSRSGradient {
     }
 
     private func backward(_ step: Step, gS gOutS: Double, gD gOutD: Double, into g: inout [Double]) -> (Double, Double) {
-        let gPreS = gOutS * Self.passes(step.preClampS, Self.stabilityRange)
-        var gLastS = 0.0
+        let gScaledS = gOutS * Self.passes(step.preClampS, Self.stabilityRange)
+        // scaled = lastS + (newS - lastS) * share
+        let gPreS = gScaledS * step.gainShare
+        var gLastS = gScaledS * (1 - step.gainShare)
         var gLastD = 0.0
         var gR = 0.0
 

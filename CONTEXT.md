@@ -50,7 +50,9 @@ _Vermeiden_: Answer, „deine Antwort“
 **Review mode** (Abfrageart):
 Wie eine Review lief: Typed (Getippt), der Lernende tippt eine Response, und die App
 schlägt eine Grade vor; oder Revealed (Aufgedeckt), der Lernende deckt die Answer auf und
-gibt die Grade ohne Response. Der Mac fragt Typed ab.
+gibt die Grade ohne Response. Der Mac fragt Typed ab, das iPhone Revealed. Eine Revealed
+Review, die die Card weiß, bringt nur ein Drittel der Stabilität, die FSRS hinzurechnet;
+siehe `docs/adr/0004-aufgedeckte-abfragen-gedaempft.md`.
 _Vermeiden_: Karteikarten-Modus
 
 **Check result** (Prüfergebnis):
@@ -144,7 +146,7 @@ _Vermeiden_: Desired retention, Retention, Behaltensquote
 **Parameters** (Parameter):
 Die 21 Gewichte des FSRS-Modells, je Deck in den Learning options. Sie beginnen mit den
 Standardwerten von open-spaced-repetition und lassen sich aus dem Review log des Decks
-berechnen. Dafür zählen nur Reviews an einem späteren Study day als die vorige Review
+berechnen. Dafür zählen nur Typed Reviews an einem späteren Study day als die vorige Review
 derselben Card, und nur von Cards, deren Review log bis zur ersten Review reicht.
 
 **Interval** (Abstand):

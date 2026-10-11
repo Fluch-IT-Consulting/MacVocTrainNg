@@ -94,6 +94,49 @@ struct SchedulerTests {
         #expect(scheduler.replaying(card.log, of: card).log == card.log)
     }
 
+    @Test func revealedRecallGainsAThirdOfTheStability() throws {
+        var card = Card(question: "dom", answer: "Haus")
+        card.learningState = LearningState(phase: .review, stability: 20, difficulty: 5, lastReview: now.addingTimeInterval(-20 * 86400), due: now)
+        var random = SeededRandom(seed: 0)
+        for grade in [Grade.hard, .good, .easy] {
+            let typed = try #require(scheduler.review(card, grade: grade, at: now, mode: .typed, using: &random).learningState)
+            let revealed = try #require(scheduler.review(card, grade: grade, at: now, mode: .revealed, using: &random).learningState)
+            #expect(abs(revealed.stability - (20 + (typed.stability - 20) / 3)) < 1e-9)
+            #expect(revealed.difficulty == typed.difficulty)
+            #expect(revealed.due < typed.due)
+        }
+    }
+
+    @Test func revealedAgainCountsInFull() {
+        var card = Card(question: "dom", answer: "Haus")
+        card.learningState = LearningState(phase: .review, stability: 20, difficulty: 5, lastReview: now.addingTimeInterval(-20 * 86400), due: now)
+        var random = SeededRandom(seed: 0)
+        let typed = scheduler.review(card, grade: .again, at: now, mode: .typed, using: &random)
+        let revealed = scheduler.review(card, grade: .again, at: now, mode: .revealed, using: &random)
+        #expect(revealed.learningState == typed.learningState)
+    }
+
+    @Test func revealedFirstReviewKeepsTheInitialStability() {
+        var random = SeededRandom(seed: 0)
+        let new = Card(question: "dom", answer: "Haus")
+        let typed = scheduler.review(new, grade: .good, at: now, mode: .typed, using: &random)
+        let revealed = scheduler.review(new, grade: .good, at: now, mode: .revealed, using: &random)
+        #expect(revealed.learningState == typed.learningState)
+    }
+
+    @Test func replayingRevealedReviewsGivesTheSameCard() {
+        let reviews: [(hours: Double, grade: Grade, mode: ReviewMode)] = [
+            (0, .good, .revealed), (0.1, .good, .typed), (30, .good, .revealed), (100, .again, .revealed),
+            (100.1, .good, .revealed), (300, .easy, .revealed), (900, .hard, .typed),
+        ]
+        let card = reviews.reduce(Card(question: "dom", answer: "Haus")) { card, review in
+            var random = SeededRandom(seed: 0)
+            return scheduler.review(card, grade: review.grade, at: now.addingTimeInterval(review.hours * 3600), mode: review.mode, using: &random)
+        }
+        #expect(scheduler.replayingMemory(of: card) == card)
+        #expect(scheduler.replaying(card.log, of: card) == card)
+    }
+
     @Test func againRestartsAndHardKeepsLearningStep() {
         var card = Card(question: "dom", answer: "Haus")
         card = scheduler.review(card, grade: .good, at: now)

@@ -55,7 +55,31 @@ struct OptimizerTests {
         #expect(items.map(\.target.elapsedDays) == [4, 9])
     }
 
+    @Test func revealedReviewsAreNoTargetsButHistory() {
+        let start = calendar.start(ofDay: 20_000)
+        let log = [
+            ReviewLogEntry(date: start, grade: .good),
+            ReviewLogEntry(date: start.addingTimeInterval(86400), grade: .good, mode: .revealed),
+            ReviewLogEntry(date: start.addingTimeInterval(3 * 86400), grade: .again),
+        ]
+        let card = Card(question: "q", answer: "a", learningState: LearningState(phase: .relearning, stability: 1, difficulty: 5, lastReview: start, due: start, reviews: 3), log: log)
+        let items = TrainingItem.items(from: [card], calendar: calendar)
+        #expect(items.map(\.target.elapsedDays) == [2])
+        #expect(items[0].reviews.map(\.mode) == [.typed, .revealed, .typed])
+    }
+
     // MARK: - Model and gradient
+
+    /// `items` with every other review before the target revealed.
+    func revealingHistories(of items: [TrainingItem]) -> [TrainingItem] {
+        items.map { item in
+            var item = item
+            for index in item.reviews.indices.dropLast() where index % 2 == 1 {
+                item.reviews[index].mode = .revealed
+            }
+            return item
+        }
+    }
 
     @Test func forwardPassMatchesTheModel() {
         let parameters = SyntheticLearner.unusual
@@ -70,8 +94,26 @@ struct OptimizerTests {
         }
     }
 
-    @Test func gradientMatchesFiniteDifferences() {
-        let items = FSRSOptimizer.recencyWeighted(syntheticItems(cards: 40, seed: 2))[...]
+    @Test func forwardPassWithRevealedReviewsMatchesTheScheduler() {
+        var learningOptions = LearningOptions()
+        learningOptions.parameters = SyntheticLearner.unusual
+        let scheduler = Scheduler(learningOptions: learningOptions, calendar: calendar)
+        let gradient = FSRSGradient(weights: SyntheticLearner.unusual.weights)
+        let items = revealingHistories(of: syntheticItems(cards: 40, seed: 1))
+        #expect(items.contains { $0.history.contains { $0.mode == .revealed && $0.grade.isRecall && $0.elapsedDays > 0 } })
+        for item in items {
+            var memory: FSRS.Memory?
+            for review in item.history {
+                memory = scheduler.memory(after: memory, elapsedDays: review.elapsedDays, grade: review.grade, mode: review.mode)
+            }
+            #expect(abs(gradient.stability(before: item) - memory!.stability) <= 1e-9 * memory!.stability)
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func gradientMatchesFiniteDifferences(revealing: Bool) {
+        let synthetic = syntheticItems(cards: 40, seed: 2)
+        let items = FSRSOptimizer.recencyWeighted(revealing ? revealingHistories(of: synthetic) : synthetic)[...]
         var weights = SyntheticLearner.unusual.weights
         weights[7] = 0.05  // away from its lower bound
         var analytic = [Double](repeating: 0, count: FSRSParameters.count)

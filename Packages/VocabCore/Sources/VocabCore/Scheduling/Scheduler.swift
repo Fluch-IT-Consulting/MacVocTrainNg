@@ -9,6 +9,9 @@ import Foundation
 ///   resets it, `.easy` moves the card to the review phase at once). While
 ///   (re)learning they remain due.
 /// - Cards in the review phase get an interval in whole study days from FSRS.
+/// - A revealed review a card recalls gains only `ReviewMode.revealed.stabilityGainShare`
+///   of the stability FSRS adds: self-grading after seeing the answer is optimistic and
+///   fixes the answer less than typing it. A lapse counts in full.
 public struct Scheduler: Sendable {
     public var learningOptions: LearningOptions
     public var calendar: StudyCalendar
@@ -31,10 +34,11 @@ public struct Scheduler: Sendable {
     ) -> Card {
         let previous = card.learningState
         let elapsedDays = previous.map { self.elapsedDays(since: $0, at: now) } ?? 0
-        let memory = fsrs.review(
-            previous.map { FSRS.Memory(stability: $0.stability, difficulty: $0.difficulty) },
+        let memory = self.memory(
+            after: previous.map { FSRS.Memory(stability: $0.stability, difficulty: $0.difficulty) },
             elapsedDays: elapsedDays,
-            grade: grade
+            grade: grade,
+            mode: mode
         )
 
         var phase = previous?.phase ?? .learning
@@ -118,7 +122,7 @@ public struct Scheduler: Sendable {
         var previous: Date?
         for entry in card.log {
             let elapsedDays = previous.map { max(0, calendar.days(from: $0, to: entry.date)) } ?? 0
-            memory = fsrs.review(memory, elapsedDays: elapsedDays, grade: entry.grade)
+            memory = self.memory(after: memory, elapsedDays: elapsedDays, grade: entry.grade, mode: entry.mode)
             previous = entry.date
         }
         guard let memory else { return nil }
@@ -127,6 +131,16 @@ public struct Scheduler: Sendable {
         var updated = card
         updated.learningState = learningState
         return updated
+    }
+
+    /// The memory after a review with `grade` in `mode`: FSRS's, with the stability gain
+    /// of a recalled revealed review scaled by `ReviewMode.stabilityGainShare`.
+    func memory(after previous: FSRS.Memory?, elapsedDays: Int, grade: Grade, mode: ReviewMode) -> FSRS.Memory {
+        var memory = fsrs.review(previous, elapsedDays: elapsedDays, grade: grade)
+        if grade.isRecall, let previous, memory.stability > previous.stability {
+            memory.stability = previous.stability + (memory.stability - previous.stability) * mode.stabilityGainShare
+        }
+        return memory
     }
 
     /// Recall probability at `now`, counting whole study days since the last review

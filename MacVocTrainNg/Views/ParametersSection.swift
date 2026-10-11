@@ -54,7 +54,7 @@ struct ParametersSection: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("FSRS starts with parameters averaged over many learners. Computed from this deck's review log, they fit your memory, so cards need fewer reviews for the same target recall. Cards keep their due dates; new intervals apply from their next review.")
                 if let reviewCount, reviewCount < FSRSOptimizer.minimumReviewCount {
-                    Text("Computing needs \(FSRSOptimizer.minimumReviewCount) usable reviews: reviews on a later study day than the previous review of the same card.")
+                    Text("Computing needs \(FSRSOptimizer.minimumReviewCount) usable reviews: typed reviews on a later study day than the previous review of the same card.")
                 }
             }
             .foregroundStyle(.secondary)

@@ -45,8 +45,8 @@ public struct FSRSOptimizer: Sendable {
         self.relearningSteps = relearningSteps
     }
 
-    /// Reviews the optimizer learns from: those on a later study day than the previous
-    /// review of the same card, of cards with a complete review log.
+    /// Reviews the optimizer learns from: typed ones on a later study day than the
+    /// previous review of the same card, of cards with a complete review log.
     public var reviewCount: Int { items.count }
 
     // MARK: - Training

@@ -6,10 +6,11 @@ struct TrainingReview: Hashable, Sendable {
     /// Whole study days since the previous review of the card; 0 for the first review
     /// and for reviews on the same study day.
     var elapsedDays: Int
+    var mode: ReviewMode = .typed
 }
 
 /// A review to predict together with all reviews of the same card before it
-/// (`FSRSItem` in fsrs-rs). The last review is the target.
+/// (`FSRSItem` in fsrs-rs). The last review is the target; it is always typed.
 struct TrainingItem: Hashable, Sendable {
     var reviews: [TrainingReview]
 
@@ -26,8 +27,10 @@ struct TrainingItem: Hashable, Sendable {
 }
 
 extension TrainingItem {
-    /// One item for every review of `cards` on a later study day than the previous
+    /// One item for every typed review of `cards` on a later study day than the previous
     /// review of the same card, ordered by the time of that review, oldest first.
+    /// Revealed reviews are self-graded too optimistically to serve as targets; they
+    /// count in the history of later ones.
     ///
     /// Only cards whose review log is complete take part; see `Card.hasCompleteLog`.
     static func items(from cards: [Card], calendar: StudyCalendar) -> [TrainingItem] {
@@ -38,9 +41,9 @@ extension TrainingItem {
             for entry in card.log {
                 let day = calendar.dayNumber(for: entry.date)
                 let elapsed = previousDay.map { max(0, day - $0) } ?? 0
-                reviews.append(TrainingReview(grade: entry.grade, elapsedDays: elapsed))
+                reviews.append(TrainingReview(grade: entry.grade, elapsedDays: elapsed, mode: entry.mode))
                 previousDay = day
-                if elapsed > 0 {
+                if elapsed > 0 && entry.mode == .typed {
                     dated.append((entry.date, TrainingItem(reviews: reviews)))
                 }
             }
