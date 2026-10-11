@@ -7,6 +7,8 @@ struct StudyView: View {
     var model: StudyModel
     var onClose: () -> Void
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+
     var body: some View {
         NavigationStack {
             Group {
@@ -51,45 +53,65 @@ struct StudyView: View {
         }
     }
 
+    /// In portrait the buttons sit below the card. In landscape the iPhone is too low
+    /// for that, so they take a column to the right of the card, at the thumb.
+    @ViewBuilder
     private func cardArea(_ card: Card) -> some View {
-        VStack(spacing: 24) {
-            ScrollView {
-                VStack(spacing: 16) {
-                    Text(card.question)
-                        .font(.largeTitle.weight(.semibold))
-                    if !card.hint.isEmpty {
-                        Text(card.hint)
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                    }
-                    if model.stage == .revealed {
-                        Divider()
-                        Text(card.answer)
-                            .font(.largeTitle)
-                    }
-                }
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 48)
+        if verticalSizeClass == .compact {
+            HStack(alignment: .bottom, spacing: 24) {
+                cardText(card, topPadding: 8)
+                actions
+                    .frame(width: 260)
             }
-            // The whole card shows the answer, not only the button below.
-            .contentShape(Rectangle())
-            .onTapGesture { model.reveal() }
-
-            if model.stage == .revealed {
-                GradeButtons(onGrade: model.grade)
-            } else {
-                Button {
-                    model.reveal()
-                } label: {
-                    Text("Show Answer")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+            .padding()
+        } else {
+            VStack(spacing: 24) {
+                cardText(card, topPadding: 48)
+                actions
             }
+            .padding()
         }
-        .padding()
+    }
+
+    private func cardText(_ card: Card, topPadding: CGFloat) -> some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                Text(card.question)
+                    .font(.largeTitle.weight(.semibold))
+                if !card.hint.isEmpty {
+                    Text(card.hint)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                if model.stage == .revealed {
+                    Divider()
+                    Text(card.answer)
+                        .font(.largeTitle)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.top, topPadding)
+        }
+        // The whole card shows the answer, not only the button.
+        .contentShape(Rectangle())
+        .onTapGesture { model.reveal() }
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        if model.stage == .revealed {
+            GradeButtons(onGrade: model.grade)
+        } else {
+            Button {
+                model.reveal()
+            } label: {
+                Text("Show Answer")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
     }
 }
 
