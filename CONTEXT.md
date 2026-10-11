@@ -103,7 +103,8 @@ _Vermeiden_: forgotten, „vergessene Karte“ als Begriff
 **Learning state** (Lernstand):
 Was die App über das Gedächtnis des Lernenden zu einer Card weiß: Phase, Stability,
 Difficulty, wann sie Due ist und wie viele Reviews und Lapses sie hatte. Eine New card hat
-keinen. Zurücksetzen macht die Card wieder zur New card und leert ihr Review log.
+keinen. Zurücksetzen macht die Card wieder zur New card und leert ihr Review log; ein Merge
+lässt die Reviews von davor auch aus der anderen Fassung weg.
 _Vermeiden_: Memory state, Memory, Gedächtnis; Reset progress, Lernfortschritt zurücksetzen
 
 **Phase** (Phase):

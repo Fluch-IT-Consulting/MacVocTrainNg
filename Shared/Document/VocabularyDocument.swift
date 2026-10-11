@@ -193,7 +193,7 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     func resetLearningState(of ids: Set<Card.ID>) {
-        guard let change = DeckChange.resettingLearningState(of: ids, in: deck) else { return }
+        guard let change = DeckChange.resettingLearningState(of: ids, in: deck, at: clock.now) else { return }
         perform(change, actionName: String(localized: "Reset Learning State"))
     }
 

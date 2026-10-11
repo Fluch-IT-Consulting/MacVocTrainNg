@@ -126,6 +126,10 @@ public struct Card: Identifiable, Hashable, Sendable {
     public internal(set) var learningState: LearningState?
     /// The review log, oldest first. `FSRSOptimizer` computes parameters from it.
     public internal(set) var log: [ReviewLogEntry]
+    /// When the learner last reset the learning state, in whole seconds; `nil` if never.
+    /// A merge leaves out the reviews before it, which the other device may still hold
+    /// (#273).
+    public internal(set) var learningStateReset: Date?
 
     /// A new card, never studied.
     public init(id: UUID = UUID(), text: CardText, created: Date) {
@@ -145,7 +149,8 @@ public struct Card: Identifiable, Hashable, Sendable {
         hint: String = "",
         created: Date,
         learningState: LearningState?,
-        log: [ReviewLogEntry] = []
+        log: [ReviewLogEntry] = [],
+        learningStateReset: Date? = nil
     ) {
         self.id = id
         self.question = question
@@ -154,6 +159,7 @@ public struct Card: Identifiable, Hashable, Sendable {
         self.created = created
         self.learningState = learningState
         self.log = log
+        self.learningStateReset = learningStateReset
     }
 
     public var isNew: Bool { learningState == nil }
@@ -170,7 +176,8 @@ public struct Card: Identifiable, Hashable, Sendable {
         return learningState.due <= date
     }
 
-    /// Makes the card a new card again but keeps its content.
+    /// Makes the card a new card again but keeps its content. Leaves
+    /// `learningStateReset` to the caller: replaying a log resets the card, too.
     mutating func resetLearningState() {
         learningState = nil
         log = []

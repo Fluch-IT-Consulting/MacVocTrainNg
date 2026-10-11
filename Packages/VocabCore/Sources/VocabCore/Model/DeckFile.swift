@@ -18,7 +18,9 @@ import Foundation
 /// Versions 1 (a single JSON file with the log inside each card) and 2 (the package
 /// with the keys before the glossary of #23) date from before the first release and
 /// are no longer read. Version 4 added `contentModified` and the review mode, which
-/// a merge needs (#249); version 3 reads with neither.
+/// a merge needs (#249); version 3 reads with neither. `learningStateReset` of a card
+/// (#273) came later without a new version: an older app version drops it on save,
+/// and a merge may then bring back the reviews from before a reset, as it did before.
 ///
 /// When `currentVersion` goes up: a missing key takes its default, so a newer app
 /// version reads an older deck of the same version. The other way round, an older
@@ -268,6 +270,8 @@ extension DeckFile {
         var created: Date?
         /// Left out while the card is new.
         var learningState: LearningStateRecord?
+        /// Left out unless the learning state was ever reset.
+        var learningStateReset: Date?
 
         init(_ card: Card) {
             id = card.id
@@ -276,6 +280,7 @@ extension DeckFile {
             hint = card.hint.isEmpty ? nil : card.hint
             created = card.created
             learningState = card.learningState.map(LearningStateRecord.init)
+            learningStateReset = card.learningStateReset
         }
 
         var card: Card {
@@ -285,7 +290,8 @@ extension DeckFile {
                 answer: answer,
                 hint: hint ?? "",
                 created: created ?? Date(timeIntervalSince1970: 0),
-                learningState: learningState?.learningState
+                learningState: learningState?.learningState,
+                learningStateReset: learningStateReset
             )
         }
     }

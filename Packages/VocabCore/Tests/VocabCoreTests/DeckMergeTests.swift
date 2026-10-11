@@ -227,6 +227,53 @@ struct DeckMergeTests {
         #expect(merged.learningOptions == phone.learningOptions)
     }
 
+    /// Resetting a card on the Mac while the iPhone still holds its reviews (#273).
+    @Test func aResetDropsTheReviewsBeforeItFromTheOtherVersion() throws {
+        let base = try baseDeck()
+        var mac = base
+        _ = mac.apply(try #require(DeckChange.resettingLearningState(of: [dom.id], in: mac, at: day(2))), at: day(2), calendar: calendar)
+        var phone = base
+        review(&phone, kot.id, .good, at: day(3), mode: .revealed)
+
+        let merged = merging(phone, into: mac, at: day(4))
+        let card = try #require(merged.card(withID: dom.id))
+        #expect(card.isNew)
+        #expect(card.log.isEmpty)
+        #expect(card.learningStateReset == day(2))
+        #expect(merged.card(withID: kot.id)?.log.count == 1)
+        #expect(merging(mac, into: phone, at: day(4)).cards == merged.cards)
+    }
+
+    @Test func reviewsAfterTheResetCountFromScratch() throws {
+        let base = try baseDeck(fuzzing: false)
+        var mac = base
+        _ = mac.apply(try #require(DeckChange.resettingLearningState(of: [dom.id], in: mac, at: day(2))), at: day(2), calendar: calendar)
+        var phone = base
+        review(&phone, dom.id, .again, at: day(1), mode: .revealed)
+        review(&phone, dom.id, .good, at: day(3), mode: .revealed)
+
+        // As if the iPhone had seen the reset before its review on day 3.
+        var expected = mac
+        review(&expected, dom.id, .good, at: day(3), mode: .revealed)
+
+        let merged = merging(phone, into: mac, at: day(4))
+        #expect(merged.card(withID: dom.id) == expected.card(withID: dom.id))
+        #expect(merging(mac, into: phone, at: day(4)).card(withID: dom.id) == expected.card(withID: dom.id))
+    }
+
+    @Test func theLaterResetWins() throws {
+        let base = try baseDeck(fuzzing: false)
+        var mac = base
+        _ = mac.apply(try #require(DeckChange.resettingLearningState(of: [dom.id], in: mac, at: day(2))), at: day(2), calendar: calendar)
+        review(&mac, dom.id, .good, at: day(3))
+        var macLater = mac
+        _ = macLater.apply(try #require(DeckChange.resettingLearningState(of: [dom.id], in: macLater, at: day(5))), at: day(5), calendar: calendar)
+
+        let merged = merging(mac, into: macLater, at: day(6))
+        #expect(merged.card(withID: dom.id) == macLater.card(withID: dom.id))
+        #expect(merging(macLater, into: mac, at: day(6)).card(withID: dom.id) == macLater.card(withID: dom.id))
+    }
+
     @Test func mergingTheSameVersionChangesNothing() throws {
         let deck = try baseDeck()
         #expect(DeckChange.merging(deck, into: deck, calendar: calendar) == nil)
