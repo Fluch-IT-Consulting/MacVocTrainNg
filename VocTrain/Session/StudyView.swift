@@ -133,35 +133,32 @@ struct StudyView: View {
         }
     }
 
-    /// Again, Hard, the progress, Easy, Good. Before the answer shows, a button on each
-    /// side shows it, one for each thumb.
+    /// Again, Hard, the progress, Easy, Good. Before the answer shows, the right half
+    /// holds the button that shows it; the left half stays empty, so the progress stays
+    /// in the middle.
     private var buttonRow: some View {
         HStack(spacing: 12) {
             if model.stage == .revealed {
                 GradeButton(grade: .again, onGrade: model.grade)
                 GradeButton(grade: .hard, onGrade: model.grade)
             } else {
-                showAnswerButton
+                Color.clear
+                    .frame(maxWidth: .infinity, maxHeight: 0)
             }
             progress
             if model.stage == .revealed {
                 GradeButton(grade: .easy, onGrade: model.grade)
                 GradeButton(grade: .good, onGrade: model.grade)
             } else {
-                showAnswerButton
-                    .accessibilityHidden(true)
+                Button {
+                    model.reveal()
+                } label: {
+                    Text("Show Answer")
+                        .frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
-    }
-
-    private var showAnswerButton: some View {
-        Button {
-            model.reveal()
-        } label: {
-            Text("Show Answer")
-                .frame(maxWidth: .infinity, minHeight: 32)
-        }
-        .buttonStyle(.borderedProminent)
     }
 }
 
