@@ -218,7 +218,8 @@ protocol DeckVersionStore: AnyObject {
     /// The versions iCloud Drive keeps in conflict with the file, as far as they are
     /// on this device.
     func unresolvedConflicts() -> [ConflictVersion]
-    /// Writes the document's deck to the file now.
+    /// Writes the document's deck to the file now. Throws if it can't, also if it
+    /// finds no document to write.
     func save() async throws
 }
 
