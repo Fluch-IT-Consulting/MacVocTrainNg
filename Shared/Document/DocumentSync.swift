@@ -7,7 +7,8 @@ extension View {
     /// - Gives the document the undo manager of the view's environment, which SwiftUI
     ///   hands only to views; every change of the document registers there. A sheet's
     ///   environment holds the undo manager of the sheet's own window instead (#48), so
-    ///   this belongs on the document's view, not on a view inside a sheet.
+    ///   this belongs on the document's view, not on a view inside a sheet. The iPhone
+    ///   app passes the undo manager of its own UIDocument instead (#285).
     /// - Attaches the document to the merger when the view appears, and again when the
     ///   undo manager, the file or whether it can be changed changes.
     /// - Tells the merger whether a study session is under way.
@@ -17,8 +18,10 @@ extension View {
     ///     time.
     ///   - isEditable: `false` while the deck can only be viewed.
     ///   - isInSession: Whether the view shows a study session.
-    func documentSync(_ document: VocabularyDocument, fileURL: URL?, isEditable: Bool, merger: VersionMerger, isInSession: Bool) -> some View {
-        modifier(DocumentSync(document: document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: isInSession))
+    ///   - undoManager: The undo manager of the document, if not the one of the view's
+    ///     environment.
+    func documentSync(_ document: VocabularyDocument, fileURL: URL?, isEditable: Bool, merger: VersionMerger, isInSession: Bool, undoManager: UndoManager? = nil) -> some View {
+        modifier(DocumentSync(document: document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: isInSession, documentUndoManager: undoManager))
     }
 }
 
@@ -28,11 +31,12 @@ private struct DocumentSync: ViewModifier {
     var isEditable: Bool
     var merger: VersionMerger
     var isInSession: Bool
-    @Environment(\.undoManager) private var undoManager
+    var documentUndoManager: UndoManager?
+    @Environment(\.undoManager) private var environmentUndoManager
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: undoManager, initial: true) {
+            .onChange(of: documentUndoManager ?? environmentUndoManager, initial: true) { _, undoManager in
                 document.undoManager = undoManager
                 attachToMerger()
             }

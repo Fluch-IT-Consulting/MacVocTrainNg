@@ -3,15 +3,15 @@ import VocabCore
 import os
 
 /// The file of an open deck: its versions in conflict on iCloud Drive, and the
-/// document behind `DocumentGroup`, which saves it. Each app finds that document its
-/// own way: an NSDocument on the Mac, a UIDocument on the iPhone, see `save()` in the
-/// extensions of the two apps. If it finds none, `save()` throws rather than return as
+/// document that saves it. Each app finds that document its own way: the NSDocument
+/// behind `DocumentGroup` on the Mac, the app's own UIDocument on the iPhone (#285),
+/// see `save()` in the extensions of the two apps. If it finds none, `save()` throws rather than return as
 /// if it had saved (#265).
 ///
 /// Hears of every change to the file by another process through a file presenter of
 /// its own, next to the document's. The Mac's sandbox allows it with the entitlement
 /// for files the learner chose (#246); on the iPhone, the learner chose the file in
-/// the document browser.
+/// the file picker.
 @MainActor
 final class FileVersionStore: DeckVersionStore {
     let url: URL
@@ -31,8 +31,8 @@ final class FileVersionStore: DeckVersionStore {
     }
 
     /// The error `save()` throws when it finds no document for the file. It shouldn't
-    /// happen: the way the app finds the document behind `DocumentGroup` broke, perhaps
-    /// with an update of the SDK. The merger then keeps the conflicts, and the device's
+    /// happen: the way the app finds its document broke, perhaps with an update of the
+    /// SDK. The merger then keeps the conflicts, and the device's
     /// log says so.
     struct DocumentNotFound: Error {}
 
