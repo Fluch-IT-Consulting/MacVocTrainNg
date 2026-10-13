@@ -92,8 +92,13 @@ struct SessionView: View {
                 } primaryAction: {
                     editCurrentCard()
                 }
-                .keyboardShortcut("e", modifiers: .command)
                 .fixedSize()
+                // On the menu, ⌘E would also show next to its first item, Suspend Card.
+                .background {
+                    Button("Edit Card…", action: editCurrentCard)
+                        .keyboardShortcut("e", modifiers: .command)
+                        .hidden()
+                }
                 .disabled(model.currentCard == nil)
                 .help("Fix this card without leaving the session")
                 Button("End Session") { confirmingEnd = true }
