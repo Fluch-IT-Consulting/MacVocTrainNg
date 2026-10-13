@@ -12,7 +12,8 @@ import VocabCore
 /// showing its answer. The response typed so far stays, and a response already checked
 /// is checked again against the edited card.
 ///
-/// "Suspend Card" leaves out the card from now on, until the learner resumes it (#290).
+/// "Suspend Card", under the arrow of "Edit Card…" (#293), leaves out the card from now
+/// on, until the learner resumes it (#290).
 struct SessionView: View {
     @Bindable var model: SessionViewModel
     var onClose: () -> Void
@@ -84,13 +85,17 @@ struct SessionView: View {
                 .accessibilityLabel(Text("\(session.mistakeIDs.count) mistakes"))
             Spacer()
             if !model.isFinished {
-                Button("Edit Card…", action: editCurrentCard)
-                    .keyboardShortcut("e", modifiers: .command)
-                    .disabled(model.currentCard == nil)
-                    .help("Fix this card without leaving the session")
-                Button("Suspend Card") { model.suspendCurrentCard() }
-                    .disabled(model.currentCard == nil)
-                    .help("Don't ask this card again until you resume it in the card list")
+                // A pull-down button: a click edits, the arrow offers Suspend Card.
+                Menu("Edit Card…") {
+                    Button("Suspend Card") { model.suspendCurrentCard() }
+                        .help("Don't ask this card again until you resume it in the card list")
+                } primaryAction: {
+                    editCurrentCard()
+                }
+                .keyboardShortcut("e", modifiers: .command)
+                .fixedSize()
+                .disabled(model.currentCard == nil)
+                .help("Fix this card without leaving the session")
                 Button("End Session") { confirmingEnd = true }
                     .keyboardShortcut(.cancelAction)
             }
