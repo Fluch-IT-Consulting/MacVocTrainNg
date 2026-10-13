@@ -31,12 +31,22 @@ struct StudyView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    // Only reviews of this session: undo beyond them would change cards
-                    // the session doesn't show.
+                    // Only reviews and suspensions of this session: undo beyond them
+                    // would change cards the session doesn't show.
                     Button("Undo", systemImage: "arrow.uturn.backward") {
                         model.document.undoManager?.undo()
                     }
-                    .disabled(model.session.reviewCount == 0 || model.document.undoManager?.canUndo != true)
+                    .disabled(!model.hasUndoableSteps || model.document.undoManager?.canUndo != true)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    // In a menu, so a stray tap doesn't suspend the card.
+                    if !model.isFinished {
+                        Menu("More", systemImage: "ellipsis.circle") {
+                            Button("Suspend Card", systemImage: "pause.circle") {
+                                model.suspendCurrentCard()
+                            }
+                        }
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)

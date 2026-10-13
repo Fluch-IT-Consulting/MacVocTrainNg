@@ -52,6 +52,19 @@ final class StudyModel: Identifiable {
         driver.grade(grade)
     }
 
+    /// Suspends the card being asked, so no session asks it until the learner resumes
+    /// it on the Mac, and moves on (#290). Undo takes it back like a review.
+    func suspendCurrentCard() {
+        guard stage != .finished else { return }
+        driver.suspendCurrentCard()
+    }
+
+    /// Whether this session did something that undo takes back: a review or a
+    /// suspension. Undo beyond them would change cards the session doesn't show.
+    var hasUndoableSteps: Bool {
+        session.reviewCount > 0 || session.suspendedCount > 0
+    }
+
     /// Starts a new session with the cards that are still due.
     func continueStudying() {
         driver.start(Self.makeSession(for: document))
