@@ -68,6 +68,29 @@ struct StudyModelTests {
         #expect(model.session.reviewCount == 1)
     }
 
+    /// On the iPhone too, a card can be suspended in the session, revealed or not (#290).
+    @Test func suspendingMovesOnAndCanBeUndone() throws {
+        let (document, undoManager) = makeDocument()
+        let model = StudyModel(document: document)
+        let card = try #require(model.currentCard)
+        #expect(!model.hasUndoableSteps)
+
+        model.reveal()
+        undoManager.beginUndoGrouping()
+        model.suspendCurrentCard()
+        undoManager.endUndoGrouping()
+        #expect(document.card(withID: card.id)?.isSuspended == true)
+        #expect(document.card(withID: card.id)?.learningState == nil)
+        #expect(model.currentCard?.id != card.id)
+        #expect(model.stage == .asking)
+        #expect(model.hasUndoableSteps)
+
+        undoManager.undo()
+        #expect(document.card(withID: card.id) == card)
+        #expect(model.currentCard == card)
+        #expect(!model.hasUndoableSteps)
+    }
+
     @Test func sessionWithoutDueCardsIsFinished() {
         let (document, _) = makeDocument(questions: [])
         let model = StudyModel(document: document)

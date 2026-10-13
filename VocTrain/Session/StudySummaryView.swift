@@ -18,6 +18,9 @@ struct StudySummaryView: View {
                     LabeledContent("Recalled", value: Format.percent(Double(session.recalledCount) / Double(session.reviewCount)))
                 }
                 LabeledContent("Mistakes", value: session.mistakeIDs.count, format: .number)
+                if session.suspendedCount > 0 {
+                    LabeledContent("Suspended", value: session.suspendedCount, format: .number)
+                }
                 LabeledContent("Time", value: Duration.seconds(session.duration).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2)))
             } header: {
                 Text("Session complete")

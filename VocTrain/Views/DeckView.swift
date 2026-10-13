@@ -39,6 +39,9 @@ struct DeckView: View {
             Section {
                 LabeledContent("Cards", value: document.deck.cards.count, format: .number)
                 LabeledContent("Due Now", value: dueCount, format: .number)
+                if document.deck.suspendedCount > 0 {
+                    LabeledContent("Suspended", value: document.deck.suspendedCount, format: .number)
+                }
                 if dueCount == 0, let nextDue {
                     LabeledContent("Next Due", value: Format.due(nextDue, now: document.clock.now))
                 }
@@ -64,9 +67,9 @@ struct DeckView: View {
         }
     }
 
-    /// When the next card becomes due; new cards are due at once.
+    /// When the next card becomes due; new cards are due at once, suspended ones never.
     private var nextDue: Date? {
-        document.deck.cards.compactMap(\.learningState?.due).min()
+        document.deck.cards.lazy.filter { !$0.isSuspended }.compactMap(\.learningState?.due).min()
     }
 }
 
