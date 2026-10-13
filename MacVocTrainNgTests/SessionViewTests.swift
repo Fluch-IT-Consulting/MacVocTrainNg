@@ -57,6 +57,64 @@ extension WindowTests {
             #expect(responder.tryToPerform(Selector(("undo:")), with: nil))
         }
 
+        /// Presses ⌘E in the window the way AppKit offers it to a button's shortcut, as
+        /// a key equivalent. Returns whether a button took it.
+        private func pressCommandE() throws -> Bool {
+            let event = try #require(
+                NSEvent.keyEvent(
+                    with: .keyDown, location: .zero, modifierFlags: .command, timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, characters: "e", charactersIgnoringModifiers: "e", isARepeat: false,
+                    keyCode: 14
+                )
+            )
+            return window.performKeyEquivalent(with: event)
+        }
+
+        /// Opens the sheet that edits the card being asked and returns it once it shows
+        /// `fieldCount` fields.
+        private func showEditSheet(fieldCount: Int) async throws -> NSWindow {
+            #expect(try pressCommandE())
+            try await waitUntil("the sheet is shown") { window.attachedSheet != nil }
+            let sheet = try #require(window.attachedSheet)
+            try await waitUntil("the sheet shows \(fieldCount) fields") { editableFields(in: sheet).count == fieldCount }
+            return sheet
+        }
+
+        /// The fields of the sheet, top to bottom.
+        private func editableFields(in sheet: NSWindow) -> [NSTextField] {
+            let fields = sheet.contentView.map { descendants(of: $0).compactMap { $0 as? NSTextField }.filter(\.isEditable) } ?? []
+            return fields.sorted { $0.convert($0.bounds, to: nil).maxY > $1.convert($1.bounds, to: nil).maxY }
+        }
+
+        private func descendants(of view: NSView) -> [NSView] {
+            view.subviews.flatMap { [$0] + descendants(of: $0) }
+        }
+
+        /// Before the response is checked, the sheet shows question and hint but not the
+        /// answer (#289).
+        @Test func editingWhileAskingHidesTheAnswer() async throws {
+            defer { window.close() }
+            let card = try #require(model.currentCard)
+            try await waitUntil("the first response field has the focus") { editedField != nil }
+
+            let sheet = try await showEditSheet(fieldCount: 2)
+            #expect(editableFields(in: sheet).map(\.stringValue) == [card.question, card.hint])
+            window.endSheet(sheet)
+        }
+
+        /// Once the answer is shown, the sheet edits it too (#289).
+        @Test func editingTheShownAnswer() async throws {
+            defer { window.close() }
+            let card = try #require(model.currentCard)
+            try await waitUntil("the first response field has the focus") { editedField != nil }
+            try await respond("wrong")
+            try await waitUntil("the answer is shown") { model.stage != .asking }
+
+            let sheet = try await showEditSheet(fieldCount: 3)
+            #expect(editableFields(in: sheet).contains { $0.stringValue == card.answer })
+            window.endSheet(sheet)
+        }
+
         @Test func undoAfterContinuingAutomaticallyTakesBackTheReview() async throws {
             let first = try #require(model.currentCard)
             try await waitUntil("the first response field has the focus") { editedField != nil }
