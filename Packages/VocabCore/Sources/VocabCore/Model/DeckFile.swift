@@ -21,6 +21,9 @@ import Foundation
 /// a merge needs (#249); version 3 reads with neither. `learningStateReset` of a card
 /// (#273) came later without a new version: an older app version drops it on save,
 /// and a merge may then bring back the reviews from before a reset, as it did before.
+/// So did `suspended` and `suspensionChanged` of a card (#290): an older app version
+/// asks a suspended card and drops both on save. A merge with a newer version that
+/// still holds them keeps the card suspended.
 ///
 /// When `currentVersion` goes up: a missing key takes its default, so a newer app
 /// version reads an older deck of the same version. The other way round, an older
@@ -272,6 +275,10 @@ extension DeckFile {
         var learningState: LearningStateRecord?
         /// Left out unless the learning state was ever reset.
         var learningStateReset: Date?
+        /// Left out unless the card is suspended.
+        var suspended: Bool?
+        /// Left out unless the card was ever suspended.
+        var suspensionChanged: Date?
 
         init(_ card: Card) {
             id = card.id
@@ -281,6 +288,8 @@ extension DeckFile {
             created = card.created
             learningState = card.learningState.map(LearningStateRecord.init)
             learningStateReset = card.learningStateReset
+            suspended = card.isSuspended ? true : nil
+            suspensionChanged = card.suspensionChanged
         }
 
         var card: Card {
@@ -291,7 +300,9 @@ extension DeckFile {
                 hint: hint ?? "",
                 created: created ?? Date(timeIntervalSince1970: 0),
                 learningState: learningState?.learningState,
-                learningStateReset: learningStateReset
+                learningStateReset: learningStateReset,
+                isSuspended: suspended ?? false,
+                suspensionChanged: suspensionChanged
             )
         }
     }

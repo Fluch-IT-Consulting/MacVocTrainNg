@@ -130,6 +130,12 @@ public struct Card: Identifiable, Hashable, Sendable {
     /// A merge leaves out the reviews before it, which the other device may still hold
     /// (#273).
     public internal(set) var learningStateReset: Date?
+    /// Whether the learner suspended the card (#290): it is never due, so no session asks
+    /// it, until they resume it. Its learning state stays as it was meanwhile.
+    public internal(set) var isSuspended: Bool
+    /// When the learner last suspended or resumed the card, in whole seconds; `nil` if
+    /// never. A merge takes `isSuspended` from the version that changed it last.
+    public internal(set) var suspensionChanged: Date?
 
     /// A new card, never studied.
     public init(id: UUID = UUID(), text: CardText, created: Date) {
@@ -150,7 +156,9 @@ public struct Card: Identifiable, Hashable, Sendable {
         created: Date,
         learningState: LearningState?,
         log: [ReviewLogEntry] = [],
-        learningStateReset: Date? = nil
+        learningStateReset: Date? = nil,
+        isSuspended: Bool = false,
+        suspensionChanged: Date? = nil
     ) {
         self.id = id
         self.question = question
@@ -160,6 +168,8 @@ public struct Card: Identifiable, Hashable, Sendable {
         self.learningState = learningState
         self.log = log
         self.learningStateReset = learningStateReset
+        self.isSuspended = isSuspended
+        self.suspensionChanged = suspensionChanged
     }
 
     public var isNew: Bool { learningState == nil }
@@ -170,8 +180,9 @@ public struct Card: Identifiable, Hashable, Sendable {
         !log.isEmpty && learningState?.reviews == log.count
     }
 
-    /// New cards are always due.
+    /// New cards are always due, suspended cards never.
     public func isDue(at date: Date) -> Bool {
+        guard !isSuspended else { return false }
         guard let learningState else { return true }
         return learningState.due <= date
     }

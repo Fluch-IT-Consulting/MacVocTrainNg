@@ -227,6 +227,48 @@ struct DeckMergeTests {
         #expect(merged.learningOptions == phone.learningOptions)
     }
 
+    /// Suspending a card on the iPhone while the Mac edits another one (#290): the
+    /// suspension is no content, so the Mac's content stays.
+    @Test func aSuspensionOnTheIPhoneKeepsTheContentOfTheMac() throws {
+        let base = try baseDeck()
+        var phone = base
+        review(&phone, kot.id, .good, at: day(3), mode: .revealed)
+        _ = phone.apply(try #require(DeckChange.settingSuspended(true, of: [dom.id], in: phone, at: day(3))), at: day(3), calendar: calendar)
+        var mac = base
+        let text = try #require(CardText(question: "pies", answer: "Hund / Köter"))
+        _ = mac.apply(try #require(DeckChange.editingText(of: pies.id, to: text, in: mac)), at: day(2), calendar: calendar)
+
+        let merged = merging(phone, into: mac, at: day(4))
+        #expect(merged.card(withID: dom.id)?.isSuspended == true)
+        #expect(merged.card(withID: dom.id)?.suspensionChanged == day(3))
+        #expect(merged.card(withID: pies.id)?.answer == "Hund / Köter")
+        #expect(merged.card(withID: kot.id)?.log.count == 1)
+        #expect(merged.contentModified == mac.contentModified)
+        #expect(merging(mac, into: phone, at: day(4)).cards == merged.cards)
+    }
+
+    /// The version that suspended or resumed a card last wins, whichever has the content.
+    @Test func theLatestSuspensionOrResumeWins() throws {
+        let base = try baseDeck()
+        var mac = base
+        _ = mac.apply(try #require(DeckChange.settingSuspended(true, of: [dom.id, pies.id], in: mac, at: day(2))), at: day(2), calendar: calendar)
+        let text = try #require(CardText(question: "kot", answer: "Kater"))
+        _ = mac.apply(try #require(DeckChange.editingText(of: kot.id, to: text, in: mac)), at: day(2), calendar: calendar)
+        var phone = base
+        _ = phone.apply(try #require(DeckChange.settingSuspended(true, of: [dom.id, kot.id], in: phone, at: day(1))), at: day(1), calendar: calendar)
+        _ = phone.apply(try #require(DeckChange.settingSuspended(false, of: [dom.id], in: phone, at: day(3))), at: day(3), calendar: calendar)
+
+        let merged = merging(phone, into: mac, at: day(4))
+        // Resumed on the iPhone after the Mac suspended it.
+        #expect(merged.card(withID: dom.id)?.isSuspended == false)
+        #expect(merged.card(withID: dom.id)?.suspensionChanged == day(3))
+        // Suspended only on the Mac, and only on the iPhone.
+        #expect(merged.card(withID: pies.id)?.isSuspended == true)
+        #expect(merged.card(withID: kot.id)?.isSuspended == true)
+        #expect(merged.card(withID: kot.id)?.answer == "Kater")
+        #expect(merging(mac, into: phone, at: day(4)).cards == merged.cards)
+    }
+
     /// Resetting a card on the Mac while the iPhone still holds its reviews (#273).
     @Test func aResetDropsTheReviewsBeforeItFromTheOtherVersion() throws {
         let base = try baseDeck()

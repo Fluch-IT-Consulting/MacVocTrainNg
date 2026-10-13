@@ -18,6 +18,9 @@ extension DeckChange {
     ///   (`Scheduler.replayingMemory(of:)`). If each version has reviews the other
     ///   lacks, the joined log is replayed from scratch (`Scheduler.replaying(_:of:)`);
     ///   if it doesn't reach back to the first review, see `continuing`.
+    /// - Whether a card is suspended comes from the version that suspended or resumed it
+    ///   last (`Card.suspensionChanged`), or from the content's if both did so at the
+    ///   same second. Suspending is not content, as the iPhone suspends cards too (#290).
     /// - The progress joins the days of both versions; a day in both comes from the
     ///   one with more days. Applying the change records the snapshot of its day anew.
     ///
@@ -48,6 +51,9 @@ extension DeckChange {
                 merged.learningState = learned.learningState
                 merged.log = learned.log
                 merged.learningStateReset = learned.learningStateReset
+                let suspension = latestSuspension(of: mine, and: theirs, preferringMine: !otherHasContent)
+                merged.isSuspended = suspension.isSuspended
+                merged.suspensionChanged = suspension.suspensionChanged
             }
             if let existing = mine[card.id] {
                 if merged != existing { change.upserts.append((merged, nil)) }
@@ -94,6 +100,17 @@ extension DeckChange {
             second = Int(entry.date.timeIntervalSince1970.rounded(.down))
             grade = entry.grade
         }
+    }
+
+    /// Of both versions of a card, the one that suspended or resumed it last; if both
+    /// did so at the same time, or neither ever did, `mine` if `preferringMine`.
+    private static func latestSuspension(of mine: Card, and theirs: Card, preferringMine: Bool) -> Card {
+        let changedMine = mine.suspensionChanged ?? .distantPast
+        let changedTheirs = theirs.suspensionChanged ?? .distantPast
+        if changedMine == changedTheirs {
+            return preferringMine ? mine : theirs
+        }
+        return changedMine > changedTheirs ? mine : theirs
     }
 
     /// The reviews of `log` that `others` lacks; a review in both counts once, but

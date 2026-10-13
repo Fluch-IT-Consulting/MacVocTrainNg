@@ -271,6 +271,58 @@ struct DeckChangeTests {
         #expect(deck.contentModified == start)
     }
 
+    @Test func suspendingTakesOnlyCardsNotSuspendedYet() throws {
+        let studied = studiedCard()
+        let new = Card(question: "kot", answer: "Katze")
+        let other = Card(question: "pies", answer: "Hund")
+        var deck = Deck(cards: [studied, new, other], contentModified: start)
+
+        let change = try #require(DeckChange.settingSuspended(true, of: [studied.id, new.id], in: deck, at: start.addingTimeInterval(0.5)))
+        let inverse = deck.apply(change, at: start.addingTimeInterval(1), calendar: .testing)
+        #expect(deck.cards.map(\.isSuspended) == [true, true, false])
+        // In whole seconds, as the file keeps it.
+        #expect(deck.cards[0].suspensionChanged == start)
+        #expect(deck.cards[1].suspensionChanged == start)
+        #expect(deck.cards[2].suspensionChanged == nil)
+        // The learning state stays.
+        #expect(deck.cards[0].learningState == studied.learningState)
+        #expect(deck.cards[0].log == studied.log)
+        // Suspending is not content, so a merge doesn't take the content for it.
+        #expect(deck.contentModified == start)
+        #expect(deck.suspendedCount == 2)
+
+        #expect(DeckChange.settingSuspended(true, of: [studied.id, new.id], in: deck, at: start) == nil)
+        #expect(DeckChange.settingSuspended(false, of: [other.id, UUID()], in: deck, at: start) == nil)
+
+        _ = deck.apply(inverse, at: start.addingTimeInterval(2), calendar: .testing)
+        #expect(deck.cards == [studied, new, other])
+        #expect(deck.contentModified == start)
+    }
+
+    @Test func resumingKeepsTheLearningStateAndNotesTheTime() throws {
+        var deck = Deck(cards: [studiedCard()])
+        let id = deck.cards[0].id
+        _ = deck.apply(try #require(DeckChange.settingSuspended(true, of: [id], in: deck, at: start)), day: 100)
+        let resumedAt = start.addingTimeInterval(86400)
+
+        _ = deck.apply(try #require(DeckChange.settingSuspended(false, of: [id], in: deck, at: resumedAt)), day: 101)
+        #expect(!deck.cards[0].isSuspended)
+        #expect(deck.cards[0].suspensionChanged == resumedAt)
+        #expect(deck.cards[0].learningState == studiedCard().learningState)
+    }
+
+    @Test func suspendedCardsAreNeverDue() throws {
+        let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: start))
+        let new = Card(question: "kot", answer: "Katze")
+        var deck = Deck(cards: [scheduled, new])
+        #expect(deck.dueCount(at: start) == 2)
+
+        _ = deck.apply(try #require(DeckChange.settingSuspended(true, of: [scheduled.id, new.id], in: deck, at: start)), day: 100)
+        #expect(!deck.cards[0].isDue(at: start.addingTimeInterval(365 * 86400)))
+        #expect(!deck.cards[1].isDue(at: start))
+        #expect(deck.dueCount(at: start) == 0)
+    }
+
     @Test func dueCardsAreCountedAtTheGivenTime() {
         let due = start.addingTimeInterval(3600)
         let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: due))

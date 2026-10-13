@@ -21,7 +21,7 @@ public struct DeckChange: Sendable {
 
     /// What a change does to `Deck.contentModified`.
     enum ContentStamp: Sendable {
-        /// Reviews leave the content as it is.
+        /// Reviews and suspensions leave the content as it is.
         case keep
         /// A change to the content stamps the time it is applied, and so does its
         /// inverse: undoing a change changes the content, too.
@@ -82,6 +82,25 @@ extension DeckChange {
             return card
         }
         return cards.isEmpty ? nil : DeckChange(upserts: cards)
+    }
+
+    /// Suspends the cards with `ids` in `deck`, or resumes them if `suspended` is
+    /// `false`, and notes `now` as their `suspensionChanged`; cards already so stay out,
+    /// `nil` if that leaves none (#290).
+    ///
+    /// Leaves `Deck.contentModified` as it is: the iPhone suspends cards too, and a
+    /// merge must not take the content from its version for that. It takes the flag of
+    /// each card from the version that changed it last instead.
+    public static func settingSuspended(_ suspended: Bool, of ids: Set<Card.ID>, in deck: Deck, at now: Date) -> DeckChange? {
+        // Whole seconds, as `deck.json` stores dates, so the deck read back is the same.
+        let changed = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down))
+        let cards = deck.cards.filter { ids.contains($0.id) && $0.isSuspended != suspended }.map { card in
+            var card = card
+            card.isSuspended = suspended
+            card.suspensionChanged = changed
+            return card
+        }
+        return cards.isEmpty ? nil : DeckChange(upserts: cards, contentStamp: .keep)
     }
 
     /// Sets the learning options of `deck`, clamped into the ranges they offer, or `nil`

@@ -37,6 +37,12 @@ _Vermeiden_: Remark, Bemerkung
 Eine Card, die noch nie in einer Study session abgefragt wurde.
 _Vermeiden_: ungelernt, unseen
 
+**Suspended card** (Ausgesetzte Karte):
+Eine Card, die der Lernende ausgesetzt hat, auf dem Mac oder dem iPhone: Sie ist nie Due,
+keine Session fragt sie ab, bis er sie auf dem Mac wieder aufnimmt (Resume). Ihr Learning
+state bleibt derweil, wie er war.
+_Vermeiden_: ignoriert, deaktiviert, zurückgestellt, Buried
+
 ### Abfragen und Bewerten
 
 **Review** (Abfrage):
@@ -160,7 +166,8 @@ _Vermeiden_: Kalendertag, Tag
 
 **Due** (Fällig):
 Eine Card, die in der nächsten Study session drankommen kann: jede New card, jede Card in
-Learning oder Relearning und jede Card, deren Interval abgelaufen ist.
+Learning oder Relearning und jede Card, deren Interval abgelaufen ist, außer einer
+Suspended card.
 _Vermeiden_: anstehend, offen
 
 **Maturity** (Reifegrad):
@@ -179,7 +186,9 @@ _Vermeiden_: Dokument, Datei, Kartei, Box, Index card box
 **Merge** (Zusammenführen):
 Zwei Fassungen desselben Decks zu einer machen, etwa die von Mac und iPhone nach einem
 Konflikt auf iCloud Drive. Die Review logs beider zählen; Cards und Learning options kommen
-aus der Fassung, deren Inhalt zuletzt geändert wurde. Reviews ändern den Inhalt nicht.
+aus der Fassung, deren Inhalt zuletzt geändert wurde. Reviews ändern den Inhalt nicht,
+Aussetzen auch nicht: Ob eine Card ausgesetzt ist, kommt aus der Fassung, die das zuletzt
+geändert hat.
 _Vermeiden_: Synchronisieren, Abgleich
 
 **Learning options** (Lernoptionen):
