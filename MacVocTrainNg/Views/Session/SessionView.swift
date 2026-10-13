@@ -7,6 +7,10 @@ import VocabCore
 /// directly (unless disabled in the preferences). Otherwise the answer is shown
 /// and Return accepts the suggested grade; 1–4 choose a grade explicitly, e.g. 3
 /// when the response was right after all. ⌘Z takes back the last review.
+///
+/// ⌘E edits the card being asked (#289); before the response is checked, without
+/// showing its answer. The response typed so far stays, and a response already checked
+/// is checked again against the edited card.
 struct SessionView: View {
     @Bindable var model: SessionViewModel
     var onClose: () -> Void
@@ -14,6 +18,15 @@ struct SessionView: View {
     /// The question whose response field has the focus.
     @FocusState private var focusedQuestion: Int?
     @State private var confirmingEnd = false
+    @State private var editing: EditRequest?
+
+    /// The card that `CardEditSheet` edits, as it was when the sheet opened, and whether
+    /// the sheet hides its answer.
+    struct EditRequest: Identifiable {
+        var card: Card
+        var hidesAnswer: Bool
+        var id: Card.ID { card.id }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +53,15 @@ struct SessionView: View {
         } message: {
             Text("Your reviews so far are saved. Cards you haven't finished stay due.")
         }
+        .sheet(item: $editing, onDismiss: { focus(model.questionNumber) }) { request in
+            CardEditSheet(document: model.document, card: request.card, hidesAnswer: request.hidesAnswer)
+        }
+    }
+
+    /// Edits the card being asked; its answer stays hidden until the response is checked.
+    private func editCurrentCard() {
+        guard let card = model.currentCard else { return }
+        editing = EditRequest(card: card, hidesAnswer: model.stage == .asking)
     }
 
     private var header: some View {
@@ -60,6 +82,10 @@ struct SessionView: View {
                 .accessibilityLabel(Text("\(session.mistakeIDs.count) mistakes"))
             Spacer()
             if !model.isFinished {
+                Button("Edit Card…", action: editCurrentCard)
+                    .keyboardShortcut("e", modifiers: .command)
+                    .disabled(model.currentCard == nil)
+                    .help("Fix this card without leaving the session")
                 Button("End Session") { confirmingEnd = true }
                     .keyboardShortcut(.cancelAction)
             }

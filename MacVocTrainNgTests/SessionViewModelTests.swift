@@ -510,6 +510,55 @@ struct SessionViewModelTests {
         #expect(model.questionNumber == questionNumber)
     }
 
+    /// Editing the card being asked, as the session's edit sheet does, keeps the
+    /// response typed so far and asks on (#289).
+    @Test func editingTheCardBeingAskedKeepsTheResponse() {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let undoManager = makeUndoManager(for: document)
+        let model = SessionViewModel(document: document, autoAdvance: false)
+        let questionNumber = model.questionNumber
+        model.input = "Haus"
+
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus", hint: "der")!) }
+        #expect(model.currentCard?.hint == "der")
+        #expect(model.stage == .asking)
+        #expect(model.input == "Haus")
+        #expect(model.questionNumber == questionNumber)
+
+        model.submit()
+        #expect(model.stage == .feedback(.correct, response: "Haus"))
+    }
+
+    /// Fixing the answer once it is shown checks the response against the fixed card;
+    /// the grade is still the learner's to give. Undo takes back the review first, then
+    /// the edit (#289).
+    @Test func fixingTheShownAnswerChecksTheResponseAgain() throws {
+        let card = Card(question: "dom", answer: "Heim")
+        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let undoManager = makeUndoManager(for: document)
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        model.input = "Haus"
+        model.submit()
+        #expect(model.stage == .feedback(.wrong, response: "Haus"))
+
+        step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: "Haus")!) }
+        #expect(model.stage == .feedback(.correct, response: "Haus"))
+        #expect(model.suggestedGrade == .good)
+        #expect(model.session.reviewCount == 0)
+
+        step(undoManager) { model.grade(.good) }
+        let reviewed = try #require(document.card(withID: card.id))
+        #expect(reviewed.answer == "Haus")
+        #expect(reviewed.log.count == 1)
+
+        undoManager.undo()
+        #expect(document.card(withID: card.id)?.log.isEmpty == true)
+        #expect(document.card(withID: card.id)?.answer == "Haus")
+        undoManager.undo()
+        #expect(document.card(withID: card.id)?.answer == "Heim")
+    }
+
     @Test func undoingAndRedoingCaseSensitivityRechecksWithoutAutoAdvance() {
         var options = LearningOptions()
         options.caseSensitive = false

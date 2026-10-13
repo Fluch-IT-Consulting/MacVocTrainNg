@@ -430,6 +430,16 @@
         }
       }
     },
+    "Already in this deck: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereits im Stapel: %@"
+          }
+        }
+      }
+    },
     "Already in this deck: %@ → %@": {
       "localizations": {
         "de": {
@@ -870,6 +880,16 @@
         }
       }
     },
+    "Edit Card…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karte bearbeiten …"
+          }
+        }
+      }
+    },
     "Edit…": {
       "localizations": {
         "de": {
@@ -1006,6 +1026,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Angefangene Karten abschließen (%lld)"
+          }
+        }
+      }
+    },
+    "Fix this card without leaving the session": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Karte korrigieren, ohne die Sitzung zu verlassen"
           }
         }
       }
@@ -2066,6 +2096,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Der Algorithmus-Parameter w%lld dieses Stapels liegt außerhalb seines Bereichs."
+          }
+        }
+      }
+    },
+    "The answer stays hidden until you have responded.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Antwort bleibt verborgen, bis du geantwortet hast."
           }
         }
       }
