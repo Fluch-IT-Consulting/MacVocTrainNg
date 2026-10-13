@@ -29,7 +29,7 @@ final class SessionDriver {
     init(document: VocabularyDocument, mode: SessionMode) {
         self.document = document
         self.mode = mode
-        skipDeletedCards()
+        skipUnaskableCards()
         refreshCurrentCard()
         deckObservation = document.deckDidChange.sink { [weak self] in
             self?.deckDidChange()
@@ -61,6 +61,24 @@ final class SessionDriver {
         return true
     }
 
+    /// Suspends the card being asked and moves on (#290). Like a review, one undo action
+    /// takes back the suspension and the session's place: the document resumes the
+    /// card, then the session asks it again.
+    ///
+    /// - Returns: Whether the card was suspended; it isn't once the session is finished.
+    @discardableResult
+    func suspendCurrentCard() -> Bool {
+        guard let id = session.currentCardID, let card = document.card(withID: id), !card.isSuspended else { return false }
+        let before = mode
+        mode.perform(.suspend)
+        guard document.setSuspended(true, of: [id], alongside: sessionRestore(from: before, to: mode)) else {
+            mode = before
+            return false
+        }
+        moveOn()
+        return true
+    }
+
     /// Only finishes the cards already asked.
     func finishUp() {
         mode.perform(.finishUp)
@@ -74,19 +92,25 @@ final class SessionDriver {
         moveOn()
     }
 
-    /// Moves to the current card of the session, past cards deleted meanwhile, and
-    /// tells the delegate.
+    /// Moves to the current card of the session, past cards deleted or suspended
+    /// meanwhile, and tells the delegate.
     private func moveOn() {
-        skipDeletedCards()
+        skipUnaskableCards()
         refreshCurrentCard()
         delegate?.sessionDriverDidMoveOn(self)
     }
 
-    /// Cards deleted meanwhile, e.g. by undoing "Add Card" or by a merge, can't be asked.
-    private func skipDeletedCards() {
-        while let id = session.currentCardID, document.card(withID: id) == nil {
+    /// Cards deleted meanwhile, e.g. by undoing "Add Card" or by a merge, can't be
+    /// asked, nor can cards suspended meanwhile, e.g. on another device.
+    private func skipUnaskableCards() {
+        while let id = session.currentCardID, !canAsk(id) {
             mode.perform(.skip)
         }
+    }
+
+    private func canAsk(_ id: Card.ID) -> Bool {
+        guard let card = document.card(withID: id) else { return false }
+        return !card.isSuspended
     }
 
     private func refreshCurrentCard() {
@@ -94,9 +118,9 @@ final class SessionDriver {
     }
 
     /// Runs after every change to the deck, the session's own reviews included. Moves
-    /// on if the card being asked is gone.
+    /// on if the card being asked is gone or suspended.
     private func deckDidChange() {
-        if let id = session.currentCardID, document.card(withID: id) == nil {
+        if let id = session.currentCardID, !canAsk(id) {
             moveOn()
         } else {
             refreshCurrentCard()

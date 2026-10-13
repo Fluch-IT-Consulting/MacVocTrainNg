@@ -74,7 +74,7 @@ struct CardListView: View {
                 .disabledCustomizationBehavior([.reorder, .visibility])
                 TableColumn("Due", value: \.dueSortKey) { row in
                     // Formatted per visible cell rather than for all rows up front.
-                    DueText(due: row.due, now: now)
+                    DueText(due: row.due, isSuspended: row.isSuspended, now: now)
                 }
                 .width(min: 80, ideal: 110)
                 .customizationID("due")
@@ -96,6 +96,7 @@ struct CardListView: View {
                         if ids.count == 1, let id = ids.first {
                             Button("Edit…") { edit(id) }
                         }
+                        SuspensionButtons(document: document, ids: ids)
                         Button("Reset Learning State") {
                             document.resetLearningState(of: ids)
                         }
@@ -199,11 +200,40 @@ struct CardListView: View {
 
 private struct DueText: View {
     var due: Date?
+    var isSuspended: Bool
     var now: Date
 
     var body: some View {
-        Text(Format.due(due, now: now))
-            .foregroundStyle(due == nil ? .secondary : .primary)
+        if isSuspended {
+            Text("Suspended")
+                .foregroundStyle(.secondary)
+        } else {
+            Text(Format.due(due, now: now))
+                .foregroundStyle(due == nil ? .secondary : .primary)
+        }
+    }
+}
+
+/// "Suspend" for the cards with `ids` that aren't suspended, "Resume" for those that
+/// are (#290); both if some are, some not.
+struct SuspensionButtons: View {
+    @ObservedObject var document: VocabularyDocument
+    var ids: Set<Card.ID>
+
+    var body: some View {
+        let cards = ids.compactMap { document.card(withID: $0) }
+        if cards.contains(where: { !$0.isSuspended }) {
+            Button("Suspend") {
+                document.setSuspended(true, of: ids)
+            }
+            .help("Don't ask these cards in study sessions until you resume them")
+        }
+        if cards.contains(where: \.isSuspended) {
+            Button("Resume") {
+                document.setSuspended(false, of: ids)
+            }
+            .help("Ask these cards in study sessions again")
+        }
     }
 }
 
@@ -229,6 +259,7 @@ private struct StatusBar: View {
     var body: some View {
         let total = document.deck.cards.count
         let due = document.dueCards.count
+        let suspended = document.deck.suspendedCount
         HStack(spacing: 16) {
             if isFiltered {
                 Text("\(shownCount) of \(total) cards")
@@ -236,6 +267,9 @@ private struct StatusBar: View {
                 Text("\(total) cards")
             }
             Text("\(due) due")
+            if suspended > 0 {
+                Text("\(suspended) suspended")
+            }
             Spacer()
         }
         .font(.callout)

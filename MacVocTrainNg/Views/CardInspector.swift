@@ -25,6 +25,7 @@ struct CardInspector: View {
                     Text("\(selection.count) cards selected")
                         .font(.headline)
                     Group {
+                        SuspensionButtons(document: document, ids: selection)
                         Button("Reset Learning State") {
                             document.resetLearningState(of: selection)
                         }
@@ -61,6 +62,10 @@ private struct CardDetail: View {
             }
 
             Section("Learning State") {
+                if card.isSuspended {
+                    Label("Suspended: no study session asks this card.", systemImage: "pause.circle")
+                        .foregroundStyle(.secondary)
+                }
                 if let learningState = card.learningState {
                     LabeledContent("Maturity") { MaturityLabel(category: MaturityCategory(card: card)) }
                     LabeledContent("Phase", value: learningState.phase.title)
@@ -83,12 +88,15 @@ private struct CardDetail: View {
                     Text("This card has not been studied yet.")
                         .foregroundStyle(.secondary)
                 }
-                if !card.isNew {
-                    Button("Reset Learning State") {
-                        document.resetLearningState(of: [card.id])
+                Group {
+                    SuspensionButtons(document: document, ids: [card.id])
+                    if !card.isNew {
+                        Button("Reset Learning State") {
+                            document.resetLearningState(of: [card.id])
+                        }
                     }
-                    .disabled(!isEditable)
                 }
+                .disabled(!isEditable)
             }
 
             if !card.log.isEmpty {

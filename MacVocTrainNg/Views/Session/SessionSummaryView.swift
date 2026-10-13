@@ -9,6 +9,7 @@ struct SessionSummaryView: View {
     var body: some View {
         let session = model.session
         let dueCount = model.document.dueCards.count
+        let mistakesToPractice = model.mistakesToPractice.count
 
         VStack(spacing: 24) {
             Spacer()
@@ -43,6 +44,13 @@ struct SessionSummaryView: View {
                         .foregroundStyle(.secondary)
                     Text(session.mistakeIDs.count.formatted())
                 }
+                if session.suspendedCount > 0 {
+                    GridRow {
+                        Text("Suspended")
+                            .foregroundStyle(.secondary)
+                        Text(session.suspendedCount.formatted())
+                    }
+                }
                 GridRow {
                     Text("Time")
                         .foregroundStyle(.secondary)
@@ -53,8 +61,8 @@ struct SessionSummaryView: View {
             .monospacedDigit()
 
             HStack(spacing: 12) {
-                if !session.mistakeIDs.isEmpty {
-                    Button("Practice Mistakes (\(session.mistakeIDs.count))") {
+                if mistakesToPractice > 0 {
+                    Button("Practice Mistakes (\(mistakesToPractice))") {
                         model.practiceMistakes()
                     }
                 }

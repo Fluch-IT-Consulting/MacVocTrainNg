@@ -11,7 +11,8 @@ struct CardRow: Identifiable {
     var category: MaturityCategory
     var categoryRank: Int
     var due: Date?
-    /// New cards first, then by due date.
+    var isSuspended: Bool
+    /// New cards first, then by due date, suspended cards last.
     var dueSortKey: Double
 
     init(card: Card, position: Int) {
@@ -23,7 +24,8 @@ struct CardRow: Identifiable {
         category = MaturityCategory(card: card)
         categoryRank = StabilityBins.bin(for: card)
         due = card.learningState?.due
-        dueSortKey = card.learningState?.due.timeIntervalSinceReferenceDate ?? -.infinity
+        isSuspended = card.isSuspended
+        dueSortKey = card.isSuspended ? .infinity : card.learningState?.due.timeIntervalSinceReferenceDate ?? -.infinity
     }
 }
 
