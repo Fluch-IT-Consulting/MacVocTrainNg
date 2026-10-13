@@ -334,6 +334,32 @@ struct SessionViewModelTests {
         #expect(document.deck == before)
     }
 
+    /// A mistake suspended later in the session isn't practised (#290).
+    @Test func suspendedMistakesAreNotPractised() throws {
+        let document = makeDocument(cards: 1, steps: 2)
+        let undoManager = makeUndoManager(for: document)
+        let model = SessionViewModel(document: document, autoAdvance: true)
+        let card = try #require(model.currentCard)
+        model.input = "wrong"
+        model.submit()
+        step(undoManager) { model.grade(.again) }
+        #expect(model.currentCard == document.card(withID: card.id))
+
+        step(undoManager) { model.suspendCurrentCard() }
+        #expect(model.isFinished)
+        #expect(model.previous?.question == card.question)
+        #expect(model.previous?.grade == nil)
+        #expect(model.session.mistakeIDs == [card.id])
+        #expect(model.mistakesToPractice.isEmpty)
+        model.practiceMistakes()
+        #expect(!model.isPracticing)
+
+        undoManager.undo()
+        #expect(!model.isFinished)
+        #expect(model.currentCard?.id == card.id)
+        #expect(model.previous == nil)
+    }
+
     @Test func undoingPracticeReviewKeepsEarlierSessionIntact() throws {
         let document = makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)

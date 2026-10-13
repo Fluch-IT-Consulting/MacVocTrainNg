@@ -102,6 +102,62 @@ struct SessionDriverTests {
         #expect(driver.currentCard == finishedUp)
     }
 
+    /// Suspending is undone like a review: the card and the place in one step (#290).
+    @Test func suspendingTheCardBeingAskedMovesOnUntilUndone() throws {
+        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let document = driver.document
+        let first = try #require(driver.currentCard)
+
+        var suspended = false
+        step(undoManager) { suspended = driver.suspendCurrentCard() }
+        #expect(suspended)
+        #expect(document.card(withID: first.id)?.isSuspended == true)
+        #expect(driver.currentCard != nil)
+        #expect(driver.currentCard?.id != first.id)
+        #expect(driver.session.totalCount == 1)
+        #expect(driver.session.suspendedCount == 1)
+        #expect(driver.session.reviewCount == 0)
+        #expect(listener.moves == 1)
+        #expect(undoManager.undoActionName == String(localized: "Suspend Card"))
+
+        undoManager.undo()
+        #expect(document.card(withID: first.id) == first)
+        #expect(driver.currentCard == first)
+        #expect(driver.session.totalCount == 2)
+        #expect(driver.session.suspendedCount == 0)
+        #expect(!undoManager.canUndo)
+
+        undoManager.redo()
+        #expect(document.card(withID: first.id)?.isSuspended == true)
+        #expect(driver.currentCard?.id != first.id)
+        #expect(driver.session.suspendedCount == 1)
+    }
+
+    @Test func suspendingTheLastCardFinishesTheSession() throws {
+        let (driver, undoManager, _) = makeDriver(cards: 1)
+        step(undoManager) { driver.suspendCurrentCard() }
+        #expect(driver.session.isFinished)
+        #expect(driver.currentCard == nil)
+        #expect(!driver.suspendCurrentCard())
+    }
+
+    /// E.g. after a merge with a version from the iPhone that suspended it.
+    @Test func aCardSuspendedMeanwhileIsSkipped() throws {
+        let (driver, undoManager, listener) = makeDriver(cards: 3)
+        let current = try #require(driver.currentCard)
+        let other = try #require(driver.document.deck.cards.first { $0.id != current.id })
+
+        step(undoManager) { driver.document.setSuspended(true, of: [current.id, other.id]) }
+        let remaining = try #require(driver.currentCard)
+        #expect(remaining.id != current.id && remaining.id != other.id)
+        #expect(listener.moves == 1)
+        // Only the learner's own suspensions count.
+        #expect(driver.session.suspendedCount == 0)
+
+        step(undoManager) { driver.grade(.good) }
+        #expect(driver.session.isFinished)
+    }
+
     /// E.g. after undoing "Add Card", or after a merge with a version that deleted it.
     @Test func aDeletedCardBeingAskedIsSkipped() throws {
         let (driver, undoManager, listener) = makeDriver(cards: 2)

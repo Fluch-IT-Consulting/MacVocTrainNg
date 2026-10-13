@@ -340,6 +340,16 @@
         }
       }
     },
+    "%lld suspended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ausgesetzt"
+          }
+        }
+      }
+    },
     "Add": {
       "localizations": {
         "de": {
@@ -490,12 +500,22 @@
         }
       }
     },
-    "Average recall probability of the cards in the review phase right now.": {
+    "Ask these cards in study sessions again": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Durchschnittliche Abrufwahrscheinlichkeit der Karten in der Wiederholungsphase im Moment."
+            "value": "Diese Karten wieder in Lernsitzungen abfragen"
+          }
+        }
+      }
+    },
+    "Average recall probability of the cards in the review phase right now, except suspended ones.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durchschnittliche Abrufwahrscheinlichkeit der Karten in der Wiederholungsphase im Moment, ohne ausgesetzte Karten."
           }
         }
       }
@@ -556,6 +576,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Karten in der Wiederholungsphase werden wieder abgefragt, wenn ihre Abrufwahrscheinlichkeit auf diesen Wert sinkt. Höher bedeutet mehr Abfragen, dafür seltener Vergessen; 90 % ist ein guter Kompromiss."
+          }
+        }
+      }
+    },
+    "Cards no study session asks until you resume them in the card list.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten, die keine Lernsitzung abfragt, bis du sie in der Kartenliste wieder aufnimmst."
           }
         }
       }
@@ -826,6 +856,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ausblenden"
+          }
+        }
+      }
+    },
+    "Don't ask these cards in study sessions until you resume them": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Karten in keiner Lernsitzung abfragen, bis du sie wieder aufnimmst"
+          }
+        }
+      }
+    },
+    "Don't ask this card again until you resume it in the card list": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Karte nicht mehr abfragen, bis du sie in der Kartenliste wieder aufnimmst"
           }
         }
       }
@@ -1360,6 +1410,16 @@
         }
       }
     },
+    "More": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mehr"
+          }
+        }
+      }
+    },
     "Never studied": {
       "localizations": {
         "de": {
@@ -1740,6 +1800,36 @@
         }
       }
     },
+    "Resume": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wieder aufnehmen"
+          }
+        }
+      }
+    },
+    "Resume Card": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karte wieder aufnehmen"
+          }
+        }
+      }
+    },
+    "Resume Cards": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten wieder aufnehmen"
+          }
+        }
+      }
+    },
     "Review": {
       "localizations": {
         "de": {
@@ -2056,6 +2146,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lernen (%lld)"
+          }
+        }
+      }
+    },
+    "Suspend": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aussetzen"
+          }
+        }
+      }
+    },
+    "Suspend Card": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karte aussetzen"
+          }
+        }
+      }
+    },
+    "Suspend Cards": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Karten aussetzen"
+          }
+        }
+      }
+    },
+    "Suspended": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgesetzt"
+          }
+        }
+      }
+    },
+    "Suspended: no study session asks this card.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgesetzt: Keine Lernsitzung fragt diese Karte ab."
           }
         }
       }

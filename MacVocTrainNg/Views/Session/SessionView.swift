@@ -11,6 +11,8 @@ import VocabCore
 /// ⌘E edits the card being asked (#289); before the response is checked, without
 /// showing its answer. The response typed so far stays, and a response already checked
 /// is checked again against the edited card.
+///
+/// "Suspend Card" leaves out the card from now on, until the learner resumes it (#290).
 struct SessionView: View {
     @Bindable var model: SessionViewModel
     var onClose: () -> Void
@@ -86,6 +88,9 @@ struct SessionView: View {
                     .keyboardShortcut("e", modifiers: .command)
                     .disabled(model.currentCard == nil)
                     .help("Fix this card without leaving the session")
+                Button("Suspend Card") { model.suspendCurrentCard() }
+                    .disabled(model.currentCard == nil)
+                    .help("Don't ask this card again until you resume it in the card list")
                 Button("End Session") { confirmingEnd = true }
                     .keyboardShortcut(.cancelAction)
             }
@@ -301,8 +306,13 @@ private struct PreviousReviewBar: View {
                 .foregroundStyle(.secondary)
             Text("\(previous.question) → \(previous.answer)")
                 .lineLimit(1)
-            Text(previous.grade.title)
-                .foregroundStyle(previous.grade.color)
+            if let grade = previous.grade {
+                Text(grade.title)
+                    .foregroundStyle(grade.color)
+            } else {
+                Text("Suspended")
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             Text("⌘Z to undo")
                 .foregroundStyle(.tertiary)

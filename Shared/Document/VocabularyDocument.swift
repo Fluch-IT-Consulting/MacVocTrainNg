@@ -197,6 +197,25 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(change, actionName: String(localized: "Reset Learning State"))
     }
 
+    /// Suspends cards, or resumes them if `suspended` is `false`, see
+    /// `DeckChange.settingSuspended(_:of:in:at:)`. Returns whether the deck changed.
+    ///
+    /// - Parameter companion: Runs right after the cards on undo and redo, in the same
+    ///   undo action; a session brings back its place with it, see
+    ///   `SessionDriver.suspendCurrentCard()`.
+    @discardableResult
+    func setSuspended(_ suspended: Bool, of ids: Set<Card.ID>, alongside companion: UndoCompanion? = nil) -> Bool {
+        guard let change = DeckChange.settingSuspended(suspended, of: ids, in: deck, at: clock.now) else { return false }
+        let name: String
+        if suspended {
+            name = ids.count == 1 ? String(localized: "Suspend Card") : String(localized: "Suspend Cards")
+        } else {
+            name = ids.count == 1 ? String(localized: "Resume Card") : String(localized: "Resume Cards")
+        }
+        perform(change, actionName: name, alongside: companion)
+        return true
+    }
+
     /// Stores a card rescheduled after a review in a study session, with the change
     /// `SessionMode.grade(_:in:at:calendar:)` returns. Undo and redo of the review run
     /// `companion` right after the card, in the same undo action; the session brings

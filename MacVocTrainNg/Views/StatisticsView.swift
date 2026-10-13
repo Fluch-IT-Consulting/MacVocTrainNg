@@ -80,10 +80,13 @@ private struct SummaryTiles: View {
             Tile(title: "Cards", value: summary.total.formatted())
             Tile(title: "Due Now", value: summary.dueNow.formatted())
             Tile(title: "New", value: summary.new.formatted())
+            if summary.suspended > 0 {
+                Tile(title: "Suspended", value: summary.suspended.formatted(), help: "Cards no study session asks until you resume them in the card list.")
+            }
             Tile(
                 title: "Recall Probability",
                 value: summary.averageRecallProbability.map(Format.percent) ?? "–",
-                help: "Average recall probability of the cards in the review phase right now."
+                help: "Average recall probability of the cards in the review phase right now, except suspended ones."
             )
             Tile(
                 title: "Reviewed Today",

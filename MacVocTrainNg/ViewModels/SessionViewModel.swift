@@ -16,11 +16,12 @@ final class SessionViewModel {
         case finished
     }
 
-    /// The card reviewed last, shown below the current one.
+    /// The card reviewed or suspended last, shown below the current one.
     struct PreviousReview: Equatable {
         var question: String
         var answer: String
-        var grade: Grade
+        /// `nil` if the learner suspended the card instead (#290).
+        var grade: Grade?
     }
 
     let document: VocabularyDocument
@@ -93,15 +94,27 @@ final class SessionViewModel {
         previous = PreviousReview(question: card.question, answer: card.answer, grade: grade)
     }
 
+    /// Suspends the card being asked, so no session asks it until the learner resumes
+    /// it in the card list, and moves on (#290). ⌘Z takes it back like a review.
+    func suspendCurrentCard() {
+        guard stage != .finished, let card = currentCard, driver.suspendCurrentCard() else { return }
+        previous = PreviousReview(question: card.question, answer: card.answer, grade: nil)
+    }
+
     /// Only finishes the cards already asked.
     func finishUp() {
         driver.finishUp()
     }
 
+    /// The mistakes of this session that are still in the deck and not suspended.
+    var mistakesToPractice: [Card.ID] {
+        session.mistakeIDs.filter { document.card(withID: $0)?.isSuspended == false }
+    }
+
     /// Practises the mistakes of this session once more, without
     /// affecting their schedule.
     func practiceMistakes() {
-        let ids = session.mistakeIDs.filter { document.card(withID: $0) != nil }
+        let ids = mistakesToPractice
         guard !ids.isEmpty else { return }
         previous = nil
         driver.start(.practice(Practice(practicing: ids, at: document.clock.now)))
