@@ -6,6 +6,8 @@ public enum SessionCommand: Sendable {
     case finishUp
     /// Drops the current card without recording a review, e.g. because it was deleted.
     case skip
+    /// Drops the current card because the learner suspended it, and counts it (#290).
+    case suspend
 }
 
 /// The session that runs, as a study session or practice. The mode decides how a

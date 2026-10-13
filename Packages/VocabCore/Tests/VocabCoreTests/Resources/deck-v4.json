@@ -15,7 +15,9 @@
         "stability" : 12.5,
         "step" : 0
       },
-      "question" : "dom"
+      "question" : "dom",
+      "suspended" : true,
+      "suspensionChanged" : "2026-10-05T17:00:00Z"
     },
     {
       "answer" : "Hund",
@@ -32,7 +34,8 @@
         "step" : 1
       },
       "learningStateReset" : "2026-10-04T18:00:00Z",
-      "question" : "pies"
+      "question" : "pies",
+      "suspensionChanged" : "2026-10-05T12:00:00Z"
     },
     {
       "answer" : "Katze",

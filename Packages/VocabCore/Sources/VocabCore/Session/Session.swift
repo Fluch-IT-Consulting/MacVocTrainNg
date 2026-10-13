@@ -16,6 +16,8 @@ public struct Session: Sendable {
     public private(set) var recalledCount = 0
     /// Cards graded `.again` at least once, in order of their first `.again`.
     public private(set) var mistakeIDs: [Card.ID] = []
+    /// Cards the learner suspended during the session; they left it.
+    public private(set) var suspendedCount = 0
 
     private var queue: SessionQueue
     private var random: SeededRandom
@@ -63,6 +65,10 @@ public struct Session: Sendable {
         switch command {
         case .finishUp: finishUp()
         case .skip: skip()
+        case .suspend:
+            guard currentCardID != nil else { return }
+            suspendedCount += 1
+            skip()
         }
     }
 

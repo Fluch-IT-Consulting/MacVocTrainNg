@@ -371,6 +371,34 @@ struct SessionTests {
         #expect(study.session.isFinished)
     }
 
+    @Test func suspendDropsCardAndCountsIt() {
+        var study = StudySession(deck: deck(newCards: 2), at: now, calendar: .testing, random: SeededRandom(seed: 1))
+        let suspended = study.session.currentCardID
+        study.perform(.suspend)
+        #expect(study.session.totalCount == 1)
+        #expect(study.session.suspendedCount == 1)
+        #expect(study.session.reviewCount == 0)
+        #expect(study.session.currentCardID != suspended)
+        study.perform(.suspend)
+        #expect(study.session.isFinished)
+        #expect(study.session.suspendedCount == 2)
+        // A finished session has no card to suspend.
+        study.perform(.suspend)
+        #expect(study.session.suspendedCount == 2)
+    }
+
+    @Test func suspendedCardsAreNotSelected() throws {
+        var deck = deck(newCards: 2, reviewCards: 2)
+        let suspended: Set = [deck.cards[0].id, deck.cards[2].id]
+        _ = deck.apply(try #require(DeckChange.settingSuspended(true, of: suspended, in: deck, at: now)), at: now, calendar: .testing)
+        var study = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 4))
+        #expect(study.session.totalCount == 2)
+        while let id = study.session.currentCardID {
+            #expect(!suspended.contains(id))
+            study.perform(.skip)
+        }
+    }
+
     /// A session ends with its last review, also if its other cards are skipped (#185).
     @Test func studySessionLastsUntilItsLastReview() {
         var deck = deck(newCards: 0, reviewCards: 2)

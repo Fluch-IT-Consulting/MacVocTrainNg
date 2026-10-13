@@ -107,6 +107,25 @@ struct StatisticsTests {
         #expect(summary.averageRecallProbability == (1 + oneDay) / 2)
     }
 
+    /// Suspended cards count as cards of the deck, but never as due (#290).
+    @Test func suspendedCardsAreLeftOutOfWhatIsDue() {
+        let today = calendar.dayNumber(for: now)
+        var suspended = reviewCard(stability: 2, due: calendar.start(ofDay: today - 3))
+        suspended.learningState?.lastReview = calendar.start(ofDay: today - 5)
+        suspended.isSuspended = true
+        var suspendedNew = Card(question: "new", answer: "card")
+        suspendedNew.isSuspended = true
+        let cards = [suspended, suspendedNew, reviewCard(stability: 10, due: calendar.start(ofDay: today + 1))]
+
+        #expect(DeckStatistics.forecast(cards: cards, calendar: calendar, today: today, days: 3) == [0, 1, 0])
+        let summary = DeckStatistics.summary(of: Deck(cards: cards), at: now, calendar: calendar)
+        #expect(summary.total == 3)
+        #expect(summary.new == 1)
+        #expect(summary.suspended == 2)
+        #expect(summary.dueNow == 0)
+        #expect(summary.averageRecallProbability == 1)
+    }
+
     @Test func historyKeepsOneSnapshotPerDay() {
         var deck = Deck(cards: [Card(question: "q", answer: "a")])
         deck.updateProgress(day: 100)

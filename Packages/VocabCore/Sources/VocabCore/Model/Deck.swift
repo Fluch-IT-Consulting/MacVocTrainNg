@@ -53,9 +53,10 @@ public struct Deck: Hashable, Sendable {
     /// One daily snapshot per study day on which the deck changed, oldest first.
     public internal(set) var progress: [DailySnapshot]
     /// When the content last changed, in whole seconds: cards added, removed, edited or
-    /// reset, or the learning options. Reviews leave it, so a merge can tell which
-    /// version holds the newer content (`DeckChange.merging`). `nil` until the first
-    /// such change since the deck was created or saved by an app version without it.
+    /// reset, or the learning options. Reviews and suspending or resuming a card leave
+    /// it, so a merge can tell which version holds the newer content
+    /// (`DeckChange.merging`). `nil` until the first such change since the deck was
+    /// created or saved by an app version without it.
     public internal(set) var contentModified: Date?
 
     public init(
@@ -81,6 +82,11 @@ public struct Deck: Hashable, Sendable {
     /// The number of cards due at `date`.
     public func dueCount(at date: Date) -> Int {
         cards.reduce(0) { $0 + ($1.isDue(at: date) ? 1 : 0) }
+    }
+
+    /// The number of suspended cards, see `Card.isSuspended`.
+    public var suspendedCount: Int {
+        cards.reduce(0) { $0 + ($1.isSuspended ? 1 : 0) }
     }
 
     /// The probability of recalling `card` at `now` with the deck's learning options,

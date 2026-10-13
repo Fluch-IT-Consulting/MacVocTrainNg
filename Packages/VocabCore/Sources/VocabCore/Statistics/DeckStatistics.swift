@@ -59,10 +59,11 @@ public enum DeckStatistics {
     }
 
     /// Number of cards in the review phase falling due on each of the next `days` study days;
-    /// index 0 includes overdue cards. Cards in (re)learning count as due today.
+    /// index 0 includes overdue cards. Cards in (re)learning count as due today,
+    /// suspended cards not at all.
     public static func forecast(cards: [Card], calendar: StudyCalendar, today: Int, days: Int) -> [Int] {
         var counts = [Int](repeating: 0, count: max(days, 1))
-        for card in cards {
+        for card in cards where !card.isSuspended {
             guard let learningState = card.learningState else { continue }
             let offset = learningState.phase == .review ? calendar.dayNumber(for: learningState.due) - today : 0
             if offset < counts.count {
@@ -76,7 +77,10 @@ public enum DeckStatistics {
         public var total = 0
         public var new = 0
         public var dueNow = 0
-        /// Mean recall probability of the cards in the review phase right now.
+        /// Cards the learner suspended; they are never due.
+        public var suspended = 0
+        /// Mean recall probability of the cards in the review phase right now, except
+        /// suspended ones: no review would follow their dropping recall.
         public var averageRecallProbability: Double?
         public var reviewsToday = 0
         public var recalledToday = 0
@@ -93,7 +97,8 @@ public enum DeckStatistics {
         for card in deck.cards {
             summary.total += 1
             if card.isNew { summary.new += 1 }
-            if let learningState = card.learningState, learningState.phase == .review {
+            if card.isSuspended { summary.suspended += 1 }
+            if let learningState = card.learningState, learningState.phase == .review, !card.isSuspended {
                 recallProbabilitySum += scheduler.recallProbability(of: learningState, at: now)
                 reviewCards += 1
             }
