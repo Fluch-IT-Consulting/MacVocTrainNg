@@ -53,7 +53,7 @@ struct SessionView: View {
         } message: {
             Text("Your reviews so far are saved. Cards you haven't finished stay due.")
         }
-        .sheet(item: $editing, onDismiss: { focus(model.questionNumber) }) { request in
+        .sheet(item: $editing, onDismiss: focusResponse) { request in
             CardEditSheet(document: model.document, card: request.card, hidesAnswer: request.hidesAnswer)
         }
     }
@@ -142,6 +142,12 @@ struct SessionView: View {
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Gives the response field the focus back after the edit sheet; the response typed
+    /// so far stays.
+    private func focusResponse() {
+        focus(model.questionNumber)
     }
 
     /// Focuses the response field of `question` once the current event is handled.
