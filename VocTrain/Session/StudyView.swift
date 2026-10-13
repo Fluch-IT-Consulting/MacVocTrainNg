@@ -31,17 +31,16 @@ struct StudyView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    // Only reviews and suspensions of this session: undo beyond them
-                    // would change cards the session doesn't show.
-                    Button("Undo", systemImage: "arrow.uturn.backward") {
-                        model.document.undoManager?.undo()
-                    }
-                    .disabled(!model.hasUndoableSteps || model.document.undoManager?.canUndo != true)
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    // In a menu, so a stray tap doesn't suspend the card.
-                    if !model.isFinished {
-                        Menu("More", systemImage: "ellipsis.circle") {
+                    // In a menu, so a stray tap doesn't suspend the card; Undo comes first
+                    // (#293). The summary keeps the menu for Undo.
+                    Menu("More", systemImage: "ellipsis.circle") {
+                        // Only reviews and suspensions of this session: undo beyond them
+                        // would change cards the session doesn't show.
+                        Button("Undo", systemImage: "arrow.uturn.backward") {
+                            model.document.undoManager?.undo()
+                        }
+                        .disabled(!model.hasUndoableSteps || model.document.undoManager?.canUndo != true)
+                        if !model.isFinished {
                             Button("Suspend Card", systemImage: "pause.circle") {
                                 model.suspendCurrentCard()
                             }
