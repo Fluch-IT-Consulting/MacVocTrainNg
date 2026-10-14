@@ -28,7 +28,9 @@ The active developer dir may be the Command Line Tools; prefix with
   `Scheduler` applies a `Grade` to a `Card` (FSRS-6 in `FSRS.swift`, ported from py-fsrs);
   `SessionMode` runs a `StudySession` or a `Practice` and records reviews, each over
   a shared `Session` that only tracks card IDs and order.
-- `Shared/Document/VocabularyDocument.swift`: `ReferenceFileDocument`. Every change
+- `Shared/Document/VocabularyDocument.swift`: the document, a `ReferenceFileDocument`
+  on the Mac only, which also alone has the methods that edit cards and options
+  (`MacVocTrainNg/Document/VocabularyDocument+*.swift`, #297). Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
   marks the document dirty. They register with the document's own `undoManager`, which
   the document's view sets from its environment through `documentSync` (tests set it themselves); callers don't pass
