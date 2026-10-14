@@ -1,10 +1,11 @@
 import Combine
-import SwiftUI
-import UniformTypeIdentifiers
+import Foundation
 import VocabCore
 import os
 
-/// The SwiftUI document of one deck, in the Mac app and in the iPhone app.
+/// The document of one deck, in the Mac app and in the iPhone app. On the Mac it is the
+/// `ReferenceFileDocument` behind `DocumentGroup`; the iPhone app opens and saves its
+/// decks itself (#285).
 ///
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes. They
@@ -20,16 +21,19 @@ import os
 ///
 /// Why the document doesn't switch to Observation: `docs/adr/0003-dokument-bleibt-observableobject.md`.
 ///
+/// The iPhone app only studies and never edits cards (#254, #289): the changes it
+/// makes are here, those of the Mac app alone in its extension in
+/// `VocabularyDocument+Editing.swift` (#297), like the conformance to
+/// `ReferenceFileDocument`.
+///
 /// The document lives on the main actor, so the compiler checks that the deck is only
-/// read and changed there. Initializers and the requirements of `ReferenceFileDocument`
-/// are `nonisolated`: SwiftUI creates and opens documents and writes snapshots to file
-/// wrappers off the main actor. `snapshot` doesn't read `deck`: NSDocument takes it on
-/// a background thread when a new deck is saved for the first time, while the main
-/// thread waits for it. It reads `savedDeck` instead, a copy behind a lock.
+/// read and changed there. Initializers and what saves the deck are `nonisolated`:
+/// SwiftUI creates and opens documents and writes snapshots to file wrappers off the
+/// main actor. Saving doesn't read `deck`: NSDocument takes the snapshot on a background
+/// thread when a new deck is saved for the first time, while the main thread waits for
+/// it. It reads `savedDeck` instead, a copy behind a lock.
 @MainActor
-final class VocabularyDocument: ReferenceFileDocument {
-    nonisolated static var readableContentTypes: [UTType] { [.vocabularyDeck] }
-
+final class VocabularyDocument: ObservableObject {
     /// Not `@Published`: a nonisolated initializer can't set a property wrapper of the
     /// main actor. `objectWillChange` sends just like it would.
     private(set) var deck: Deck {
@@ -39,7 +43,7 @@ final class VocabularyDocument: ReferenceFileDocument {
             deckDidChange.send()
         }
     }
-    /// The deck for `snapshot`, which may run on any thread. Kept equal to `deck`;
+    /// The deck for saving, which may run on any thread. Kept equal to `deck`;
     /// a copy costs little, as `Deck` copies its storage only on write.
     private let savedDeck: OSAllocatedUnfairLock<Deck>
     /// Sends after every change to `deck`, once it holds the new state. Observers
@@ -77,20 +81,6 @@ final class VocabularyDocument: ReferenceFileDocument {
         savedDeck = OSAllocatedUnfairLock(initialState: deck)
         self.clock = clock
         self.calendar = calendar
-        startFollowingSystemTimeZone()
-    }
-
-    nonisolated required init(configuration: ReadConfiguration) throws {
-        clock = .system
-        calendar = StudyCalendar()
-        let deck: Deck
-        do {
-            deck = try DeckFile.decode(configuration.file)
-        } catch {
-            throw Self.openingError(for: error)
-        }
-        self.deck = deck
-        savedDeck = OSAllocatedUnfairLock(initialState: deck)
         startFollowingSystemTimeZone()
     }
 
@@ -147,19 +137,20 @@ final class VocabularyDocument: ReferenceFileDocument {
         }
     }
 
-    /// Runs on the main thread or, for the first save of a new deck, on a background thread.
-    nonisolated func snapshot(contentType: UTType) throws -> Deck {
+    /// The deck to save, equal to `deck`. Runs on any thread.
+    nonisolated var deckToSave: Deck {
         savedDeck.withLock { $0 }
     }
 
-    nonisolated func fileWrapper(snapshot: Deck, configuration: WriteConfiguration) throws -> FileWrapper {
-        try DeckFile.fileWrapper(for: snapshot, reviewLog: reviewLog)
+    /// `deck` as a file, as saved on the Mac after `deckToSave`. Runs on any thread.
+    nonisolated func fileWrapper(for deck: Deck) throws -> FileWrapper {
+        try DeckFile.fileWrapper(for: deck, reviewLog: reviewLog)
     }
 
     /// The deck as a file, for the iPhone app's own UIDocument (#285). Runs on any
-    /// thread, like `snapshot`.
+    /// thread.
     nonisolated func fileWrapper() throws -> FileWrapper {
-        try DeckFile.fileWrapper(for: savedDeck.withLock { $0 }, reviewLog: reviewLog)
+        try fileWrapper(for: deckToSave)
     }
 
     // MARK: - Queries
@@ -169,40 +160,6 @@ final class VocabularyDocument: ReferenceFileDocument {
     }
 
     // MARK: - Changes
-
-    /// Appends a new card with `text`, created now by the document's clock, see
-    /// `DeckChange.adding(_:to:)`. Returns the ID of the new card.
-    @discardableResult
-    func add(_ text: CardText) -> Card.ID {
-        let card = Card(text: text, created: clock.now)
-        if let change = DeckChange.adding([card], to: deck) {
-            perform(change, actionName: String(localized: "Add Card"))
-        }
-        return card.id
-    }
-
-    /// Appends cards from an import as one change, see `DeckChange.adding(_:to:)`.
-    func importCards(_ cards: [Card]) {
-        guard let change = DeckChange.adding(cards, to: deck) else { return }
-        perform(change, actionName: String(localized: "Import Cards"))
-    }
-
-    /// Changes question, answer and hint of a card, see `DeckChange.editingText(of:to:in:)`.
-    func editText(of id: Card.ID, to text: CardText) {
-        guard let change = DeckChange.editingText(of: id, to: text, in: deck) else { return }
-        perform(change, actionName: String(localized: "Edit Card"))
-    }
-
-    func delete(_ ids: Set<Card.ID>) {
-        guard let change = DeckChange.removing(ids, from: deck) else { return }
-        let name = ids.count == 1 ? String(localized: "Delete Card") : String(localized: "Delete Cards")
-        perform(change, actionName: name)
-    }
-
-    func resetLearningState(of ids: Set<Card.ID>) {
-        guard let change = DeckChange.resettingLearningState(of: ids, in: deck, at: clock.now) else { return }
-        perform(change, actionName: String(localized: "Reset Learning State"))
-    }
 
     /// Suspends cards, or resumes them if `suspended` is `false`, see
     /// `DeckChange.settingSuspended(_:of:in:at:)`. Returns whether the deck changed.
@@ -231,12 +188,6 @@ final class VocabularyDocument: ReferenceFileDocument {
         perform(change, actionName: String(localized: "Review"), alongside: companion)
     }
 
-    /// Changes the learning options, see `DeckChange.changingLearningOptions(_:in:calendar:)`.
-    func updateLearningOptions(_ learningOptions: LearningOptions) {
-        guard let change = DeckChange.changingLearningOptions(learningOptions, in: deck, calendar: calendar) else { return }
-        perform(change, actionName: String(localized: "Change Learning Options"))
-    }
-
     /// Merges other versions of the deck into it, in turn, as one undo action, see
     /// `DeckChange.merging(_:into:calendar:)`. Returns whether the deck changed.
     ///
@@ -260,7 +211,9 @@ final class VocabularyDocument: ReferenceFileDocument {
 
     // MARK: - Undo machinery
 
-    private func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
+    /// Applies `change` and registers its inverse as one undo action, see below. Every
+    /// change of the deck goes through here, also those of the Mac app's extension.
+    func perform(_ change: DeckChange, actionName: String, alongside companion: UndoCompanion? = nil) {
         perform([change], actionName: actionName, alongside: companion)
     }
 
