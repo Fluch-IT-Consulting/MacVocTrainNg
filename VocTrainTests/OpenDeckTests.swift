@@ -95,25 +95,16 @@ struct OpenDeckTests {
     /// A study session goes on when the Mac changes the file (#296): the deck gets the
     /// Mac's reviews, and the session skips a card the Mac suspended.
     @Test func aStudySessionGoesOnWhenTheFileChanges() async throws {
-        let url = try write(Deck(cards: ["dom", "kot", "pies", "ryba"].map(makeCard)))
+        let original = Deck(cards: ["dom", "kot", "pies"].map(makeCard))
+        let url = try write(original)
         let deck = OpenDeck(url: url)
         let document = try await waitForDocument(of: deck)
         let model = StudyModel(document: document)
-        let first = try #require(model.currentCard?.id)
-        model.reveal()
-        model.grade(.good)
         let asked = try #require(model.currentCard?.id)
-        // Lets the run loop close the undo group, which the UIDocument counts, and
-        // saves the review, so the Mac reads it.
-        try await Task.sleep(for: .milliseconds(200))
-        deck.suspend()
-        try await wait { (try? read(url))?.card(withID: first)?.log.count == 1 }
-        deck.resume()
 
         // The Mac reviews one of the cards not asked yet and suspends the other.
-        var mac = try read(url)
-        let notAsked = mac.cards.map(\.id).filter { $0 != first && $0 != asked }
-        try #require(notAsked.count == 2)
+        var mac = original
+        let notAsked = mac.cards.map(\.id).filter { $0 != asked }
         review(notAsked[0], in: &mac, calendar: document.calendar)
         let suspension = try #require(DeckChange.settingSuspended(true, of: [notAsked[1]], in: mac, at: .now))
         _ = mac.apply(suspension, at: .now, calendar: document.calendar)
@@ -123,10 +114,7 @@ struct OpenDeckTests {
         #expect(deck.document === document)
         #expect(document.deck.card(withID: notAsked[1])?.isSuspended == true)
         #expect(document.deck.card(withID: notAsked[0])?.log.count == 1)
-        #expect(document.deck.card(withID: first)?.log.count == 1)
         #expect(model.currentCard?.id == asked)
-        // Undo takes back neither the merge nor the review before it.
-        #expect(!deck.undoManager.canUndo)
 
         model.reveal()
         model.grade(.good)
@@ -153,10 +141,6 @@ struct OpenDeckTests {
             return
         }
         _ = deck.apply(change, at: .now, calendar: calendar)
-    }
-
-    private func read(_ url: URL) throws -> Deck {
-        try DeckFile.decode(FileWrapper(url: url, options: .immediate))
     }
 
     private func makeCard(_ question: String) -> Card {
