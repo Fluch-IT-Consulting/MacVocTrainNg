@@ -216,8 +216,21 @@ struct VersionMergerTests {
         await merger.merging?.value
         #expect(document.deck.cards.map(\.log.count) == [1, 1])
         #expect(mergesReadAgain.count == 1)
-        // The file lacks the review on this device.
         #expect(store.events == ["save"])
+    }
+
+    @Test func aDeckReadAgainThatTheDocumentHoldsSavesNothing() async {
+        let (document, _) = open(base)
+        let merger = makeMerger(saveDelay: .seconds(3600))
+        let mergesReadAgain = ChangeCounter()
+        merger.didMergeReadAgain = { mergesReadAgain.count += 1 }
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+
+        merger.merge(readAgain: base)
+        await merger.merging?.value
+        #expect(mergesReadAgain.count == 0)
+        #expect(store.events.isEmpty)
     }
 
     /// The file read again takes the document as saved, though it lacks its changes.
@@ -235,6 +248,31 @@ struct VersionMergerTests {
         #expect(document.deck.cards.map(\.log.count) == [1, 0])
         #expect(mergesReadAgain.count == 0)
         #expect(store.events == ["save"])
+    }
+
+    /// The UIDocument takes the file read again as saved and wouldn't save what it
+    /// lacks, so the merger tries again, at the latest before the app lets go of the
+    /// file.
+    @Test func aFailedSaveOfADeckReadAgainIsTriedAgainBeforeTheBackground() async {
+        let (document, undoManager) = open(base)
+        let merger = makeMerger()
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        study(dom, in: document, undoManager)
+        // The UIDocument reads the file again before the review is saved.
+        merger.attach(document, fileURL: url, isEditable: false)
+        await merger.saves.saving?.value
+        merger.merge(readAgain: base)
+        store.saveError = FileVersionStore.DocumentNotFound()
+
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(store.events == ["save"])
+
+        store.saveError = nil
+        merger.suspend()
+        await merger.saves.saving?.value
+        #expect(store.events == ["save", "save"])
     }
 
     @Test func everyChangeIsSavedSoon() async {
