@@ -7,15 +7,16 @@ import VocabCore
 /// changes its file on iCloud Drive (#252, #259).
 ///
 /// NSDocument on the Mac and UIDocument on the iPhone read the file again on their own
-/// when another process writes it. On the Mac, the window then gets a new document, see
-/// `DocumentWindow`; the iPhone app merges the file into the document it has, see
-/// `OpenDeck` (#296). The merger lives as long as the window or the open deck, so it
-/// sees each of its documents in turn:
-/// - It merges the deck of the document before into the new one: NSDocument sets
-///   unsaved changes aside as an `NSFileVersion` before it reads again, where the
-///   learner wouldn't find them. It doesn't if the file holds nothing the deck before
-///   lacks, as after reverting to a saved or older version: merging would take back
-///   the revert.
+/// when another process writes it. Either way the merger takes in what was read, see
+/// `ReadAgain` (#303), and lives as long as the window or the open deck:
+/// - On the Mac, the window then gets a new document, see `DocumentWindow`. The merger
+///   sees each of the window's documents in turn and merges the deck of the document
+///   before into the new one: NSDocument sets unsaved changes aside as an
+///   `NSFileVersion` before it reads again, where the learner wouldn't find them. It
+///   doesn't if the file holds nothing the deck before lacks, as after reverting to a
+///   saved or older version: merging would take back the revert.
+/// - On the iPhone, the open deck keeps its document, and the merger merges the deck
+///   read into it, see `merge(readAgain:)` (#296). A study session goes on.
 /// - It merges the versions iCloud Drive keeps in conflict with the file, saves, and
 ///   only then marks the conflicts resolved. An unresolved conflict keeps the iPhone
 ///   from opening the deck. It does so after opening, after reading again and when the
@@ -46,9 +47,11 @@ final class VersionMerger {
     @ObservationIgnored private var reportedFailures: Set<String> = []
     /// The latest merge; merges run one after the other.
     @ObservationIgnored private(set) var merging: Task<Void, Never>?
-    /// The deck of the document before the current one, and whether a study session ran
-    /// on it, until `takeReplaced()` merges it.
-    @ObservationIgnored private var replaced: (deck: Deck, wasInSession: Bool)?
+    /// The decks from reading the file again that the next merge takes in.
+    @ObservationIgnored private var readAgain: [ReadAgain] = []
+    /// Runs after a merge took in a deck read again and changed the document. The
+    /// iPhone app forgets its undo steps then (#296).
+    @ObservationIgnored var didMergeReadAgain: (@MainActor () -> Void)?
     /// Watches the file of `document` while it can be changed; merges when it changed.
     let watch: FileWatch
     /// Saves through the store of `watch` a few seconds after every change.
@@ -91,15 +94,23 @@ final class VersionMerger {
         if document !== previous {
             self.document = document
             deckObservation = document.deckDidChange.sink { [weak self] in self?.documentDidChange() }
-            if let previous, replaced == nil {
-                replaced = (previous.deck, isInSession)
+            if let previous, !readAgain.contains(where: \.isDeckBefore) {
+                readAgain.append(.deckBefore(previous.deck, wasInSession: isInSession))
             }
             isInSession = false
         }
         mergeVersions()
     }
 
-    /// Merges the versions in conflict with the file and the deck replaced, after the
+    /// Merges `deck`, which the file holds now that the app read it again, into the
+    /// document with the next merge, once the file can be changed: the iPhone app keeps
+    /// its document when another device changed the file (#296).
+    func merge(readAgain deck: Deck) {
+        readAgain.append(.file(deck))
+        mergeVersions()
+    }
+
+    /// Merges the versions in conflict with the file and the decks read again, after the
     /// merges asked for before.
     @discardableResult
     func mergeVersions() -> Task<Void, Never> {
@@ -112,22 +123,28 @@ final class VersionMerger {
         return task
     }
 
-    /// The deck of the document before, if the file holds something it lacks: another
-    /// device changed the file. Waits for a file that can be changed: an old version in
-    /// the version browser on the Mac can't ever be changed.
-    private func takeReplaced() -> Deck? {
-        guard watch.store != nil, let document, let replaced else { return nil }
-        self.replaced = nil
-        guard DeckChange.merging(document.deck, into: replaced.deck, calendar: document.calendar) != nil else { return nil }
-        if replaced.wasInSession {
-            endedSession = true
+    /// The decks read again that `document` takes in. Leaves out the deck before if
+    /// the file holds nothing it lacks; else another device changed the file, which
+    /// ends a study session on the Mac.
+    private func takeReadAgain(into document: VocabularyDocument) -> [ReadAgain] {
+        let taken = readAgain
+        readAgain = []
+        return taken.filter { version in
+            guard case let .deckBefore(deck, wasInSession) = version else { return true }
+            guard DeckChange.merging(document.deck, into: deck, calendar: document.calendar) != nil else { return false }
+            if wasInSession {
+                endedSession = true
+            }
+            return true
         }
-        return replaced.deck
     }
 
+    /// Waits for a file that can be changed: an old version in the version browser on
+    /// the Mac can't ever be changed.
     private func mergeNow() async {
         guard let document, let store = watch.store else { return }
-        var versions = takeReplaced().map { [$0] } ?? []
+        let taken = takeReadAgain(into: document)
+        var versions = taken.map(\.deck)
         var conflicts: [ConflictVersion] = []
         for conflict in store.unresolvedConflicts() {
             do {
@@ -139,7 +156,17 @@ final class VersionMerger {
                 }
             }
         }
-        if document.merge(versions) {
+        let merged = document.merge(versions)
+        if merged, !taken.isEmpty {
+            didMergeReadAgain?()
+        }
+        // The file read again takes the document as saved, but it may lack changes
+        // made before.
+        let fileLacksChanges = taken.contains { version in
+            guard case let .file(deck) = version else { return false }
+            return DeckChange.merging(document.deck, into: deck, calendar: document.calendar) != nil
+        }
+        if merged || fileLacksChanges {
             do {
                 try await store.save()
             } catch {
@@ -173,6 +200,27 @@ final class VersionMerger {
     private func documentDidChange() {
         guard watch.store != nil else { return }
         saves.changed()
+    }
+}
+
+/// A deck from reading the file of an open deck again, for `VersionMerger` (#303).
+private enum ReadAgain {
+    /// What the file holds now, which the iPhone app read into the document it keeps.
+    case file(Deck)
+    /// The deck of the document before, which the Mac replaced with a new one, and
+    /// whether a study session ran on it.
+    case deckBefore(Deck, wasInSession: Bool)
+
+    var deck: Deck {
+        switch self {
+        case let .file(deck), let .deckBefore(deck, _):
+            return deck
+        }
+    }
+
+    var isDeckBefore: Bool {
+        guard case .deckBefore = self else { return false }
+        return true
     }
 }
 

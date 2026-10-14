@@ -194,6 +194,49 @@ struct VersionMergerTests {
         #expect(!merger.endedSession)
     }
 
+    /// The iPhone app keeps its document when it reads the file again and has the
+    /// merger merge the deck read (#303).
+    @Test func aDeckReadAgainIsMergedOnceTheFileCanBeChanged() async {
+        let (document, undoManager) = open(base)
+        // Only the merge saves: the save scheduled after a change would come any time.
+        let merger = makeMerger(saveDelay: .seconds(3600))
+        let mergesReadAgain = ChangeCounter()
+        merger.didMergeReadAgain = { mergesReadAgain.count += 1 }
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        study(dom, in: document, undoManager)
+
+        // The UIDocument reads the file again, and editing is disabled meanwhile.
+        merger.attach(document, fileURL: url, isEditable: false)
+        merger.merge(readAgain: reviewing(kot, in: base, at: day(2)))
+        await merger.merging?.value
+        #expect(document.deck.card(withID: kot.id)?.log.isEmpty == true)
+
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(document.deck.cards.map(\.log.count) == [1, 1])
+        #expect(mergesReadAgain.count == 1)
+        // The file lacks the review on this device.
+        #expect(store.events == ["save"])
+    }
+
+    /// The file read again takes the document as saved, though it lacks its changes.
+    @Test func aDeckReadAgainWithNothingNewStillSavesTheChanges() async {
+        let (document, undoManager) = open(base)
+        let merger = makeMerger(saveDelay: .seconds(3600))
+        let mergesReadAgain = ChangeCounter()
+        merger.didMergeReadAgain = { mergesReadAgain.count += 1 }
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        study(dom, in: document, undoManager)
+
+        merger.merge(readAgain: base)
+        await merger.merging?.value
+        #expect(document.deck.cards.map(\.log.count) == [1, 0])
+        #expect(mergesReadAgain.count == 0)
+        #expect(store.events == ["save"])
+    }
+
     @Test func everyChangeIsSavedSoon() async {
         let (document, undoManager) = open(base)
         let merger = makeMerger()
