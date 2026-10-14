@@ -67,7 +67,13 @@ final class KnownDecks {
     }
 
     private func removeEntry(for url: URL) {
-        entries.removeAll { FileVersionStore.isSameFile($0.deck.url, url) }
+        entries.removeAll { Self.isSameFile($0.deck.url, url) }
+    }
+
+    /// Whether two URLs name the same file, however they spell it: the path of a
+    /// package may end with a slash, and `/var` is a link to `/private/var`.
+    nonisolated static func isSameFile(_ first: URL, _ second: URL) -> Bool {
+        first.standardizedFileURL.resolvingSymlinksInPath().path == second.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     private func save() {

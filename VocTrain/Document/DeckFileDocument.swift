@@ -52,6 +52,22 @@ final class DeckFileDocument: UIDocument {
         NotificationCenter.default.post(name: Self.didLoad, object: self)
     }
 
+    /// Saves in place, even if the UIDocument hasn't counted the change yet: the
+    /// `VersionMerger` of `OpenDeck` saves this way a few seconds after each change
+    /// (#295).
+    @MainActor
+    func saveInPlace() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
+            save(to: fileURL, for: .forOverwriting) { success in
+                if success {
+                    continuation.resume()
+                } else {
+                    continuation.resume(throwing: CocoaError(.fileWriteUnknown))
+                }
+            }
+        }
+    }
+
     override func contents(forType typeName: String) throws -> Any {
         guard let document else { throw CocoaError(.fileWriteUnknown) }
         return try document.fileWrapper()

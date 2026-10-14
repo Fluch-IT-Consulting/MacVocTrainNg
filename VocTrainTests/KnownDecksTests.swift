@@ -35,7 +35,7 @@ struct KnownDecksTests {
         known.remember(polish)
 
         let last = try #require(KnownDecks(defaults: defaults).last)
-        #expect(FileVersionStore.isSameFile(last, polish))
+        #expect(KnownDecks.isSameFile(last, polish))
         #expect(known.byName.count == 2)
     }
 
@@ -56,6 +56,12 @@ struct KnownDecksTests {
 
         #expect(KnownDecks(defaults: defaults).last == nil)
         #expect(defaults.array(forKey: KnownDecks.key)?.isEmpty == true)
+    }
+
+    @Test func aPackageIsTheSameFileWithOrWithoutTheSlashAtTheEnd() {
+        let url = URL(fileURLWithPath: "/Users/learner/Library/Mobile Documents/com~apple~CloudDocs/Polish.voctrain")
+        #expect(KnownDecks.isSameFile(url, URL(fileURLWithPath: url.path + "/", isDirectory: true)))
+        #expect(!KnownDecks.isSameFile(url, url.deletingLastPathComponent().appending(path: "German.voctrain")))
     }
 
     private func makeDeck(named name: String) throws -> URL {

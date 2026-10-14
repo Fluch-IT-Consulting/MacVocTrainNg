@@ -1,12 +1,10 @@
 import Foundation
 import VocabCore
-import os
 
 /// The file of an open deck: its versions in conflict on iCloud Drive, and the
-/// document that saves it. Each app finds that document its own way: the NSDocument
-/// behind `DocumentGroup` on the Mac, the app's own UIDocument on the iPhone (#285),
-/// see `save()` in the extensions of the two apps. If it finds none, `save()` throws rather than return as
-/// if it had saved (#265).
+/// document that saves it. Each app saves its own way and passes that as `Save`: the
+/// Mac through the NSDocument behind `DocumentGroup` (`DocumentWindow`), the iPhone
+/// through its own UIDocument (`OpenDeck`, #295).
 ///
 /// Hears of every change to the file by another process through a file presenter of
 /// its own, next to the document's. The Mac's sandbox allows it with the entitlement
@@ -14,14 +12,20 @@ import os
 /// the file picker.
 @MainActor
 final class FileVersionStore: DeckVersionStore {
+    /// Writes the deck of the document open at the URL to its file now, even if the
+    /// document hasn't counted the change yet. Throws if it can't, also if it finds no
+    /// document to write, rather than return as if it had saved (#265).
+    typealias Save = @MainActor (URL) async throws -> Void
+
     let url: URL
+    private let saveFile: Save
     private let presenter: Presenter
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mfluch.voctrain", category: "FileVersionStore")
 
     /// - Parameter onChange: Runs on the main actor after another process changed the
     ///   file or iCloud Drive set a version in conflict aside.
-    init(url: URL, onChange: @escaping @MainActor @Sendable () -> Void) {
+    init(url: URL, save: @escaping Save, onChange: @escaping @MainActor @Sendable () -> Void) {
         self.url = url
+        saveFile = save
         presenter = Presenter(url: url, onChange: onChange)
         NSFileCoordinator.addFilePresenter(presenter)
     }
@@ -30,17 +34,8 @@ final class FileVersionStore: DeckVersionStore {
         NSFileCoordinator.removeFilePresenter(presenter)
     }
 
-    /// The error `save()` throws when it finds no document for the file. It shouldn't
-    /// happen: the way the app finds its document broke, perhaps with an update of the
-    /// SDK. The merger then keeps the conflicts, and the device's
-    /// log says so.
-    struct DocumentNotFound: Error {}
-
-    /// Logs that `save()` found no document for the file, and returns the error to throw.
-    func documentNotFound() -> DocumentNotFound {
-        let name = url.lastPathComponent
-        Self.logger.error("Found no document to save \(name, privacy: .private)")
-        return DocumentNotFound()
+    func save() async throws {
+        try await saveFile(url)
     }
 
     /// Leaves out versions iCloud Drive hasn't downloaded yet; a later merge gets them.
