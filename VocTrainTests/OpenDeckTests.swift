@@ -70,7 +70,7 @@ struct OpenDeckTests {
         undoManager.endUndoGrouping()
         // Saves the change at once instead of after a few seconds.
         deck.merger.suspend()
-        await deck.merger.saving?.value
+        await deck.merger.saves.saving?.value
 
         let saved = try DeckFile.decode(FileWrapper(url: url, options: .immediate))
         #expect(saved.cards.first?.log.map(\.grade) == [.good])
