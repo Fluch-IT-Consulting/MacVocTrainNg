@@ -141,7 +141,7 @@ struct VersionMergerTests {
         // iCloud Drive kept this Mac's version and set the other device's aside.
         store.conflicts = [FakeConflict(deck: reviewing(kot, in: base, at: day(2)), store: store)]
         store.onChange?()
-        await merger.checking?.value
+        await merger.watch.checking?.value
         await merger.merging?.value
         #expect(document.deck.card(withID: kot.id)?.log.count == 1)
         #expect(store.conflicts.allSatisfy { $0.isResolved })
@@ -222,7 +222,7 @@ struct VersionMergerTests {
         await merger.merging?.value
 
         study(dom, in: document, undoManager)
-        await merger.saving?.value
+        await merger.saves.saving?.value
         #expect(store.events == ["save"])
     }
 
@@ -254,7 +254,7 @@ struct VersionMergerTests {
 
         study(dom, in: document, undoManager)
         merger.suspend()
-        await merger.saving?.value
+        await merger.saves.saving?.value
         #expect(store.events == ["save"])
 
         merger.resume()
@@ -275,7 +275,7 @@ struct VersionMergerTests {
         if isEditable {
             step(undoManager) { document.add(CardText(question: "pies", answer: "Hund")!) }
         }
-        await merger.saving?.value
+        await merger.saves.saving?.value
         #expect(store.onChange == nil)
         #expect(!conflict.isResolved)
         #expect(store.events.isEmpty)
