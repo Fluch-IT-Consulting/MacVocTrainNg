@@ -8,10 +8,10 @@ import VocabCore
 /// saves, and the `VocabularyDocument` the views show.
 ///
 /// The deck keeps its document while it is open: when another device changed the file,
-/// what the file holds that the document lacks is merged into it, and a study session
-/// goes on (#296). Changes register with the UIDocument's own undo manager, so it
-/// counts them and saves them by itself; the `VersionMerger` saves a few seconds after
-/// each change too, through the same UIDocument (#295).
+/// the `VersionMerger` merges what the file holds into it, and a study session goes on
+/// (#296, #303). Changes register with the UIDocument's own undo manager, so it counts
+/// them and saves them by itself; the merger saves a few seconds after each change too,
+/// through the same UIDocument (#295).
 @MainActor @Observable
 final class OpenDeck {
     let url: URL
@@ -26,9 +26,6 @@ final class OpenDeck {
     @ObservationIgnored private let file: DeckFileDocument
     @ObservationIgnored private let isAccessingFile: Bool
     @ObservationIgnored private var observations: [AnyCancellable] = []
-    /// The deck the file held when another device changed it, until `merge(_:into:)`
-    /// takes it.
-    @ObservationIgnored private var readAgain: Deck?
 
     /// Opens the deck at `url`, a file the learner chose or the app remembered.
     init(url: URL) {
@@ -39,6 +36,7 @@ final class OpenDeck {
         let file = DeckFileDocument(fileURL: url)
         self.file = file
         merger = VersionMerger { _ in try await file.saveInPlace() }
+        merger.didMergeReadAgain = { [weak self] in self?.forgetUndoSteps() }
         observations = [
             NotificationCenter.default.publisher(for: DeckFileDocument.didLoad, object: file)
                 .receive(on: DispatchQueue.main)
@@ -98,7 +96,9 @@ final class OpenDeck {
     }
 
     /// Takes the deck the file just read: as the document when the file is read first,
-    /// else to merge into the document once the file can be changed again.
+    /// else for the merger to merge into the document once the file can be changed
+    /// again. The UIDocument then takes the file as saved; the merger saves what the
+    /// document holds beyond it.
     private func takeLoadedDeck() {
         guard let deck = file.takeLoadedDeck() else { return }
         if document == nil {
@@ -108,35 +108,29 @@ final class OpenDeck {
             file.document = document
             self.document = document
         } else {
-            readAgain = deck
+            merger.merge(readAgain: deck)
         }
         updateState()
     }
 
+    /// Attaches the document to the merger itself, not only through the deck's view:
+    /// the merger waits for the file to be editable again before it merges the deck
+    /// read again, and a deck may be read again while no view shows it.
     private func updateState() {
         let state = file.documentState
         isEditable = document != nil && !state.contains(.closed) && !state.contains(.editingDisabled)
-        if isEditable, let document, let deck = readAgain {
-            readAgain = nil
-            merge(deck, into: document)
+        if let document {
+            merger.attach(document, fileURL: url, isEditable: isEditable)
         }
     }
 
-    /// Merges what another device wrote to the file into the document (#296). Waits
-    /// until the UIDocument has read the file again: it then takes the file as saved,
-    /// and saves what the document holds beyond it only after a change it counts.
-    ///
-    /// Undo takes back neither the merge nor any step before it: it would take back
-    /// what the other device did, or bring back cards it changed since. As on the Mac,
-    /// where reading the file again ends the session, the session's steps until now
-    /// can no longer be undone.
-    private func merge(_ deck: Deck, into document: VocabularyDocument) {
-        if document.merge([deck]) {
-            undoManager.removeAllActions()
-        }
-        if DeckChange.merging(document.deck, into: deck, calendar: document.calendar) != nil {
-            file.updateChangeCount(.done)
-        }
+    /// Runs after the merger merged what another device wrote to the file (#296). Undo
+    /// takes back neither the merge nor any step before it: it would take back what the
+    /// other device did, or bring back cards it changed since. As on the Mac, where
+    /// reading the file again ends the session, the session's steps until now can no
+    /// longer be undone.
+    private func forgetUndoSteps() {
+        undoManager.removeAllActions()
     }
 }
 

@@ -62,7 +62,7 @@ struct FileWatchTests {
     }
 }
 
-/// Counts the changes a `FileWatch` reports.
+/// Counts how often a handler ran, e.g. the changes a `FileWatch` reports.
 @MainActor
 final class ChangeCounter {
     var count = 0
