@@ -263,6 +263,8 @@ struct VersionMergerTests {
         merger.attach(document, fileURL: url, isEditable: false)
         await merger.saves.saving?.value
         merger.merge(readAgain: base)
+        await merger.merging?.value
+        #expect(store.events.isEmpty)
         store.saveError = FileVersionStore.DocumentNotFound()
 
         merger.attach(document, fileURL: url, isEditable: true)
