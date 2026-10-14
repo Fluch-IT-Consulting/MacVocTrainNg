@@ -82,7 +82,8 @@ final class VersionMerger {
 
     /// Takes `document` as the current document, saved at `fileURL`. Called by the
     /// document's view when it appears and when the file moves or can be changed or no
-    /// longer. Waits for the document's undo manager: merging changes the deck.
+    /// longer, and on the iPhone by `OpenDeck` too. Waits for the document's undo
+    /// manager: merging changes the deck.
     func attach(_ document: VocabularyDocument, fileURL: URL?, isEditable: Bool) {
         guard document.undoManager != nil else { return }
         let fileURL = isEditable ? fileURL : nil
@@ -156,22 +157,15 @@ final class VersionMerger {
                 }
             }
         }
-        let merged = document.merge(versions)
-        if merged, !taken.isEmpty {
-            didMergeReadAgain?()
-        }
-        // The file read again takes the document as saved, but it may lack changes
-        // made before.
-        let fileLacksChanges = taken.contains { version in
-            guard case let .file(deck) = version else { return false }
-            return DeckChange.merging(document.deck, into: deck, calendar: document.calendar) != nil
-        }
-        if merged || fileLacksChanges {
+        if merge(versions, readAgain: taken, into: document) {
             do {
                 try await store.save()
             } catch {
                 // The conflicts stay; the next merge tries again, at the latest when
-                // autosave has written the file.
+                // autosave has written the file. On the iPhone, the file read again
+                // takes the document as saved, so autosave wouldn't: the next merge or
+                // `suspend()` takes in the file read again once more and saves.
+                readAgain.insert(contentsOf: taken.filter { $0.fileDeck != nil }, at: 0)
                 return
             }
         }
@@ -180,11 +174,44 @@ final class VersionMerger {
         }
     }
 
+    /// Merges `versions`, among them the decks read again `taken`, into `document`.
+    ///
+    /// - Returns: Whether the document holds something the file lacks and so needs to
+    ///   be saved. The file read again takes the document as saved, but it may lack
+    ///   changes made before.
+    private func merge(_ versions: [Deck], readAgain taken: [ReadAgain], into document: VocabularyDocument) -> Bool {
+        let readAgainBringsChanges = taken.contains { DeckChange.merging($0.deck, into: document.deck, calendar: document.calendar) != nil }
+        let merged = document.merge(versions)
+        if merged, readAgainBringsChanges {
+            didMergeReadAgain?()
+        }
+        guard !merged else { return true }
+        guard let file = taken.compactMap(\.fileDeck).last else { return false }
+        return DeckChange.merging(document.deck, into: file, calendar: document.calendar) != nil
+    }
+
     /// Lets go of the file when the iPhone app goes to the background, see
-    /// `FileWatch.suspend()`. Saves a change first that waits for its save.
+    /// `FileWatch.suspend()`. Saves a change first that waits for its save, and a deck
+    /// the file read again whose merge still waits for an earlier one, see
+    /// `takeInReadAgainNow()`.
     func suspend() {
+        takeInReadAgainNow()
         saves.flush()
         watch.suspend()
+    }
+
+    /// Merges the decks the file read again that wait for their merge, while the file
+    /// can be changed, and has them saved soon. The iPhone app lets go of the file in
+    /// the background: the UIDocument takes the file read again as saved, so it would
+    /// save nothing the file lacks. Conflicts wait for the app's return.
+    private func takeInReadAgainNow() {
+        guard let document, watch.store != nil else { return }
+        let taken = readAgain.filter { $0.fileDeck != nil }
+        guard !taken.isEmpty else { return }
+        readAgain.removeAll { $0.fileDeck != nil }
+        if merge(taken.map(\.deck), readAgain: taken, into: document) {
+            saves.changed()
+        }
     }
 
     /// Hears of changes to the file again when the app comes back, and merges the
@@ -221,6 +248,12 @@ private enum ReadAgain {
     var isDeckBefore: Bool {
         guard case .deckBefore = self else { return false }
         return true
+    }
+
+    /// The deck the file holds now, for a deck read on the iPhone.
+    var fileDeck: Deck? {
+        guard case let .file(deck) = self else { return nil }
+        return deck
     }
 }
 
