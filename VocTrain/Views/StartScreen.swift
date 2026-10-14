@@ -92,12 +92,8 @@ struct StartScreen: View {
 
 /// An open deck: its overview once the file is read, else why it couldn't be.
 ///
-/// Each document gets a deck view of its own: when another device changed the file,
-/// `OpenDeck` brings a new document, and a study session would go on changing the old
-/// one, which nobody saves. The `VersionMerger` stays with the deck, so it can keep what
-/// the old document held that the file lacks. The deck view shows what the merger
-/// reports: an alert from here would come while the session leaves the screen, and get
-/// lost.
+/// The deck view shows what the `VersionMerger` reports: an alert from here would come
+/// while a study session covers the screen, and get lost.
 private struct DeckScreen: View {
     var deck: OpenDeck
     var knownDecks: KnownDecks
@@ -106,7 +102,6 @@ private struct DeckScreen: View {
         Group {
             if let document = deck.document {
                 DeckView(document: document, fileURL: deck.url, isEditable: deck.isEditable, merger: deck.merger, undoManager: deck.undoManager)
-                    .id(ObjectIdentifier(document))
                     .onAppear { knownDecks.remember(deck.url) }
             } else if let failure = deck.failure {
                 ContentUnavailableView("The deck could not be opened", systemImage: "exclamationmark.triangle", description: Text(failure))

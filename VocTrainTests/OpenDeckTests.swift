@@ -77,17 +77,60 @@ struct OpenDeckTests {
         await deck.close()
     }
 
-    /// Another device's change to the file brings a new document with the new deck, as
-    /// `DocumentGroup` did.
-    @Test func aChangedFileBringsANewDocument() async throws {
-        let url = try write(Deck(cards: [makeCard("dom")]))
+    /// Another device's change to the file is merged into the open document (#296).
+    @Test func aChangedFileIsMergedIntoTheOpenDocument() async throws {
+        let dom = makeCard("dom")
+        let url = try write(Deck(cards: [dom]))
         let deck = OpenDeck(url: url)
-        let first = try await waitForDocument(of: deck)
+        let document = try await waitForDocument(of: deck)
 
-        try await writeCoordinated(Deck(cards: [makeCard("dom"), makeCard("kot")]), to: url)
+        try await writeCoordinated(Deck(cards: [dom, makeCard("kot")], contentModified: .now), to: url)
 
-        try await wait { deck.document !== first }
-        #expect(deck.document?.deck.cards.count == 2)
+        try await wait { document.deck.cards.count == 2 }
+        #expect(document.deck.cards.count == 2)
+        #expect(deck.document === document)
+        await deck.close()
+    }
+
+    /// A study session goes on when the Mac changes the file (#296): the deck gets the
+    /// Mac's reviews, and the session skips a card the Mac suspended.
+    @Test func aStudySessionGoesOnWhenTheFileChanges() async throws {
+        let url = try write(Deck(cards: ["dom", "kot", "pies", "ryba"].map(makeCard)))
+        let deck = OpenDeck(url: url)
+        let document = try await waitForDocument(of: deck)
+        let model = StudyModel(document: document)
+        let first = try #require(model.currentCard?.id)
+        model.reveal()
+        model.grade(.good)
+        let asked = try #require(model.currentCard?.id)
+        // Lets the run loop close the undo group, which the UIDocument counts, and
+        // saves the review, so the Mac reads it.
+        try await Task.sleep(for: .milliseconds(200))
+        deck.suspend()
+        try await wait { (try? read(url))?.card(withID: first)?.log.count == 1 }
+        deck.resume()
+
+        // The Mac reviews one of the cards not asked yet and suspends the other.
+        var mac = try read(url)
+        let notAsked = mac.cards.map(\.id).filter { $0 != first && $0 != asked }
+        try #require(notAsked.count == 2)
+        review(notAsked[0], in: &mac, calendar: document.calendar)
+        let suspension = try #require(DeckChange.settingSuspended(true, of: [notAsked[1]], in: mac, at: .now))
+        _ = mac.apply(suspension, at: .now, calendar: document.calendar)
+        try await writeCoordinated(mac, to: url)
+
+        try await wait { document.deck.card(withID: notAsked[1])?.isSuspended == true }
+        #expect(deck.document === document)
+        #expect(document.deck.card(withID: notAsked[1])?.isSuspended == true)
+        #expect(document.deck.card(withID: notAsked[0])?.log.count == 1)
+        #expect(document.deck.card(withID: first)?.log.count == 1)
+        #expect(model.currentCard?.id == asked)
+        // Undo takes back neither the merge nor the review before it.
+        #expect(!deck.undoManager.canUndo)
+
+        model.reveal()
+        model.grade(.good)
+        #expect(model.currentCard?.id == notAsked[0])
         await deck.close()
     }
 
@@ -99,6 +142,21 @@ struct OpenDeckTests {
             return
         }
         document.applyReview(change, alongside: UndoCompanion(undo: {}, redo: {}))
+    }
+
+    /// Reviews the card `id` with Good, as the Mac does.
+    private func review(_ id: Card.ID, in deck: inout Deck, calendar: StudyCalendar) {
+        guard let card = deck.card(withID: id) else { return }
+        var mode = SessionMode.study(StudySession(deck: Deck(cards: [card]), at: .now, calendar: calendar))
+        guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: .now, calendar: calendar) else {
+            Issue.record("The study session didn't reschedule the card.")
+            return
+        }
+        _ = deck.apply(change, at: .now, calendar: calendar)
+    }
+
+    private func read(_ url: URL) throws -> Deck {
+        try DeckFile.decode(FileWrapper(url: url, options: .immediate))
     }
 
     private func makeCard(_ question: String) -> Card {

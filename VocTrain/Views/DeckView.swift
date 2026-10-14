@@ -4,8 +4,8 @@ import VocabCore
 /// The screen of an open deck: how many cards are due, when the next one is, and the
 /// start of a study session.
 ///
-/// Shows one document for its whole life: each document gets a view of its own, see
-/// `DeckScreen`.
+/// A study session goes on when another device changes the file: `OpenDeck` merges
+/// the change into the document (#296).
 struct DeckView: View {
     @ObservedObject var document: VocabularyDocument
     /// Where the document is saved.
@@ -23,11 +23,6 @@ struct DeckView: View {
         let dueCount = document.dueCards.count
 
         List {
-            if merger.endedSession {
-                Notice(title: "The study session has ended", message: Text("The deck was changed on another device and opened anew. The reviews of the session are kept.")) {
-                    merger.endedSession = false
-                }
-            }
             if let failure = merger.failure {
                 Notice(title: "Another version of this deck could not be merged", message: Text(failure)) {
                     merger.failure = nil
@@ -51,7 +46,6 @@ struct DeckView: View {
 
             Section {
                 Button {
-                    merger.endedSession = false
                     study = StudyModel(document: document)
                 } label: {
                     Label(dueCount > 0 ? "Study (\(dueCount))" : "Study", systemImage: "graduationcap")

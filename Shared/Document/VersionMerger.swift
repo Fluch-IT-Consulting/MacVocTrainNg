@@ -7,9 +7,10 @@ import VocabCore
 /// changes its file on iCloud Drive (#252, #259).
 ///
 /// NSDocument on the Mac and UIDocument on the iPhone read the file again on their own
-/// when another process writes it, and the window or scene gets a new document, see
-/// `DocumentWindow` and `OpenDeck`. The merger lives as long as the window or
-/// scene, so it sees each of its documents in turn:
+/// when another process writes it. On the Mac, the window then gets a new document, see
+/// `DocumentWindow`; the iPhone app merges the file into the document it has, see
+/// `OpenDeck` (#296). The merger lives as long as the window or the open deck, so it
+/// sees each of its documents in turn:
 /// - It merges the deck of the document before into the new one: NSDocument sets
 ///   unsaved changes aside as an `NSFileVersion` before it reads again, where the
 ///   learner wouldn't find them. It doesn't if the file holds nothing the deck before
@@ -20,7 +21,7 @@ import VocabCore
 ///   from opening the deck. It does so after opening, after reading again and when the
 ///   file changes, as iCloud Drive may keep the version of this device and set the
 ///   other device's aside.
-/// - It says so when reading the file again ended a study session.
+/// - It says so when reading the file again ended a study session, on the Mac.
 ///
 /// It leaves two jobs to types of their own (#298): `saves` saves a few seconds after
 /// every change, `watch` hears of changes to the file and lets go of it while the
@@ -112,9 +113,8 @@ final class VersionMerger {
     }
 
     /// The deck of the document before, if the file holds something it lacks: another
-    /// device changed the file. Waits for a file that can be changed: the iPhone reads
-    /// the file again while it can't (#259), and an old version in the version browser
-    /// on the Mac can't ever be changed.
+    /// device changed the file. Waits for a file that can be changed: an old version in
+    /// the version browser on the Mac can't ever be changed.
     private func takeReplaced() -> Deck? {
         guard watch.store != nil, let document, let replaced else { return nil }
         self.replaced = nil
