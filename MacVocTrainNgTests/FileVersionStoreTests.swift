@@ -19,17 +19,13 @@ struct FileVersionStoreTests {
             document.close()
             try? FileManager.default.removeItem(at: url)
         }
-        let store = FileVersionStore(url: url, onChange: {})
-
-        try await store.save()
+        try await FileVersionStore.saveDocument(at: url)
         #expect(try Data(contentsOf: url) == savedContents)
     }
 
     @Test func savingWithoutADocumentFails() async {
-        let store = FileVersionStore(url: url, onChange: {})
-
         await #expect(throws: FileVersionStore.DocumentNotFound.self) {
-            try await store.save()
+            try await FileVersionStore.saveDocument(at: url)
         }
     }
 }

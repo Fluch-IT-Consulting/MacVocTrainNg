@@ -68,10 +68,18 @@ final class VersionMerger {
     /// for this one (#246): the store only learns of the change, the merge comes later.
     private let checkDelay: Duration
 
+    /// A merger for the files of the window or scene, which the app saves through
+    /// `save`, see `FileVersionStore`.
+    convenience init(save: @escaping FileVersionStore.Save) {
+        self.init(makeStore: { url, onChange in FileVersionStore(url: url, save: save, onChange: onChange) })
+    }
+
+    /// - Parameter makeStore: Connects to the file at the URL, with the handler for its
+    ///   changes.
     init(
         saveDelay: Duration = .seconds(5),
         checkDelay: Duration = .seconds(2),
-        makeStore: @escaping @MainActor (URL, @escaping @MainActor @Sendable () -> Void) -> any DeckVersionStore = { FileVersionStore(url: $0, onChange: $1) }
+        makeStore: @escaping @MainActor (URL, @escaping @MainActor @Sendable () -> Void) -> any DeckVersionStore
     ) {
         self.saveDelay = saveDelay
         self.checkDelay = checkDelay

@@ -44,18 +44,37 @@ struct OpenDeckTests {
         let document = try await waitForDocument(of: deck)
         document.undoManager = deck.undoManager
 
-        var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
-        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
-            Issue.record("The study session didn't reschedule the card.")
-            return
-        }
-        document.applyReview(change, alongside: UndoCompanion(undo: {}, redo: {}))
+        review(document)
         // Lets the run loop close the undo group, which the UIDocument counts.
         try await Task.sleep(for: .milliseconds(200))
         await deck.close()
 
         let saved = try DeckFile.decode(FileWrapper(url: url, options: .immediate))
         #expect(saved.cards.first?.log.map(\.grade) == [.good])
+    }
+
+    /// The merger saves through the deck's UIDocument, even a change the UIDocument
+    /// hasn't counted (#295): here the change registers with an undo manager of its own.
+    @Test func theMergerSavesThroughTheDeckFile() async throws {
+        let url = try write(Deck(cards: [makeCard("dom")]))
+        let deck = OpenDeck(url: url)
+        let document = try await waitForDocument(of: deck)
+        let undoManager = UndoManager()
+        undoManager.groupsByEvent = false
+        document.undoManager = undoManager
+        deck.merger.attach(document, fileURL: url, isEditable: true)
+        await deck.merger.merging?.value
+
+        undoManager.beginUndoGrouping()
+        review(document)
+        undoManager.endUndoGrouping()
+        // Saves the change at once instead of after a few seconds.
+        deck.merger.suspend()
+        await deck.merger.saving?.value
+
+        let saved = try DeckFile.decode(FileWrapper(url: url, options: .immediate))
+        #expect(saved.cards.first?.log.map(\.grade) == [.good])
+        await deck.close()
     }
 
     /// Another device's change to the file brings a new document with the new deck, as
@@ -70,6 +89,16 @@ struct OpenDeckTests {
         try await wait { deck.document !== first }
         #expect(deck.document?.deck.cards.count == 2)
         await deck.close()
+    }
+
+    /// Reviews the first card due with Good, as a study session does.
+    private func review(_ document: VocabularyDocument) {
+        var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
+        guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
+            Issue.record("The study session didn't reschedule the card.")
+            return
+        }
+        document.applyReview(change, alongside: UndoCompanion(undo: {}, redo: {}))
     }
 
     private func makeCard(_ question: String) -> Card {

@@ -9,7 +9,7 @@ import SwiftUI
 /// keep what the old document held that the file lacks.
 struct DocumentWindow: View {
     var file: ReferenceFileDocumentConfiguration<VocabularyDocument>
-    @State private var merger = VersionMerger()
+    @State private var merger = VersionMerger { try await FileVersionStore.saveDocument(at: $0) }
 
     var body: some View {
         DocumentView(document: file.document, fileURL: file.fileURL, isEditable: file.isEditable, merger: merger)

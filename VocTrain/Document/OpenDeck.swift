@@ -12,7 +12,7 @@ import VocabCore
 /// `VersionMerger` keeps what the document before held that the file lacks, see
 /// `DeckScreen`. Changes register with the UIDocument's own undo manager, so it counts
 /// them and saves them by itself; the merger saves a few seconds after each change
-/// too, through the UIDocument it finds among the file presenters.
+/// too, through the same UIDocument (#295).
 @MainActor @Observable
 final class OpenDeck {
     let url: URL
@@ -22,7 +22,7 @@ final class OpenDeck {
     private(set) var isEditable = false
     /// Why the deck couldn't be opened.
     private(set) var failure: String?
-    let merger = VersionMerger()
+    let merger: VersionMerger
 
     @ObservationIgnored private let file: DeckFileDocument
     @ObservationIgnored private let isAccessingFile: Bool
@@ -34,7 +34,9 @@ final class OpenDeck {
         // A file outside the app's sandbox, as on iCloud Drive, can be read only while
         // the app accesses it, until the deck closes.
         isAccessingFile = url.startAccessingSecurityScopedResource()
-        file = DeckFileDocument(fileURL: url)
+        let file = DeckFileDocument(fileURL: url)
+        self.file = file
+        merger = VersionMerger { _ in try await file.saveInPlace() }
         observations = [
             NotificationCenter.default.publisher(for: DeckFileDocument.didLoad, object: file)
                 .receive(on: DispatchQueue.main)
