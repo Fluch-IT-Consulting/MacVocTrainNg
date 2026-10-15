@@ -542,7 +542,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.8.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mfluch.VocTrain;
+				PRODUCT_BUNDLE_IDENTIFIER = "de.fluch-it-consulting.VocTrain";
 				PRODUCT_NAME = VocTrain;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -572,7 +572,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.8.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mfluch.VocTrain;
+				PRODUCT_BUNDLE_IDENTIFIER = "de.fluch-it-consulting.VocTrain";
 				PRODUCT_NAME = VocTrain;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -590,7 +590,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.8.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mfluch.VocTrainTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "de.fluch-it-consulting.VocTrainTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -609,7 +609,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 0.8.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mfluch.VocTrainTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "de.fluch-it-consulting.VocTrainTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = NO;
