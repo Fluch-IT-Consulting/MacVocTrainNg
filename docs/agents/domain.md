@@ -4,7 +4,7 @@ Wie die Skills die Fachdokumentation dieses Repos lesen.
 
 ## Vor dem Erkunden lesen
 
-- **`CONTEXT.md`** in der Wurzel: das Glossar
+- **`GLOSSARY.md`** in der Wurzel: das Glossar
 - **`docs/adr/`**: die Entscheidungen, die den Bereich betreffen, an dem gearbeitet wird
 
 Fehlen diese Dateien, **ohne Hinweis weitermachen**. Nicht vorschlagen, sie vorab
@@ -17,7 +17,7 @@ Ein Kontext, also ein Glossar und ein ADR-Ordner in der Wurzel:
 
 ```
 /
-├── CONTEXT.md
+├── GLOSSARY.md
 ├── docs/adr/
 │   └── 0001-fsrs-statt-level-system.md
 ├── MacVocTrainNg/
@@ -27,7 +27,7 @@ Ein Kontext, also ein Glossar und ein ADR-Ordner in der Wurzel:
 ## Das Vokabular des Glossars benutzen
 
 Wo ein Ergebnis einen Fachbegriff nennt (Issue-Titel, Umbauvorschlag, Testname),
-gilt der Begriff aus `CONTEXT.md`.
+gilt der Begriff aus `GLOSSARY.md`.
 
 Keine Synonyme benutzen, die das Glossar ausdrücklich meidet. Fehlt ein Begriff im
 Glossar, ist das ein Zeichen: Entweder wird gerade Sprache erfunden, die das Projekt

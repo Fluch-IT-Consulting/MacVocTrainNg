@@ -108,7 +108,7 @@ The five standard roles, label equals role name. See `docs/agents/triage-labels.
 
 ### Domain docs
 
-Single context: `CONTEXT.md` and `docs/adr/` at the root, created when needed.
+Single context: `GLOSSARY.md` and `docs/adr/` at the root, created when needed.
 See `docs/agents/domain.md`.
 
 ### Wiki
