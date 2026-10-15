@@ -21,7 +21,7 @@ extension WindowTests {
 
         init() throws {
             document = try VocabularyDocument(deck: Deck(cards: [card]))
-            document.undoManager = undoManager
+            document.attachUndoManager(undoManager)
             delegate = DocumentWindowDelegate(undoManager: undoManager)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false

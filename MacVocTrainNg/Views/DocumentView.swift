@@ -27,13 +27,19 @@ struct DocumentView: View {
     @State private var showingOptions = false
     @State private var importPreview: CardImport.Preview?
 
+    /// Whether the deck can be changed now: the file can be written, and the document
+    /// has the undo manager of the window, which this view attaches (#305).
+    private var canEdit: Bool {
+        isEditable && document.isReadyToEdit
+    }
+
     var body: some View {
         Group {
             if let session {
                 SessionView(model: session) { self.session = nil }
             } else {
                 switch screen {
-                case .cards: CardListView(document: document, isEditable: isEditable)
+                case .cards: CardListView(document: document, isEditable: canEdit)
                 case .statistics: StatisticsView(document: document)
                 }
             }
@@ -51,7 +57,7 @@ struct DocumentView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     StartStudyButton(dueCards: document.dueCards, action: startSession)
-                        .disabled(!isEditable)
+                        .disabled(!canEdit)
                 }
                 ToolbarItem {
                     Button {
@@ -60,7 +66,7 @@ struct DocumentView: View {
                         Label("Learning Options", systemImage: "slider.horizontal.3")
                     }
                     .help("Learning Options")
-                    .disabled(!isEditable)
+                    .disabled(!canEdit)
                 }
             }
         }
@@ -70,13 +76,14 @@ struct DocumentView: View {
         .sheet(item: $importPreview) { preview in
             ImportPreviewView(document: document, preview: preview)
         }
+        .attachingUndoManager(to: document)
         .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: session != nil)
         .focusedSceneValue(
             \.deckActions,
             DeckActions(
                 isInSession: session != nil,
-                isEditable: isEditable,
-                canStartSession: isEditable && session == nil && document.dueCards.count > 0,
+                isEditable: canEdit,
+                canStartSession: canEdit && session == nil && document.dueCards.count > 0,
                 startSession: startSession,
                 show: { screen = $0 },
                 showOptions: { showingOptions = true },
@@ -96,7 +103,8 @@ struct DocumentView: View {
     private func applyDebugLaunchArguments() {
         switch UserDefaults.standard.string(forKey: "debugScreen") {
         case "statistics": screen = .statistics
-        case "study": startSession()
+        // On the next turn, once the view attached the undo manager.
+        case "study": Task { startSession() }
         case "options": showingOptions = true
         default: break
         }
@@ -111,7 +119,7 @@ struct DocumentView: View {
     #endif
 
     private func importCards() {
-        guard isEditable else { return }
+        guard canEdit else { return }
         importPreview = CardImport.chooseFile(existing: document.deck.cards, created: document.clock.now)
     }
 
@@ -124,7 +132,7 @@ struct DocumentView: View {
     }
 
     private func startSession() {
-        guard isEditable, session == nil else { return }
+        guard canEdit, session == nil else { return }
         let model = SessionViewModel(document: document)
         if !model.isFinished {
             session = model

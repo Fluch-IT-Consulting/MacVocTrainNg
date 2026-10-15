@@ -45,9 +45,10 @@ final class SessionDriver {
     /// instead of reaching a review of the earlier session.
     ///
     /// - Returns: Whether the session recorded the review; it doesn't once it is
-    ///   finished.
+    ///   finished, nor while the document can't be changed (#305).
     @discardableResult
     func grade(_ grade: Grade) -> Bool {
+        guard document.isReadyToEdit else { return false }
         let before = mode
         guard let outcome = mode.grade(grade, in: document.deck, at: document.clock.now, calendar: document.calendar) else { return false }
         let restore = sessionRestore(from: before, to: mode)
@@ -55,7 +56,7 @@ final class SessionDriver {
         case let .rescheduled(change):
             document.applyReview(change, alongside: restore)
         case .practiced:
-            Self.registerUndo(restore, on: document)
+            registerPracticeUndo(restore)
         }
         moveOn()
         return true
@@ -65,10 +66,11 @@ final class SessionDriver {
     /// takes back the suspension and the session's place: the document resumes the
     /// card, then the session asks it again.
     ///
-    /// - Returns: Whether the card was suspended; it isn't once the session is finished.
+    /// - Returns: Whether the card was suspended; it isn't once the session is finished,
+    ///   nor while the document can't be changed (#305).
     @discardableResult
     func suspendCurrentCard() -> Bool {
-        guard let id = session.currentCardID, let card = document.card(withID: id), !card.isSuspended else { return false }
+        guard document.isReadyToEdit, let id = session.currentCardID, let card = document.card(withID: id), !card.isSuspended else { return false }
         let before = mode
         mode.perform(.suspend)
         guard document.setSuspended(true, of: [id], alongside: sessionRestore(from: before, to: mode)) else {
@@ -138,7 +140,7 @@ final class SessionDriver {
     }
 
     /// Registers `companion` as the undo action of a practice review, which changes no
-    /// card and so doesn't go through the document.
+    /// card: the document only registers it, see `VocabularyDocument.registerUndo(_:actionName:)`.
     ///
     /// It lands on the document's undo manager all the same, so NSDocument counts it as
     /// a change: the deck shows as edited and autosave writes it unchanged. Marking the
@@ -148,11 +150,8 @@ final class SessionDriver {
     /// The target is the document, like for a review in a study session: the driver may
     /// be gone before the undo stack, and the handler reaches it only through `companion`
     /// (#174).
-    private static func registerUndo(_ companion: UndoCompanion, on document: VocabularyDocument) {
-        document.undoManager?.registerMainActorUndo(withTarget: document, actionName: String(localized: "Review")) { document, _ in
-            companion.undo()
-            registerUndo(companion.reversed, on: document)
-        }
+    private func registerPracticeUndo(_ companion: UndoCompanion) {
+        document.registerUndo(companion, actionName: String(localized: "Review"))
     }
 
     /// Called by undo and redo of a review.

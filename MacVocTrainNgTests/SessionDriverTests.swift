@@ -194,6 +194,30 @@ struct SessionDriverTests {
         #expect(listener.changes == 1)
         #expect(listener.moves == 0)
     }
+
+    /// Without an undo manager the document can't take a review, and the session stays
+    /// where it is (#305).
+    @Test func withoutUndoManagerNothingIsGradedOrSuspended() throws {
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")]), calendar: .testing)
+        let driver = SessionDriver(document: document, mode: .study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar)))
+        let listener = DriverListener()
+        driver.delegate = listener
+        let deck = document.deck
+        let current = driver.session.currentCardID
+
+        #expect(!driver.grade(.good))
+        #expect(!driver.suspendCurrentCard())
+        #expect(document.deck == deck)
+        #expect(driver.session.currentCardID == current)
+        #expect(driver.session.reviewCount == 0)
+        #expect(driver.session.suspendedCount == 0)
+        #expect(listener.moves == 0)
+
+        // Practice changes no card, but its undo action needs the undo manager too.
+        driver.start(.practice(Practice(practicing: deck.cards.map(\.id), at: document.clock.now)))
+        #expect(!driver.grade(.good))
+        #expect(driver.session.reviewCount == 0)
+    }
 }
 
 /// Counts what a `SessionDriver` tells its delegate.

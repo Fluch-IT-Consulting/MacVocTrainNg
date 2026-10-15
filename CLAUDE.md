@@ -32,9 +32,11 @@ The active developer dir may be the Command Line Tools; prefix with
   on the Mac only, which also alone has the methods that edit cards and options
   (`MacVocTrainNg/Document/VocabularyDocument+*.swift`, #297). Every change
   must go through its `@MainActor` methods: they register undo, which is also how SwiftUI
-  marks the document dirty. They register with the document's own `undoManager`, which
-  the document's view sets from its environment through `documentSync` (tests set it themselves); callers don't pass
-  one. Don't mutate `deck` elsewhere. Underneath, cards and learning
+  marks the document dirty. They register with the document's own `undoManager`, attached
+  with `attachUndoManager(_:)`: on the Mac by the document's view from its environment
+  (`attachingUndoManager(to:)`), on the iPhone by `OpenDeck` before it shows the document,
+  in tests by the test; callers don't pass one. Until then the document is only read:
+  whatever changes it checks `isReadyToEdit` first (#305). Don't mutate `deck` elsewhere. Underneath, cards and learning
   options change only through `Deck.apply(_:at:calendar:)`: it returns the inverse change
   and keeps `progress` and `contentModified` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
   log can't be set from outside it (tests reach the full `Card.init` via `@testable`).

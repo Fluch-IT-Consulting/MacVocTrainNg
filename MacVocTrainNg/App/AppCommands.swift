@@ -3,7 +3,8 @@ import SwiftUI
 /// Actions of the focused document window, for the menu bar.
 struct DeckActions {
     var isInSession: Bool
-    /// `false` while the deck can only be viewed, see `DocumentView.isEditable`.
+    /// `false` while the deck can only be viewed, see `DocumentView.isEditable`, or
+    /// while the document has no undo manager yet (#305).
     var isEditable: Bool
     var canStartSession: Bool
     var startSession: () -> Void

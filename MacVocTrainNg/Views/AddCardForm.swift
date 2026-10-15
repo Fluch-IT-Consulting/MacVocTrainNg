@@ -66,7 +66,9 @@ struct AddCardForm: View {
             focus = CardText.trimmed(question).isEmpty ? .question : .answer
             return
         }
-        onAdd(document.add(text))
+        // Keeps the fields while the document can't be changed yet.
+        guard let id = document.add(text) else { return }
+        onAdd(id)
         question = ""
         answer = ""
         hint = ""

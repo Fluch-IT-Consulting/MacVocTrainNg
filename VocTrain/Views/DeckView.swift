@@ -15,8 +15,6 @@ struct DeckView: View {
     var isEditable: Bool
     /// Merges the versions of the deck from the Mac; outlives the view.
     var merger: VersionMerger
-    /// The undo manager of the deck's file, which counts the changes to save.
-    var undoManager: UndoManager
     @State private var study: StudyModel?
 
     var body: some View {
@@ -45,22 +43,31 @@ struct DeckView: View {
             }
 
             Section {
-                Button {
-                    study = StudyModel(document: document)
-                } label: {
+                Button(action: startStudying) {
                     Label(dueCount > 0 ? "Study (\(dueCount))" : "Study", systemImage: "graduationcap")
                 }
-                .disabled(dueCount == 0 || !isEditable)
+                .disabled(dueCount == 0 || !canEdit)
             } footer: {
                 if dueCount == 0 {
                     Text("No cards are due")
                 }
             }
         }
-        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: study != nil, undoManager: undoManager)
+        .documentSync(document, fileURL: fileURL, isEditable: isEditable, merger: merger, isInSession: study != nil)
         .fullScreenCover(item: $study) { model in
             StudyView(model: model) { study = nil }
         }
+    }
+
+    /// Whether a study session may change the deck: the file can be written, and
+    /// `OpenDeck` attached the undo manager of the UIDocument (#305).
+    private var canEdit: Bool {
+        isEditable && document.isReadyToEdit
+    }
+
+    private func startStudying() {
+        guard canEdit else { return }
+        study = StudyModel(document: document)
     }
 
     /// When the next card becomes due; new cards are due at once, suspended ones never.

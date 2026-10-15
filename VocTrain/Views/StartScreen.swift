@@ -101,7 +101,7 @@ private struct DeckScreen: View {
     var body: some View {
         Group {
             if let document = deck.document {
-                DeckView(document: document, fileURL: deck.url, isEditable: deck.isEditable, merger: deck.merger, undoManager: deck.undoManager)
+                DeckView(document: document, fileURL: deck.url, isEditable: deck.isEditable, merger: deck.merger)
                     .onAppear { knownDecks.remember(deck.url) }
             } else if let failure = deck.failure {
                 ContentUnavailableView("The deck could not be opened", systemImage: "exclamationmark.triangle", description: Text(failure))

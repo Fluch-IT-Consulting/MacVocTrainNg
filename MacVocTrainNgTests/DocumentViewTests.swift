@@ -16,7 +16,8 @@ extension WindowTests {
 
         init() throws {
             document = try VocabularyDocument(deck: Deck(cards: [Card(question: "frax", answer: "frox")]))
-            // `DocumentView` gives the document the undo manager of the window.
+            // The window hands out the undo manager, as a document window does;
+            // `DocumentView` attaches it to the document.
             undoManager = UndoManager()
             delegate = DocumentWindowDelegate(undoManager: undoManager)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
@@ -55,11 +56,15 @@ extension WindowTests {
             try await Task.sleep(for: .milliseconds(100))
         }
 
-        /// Types a question and an answer into the form and presses Return, as when adding a card.
+        /// Types a question and an answer into the form and presses Return, as when adding a
+        /// card. The view attaches the undo manager of the window, which takes the new card
+        /// as an undoable change (#305).
         @Test(arguments: [true, false])
         func formAddsCardOnlyToEditableDeck(isEditable: Bool) async throws {
             defer { window.close() }
+            #expect(!document.isReadyToEdit)
             show(isEditable: isEditable)
+            try await waitUntil("the view attaches the undo manager") { document.undoManager === undoManager }
             let fields = try await formFields()
             #expect(fields.allSatisfy { $0.isEnabled == isEditable })
 
