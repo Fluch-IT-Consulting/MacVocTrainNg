@@ -1,9 +1,9 @@
 import Combine
 import Foundation
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 @MainActor
 struct DocumentTests {
@@ -43,10 +43,10 @@ struct DocumentTests {
 
     /// No caller hands over an undo manager: every change registers its undo action with
     /// the document's (#195).
-    @Test func everyChangeRegistersWithTheDocumentsUndoManager() {
+    @Test func everyChangeRegistersWithTheDocumentsUndoManager() throws {
         let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
         var options = LearningOptions()
         options.caseSensitive.toggle()
@@ -71,8 +71,8 @@ struct DocumentTests {
         #expect(document.deck.learningOptions == LearningOptions())
     }
 
-    @Test func importIsOneUndoableChange() {
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
+    @Test func importIsOneUndoableChange() throws {
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
         let undoManager = makeUndoManager(for: document)
         let imported = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
 
@@ -84,10 +84,10 @@ struct DocumentTests {
         #expect(document.deck.cards.map(\.question) == ["dom"])
     }
 
-    @Test func editingAndResettingAreUndoable() {
+    @Test func editingAndResettingAreUndoable() throws {
         let learningState = LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: Date(), due: Date())
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
 
         let edited = card.withAnswer("Haus / Heim")
@@ -103,9 +103,9 @@ struct DocumentTests {
         #expect(document.deck.cards[0] == card)
     }
 
-    @Test func unchangedEditRegistersNoUndo() {
+    @Test func unchangedEditRegistersNoUndo() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
         document.editText(of: card.id, to: CardText(question: " dom", answer: "Haus")!)  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
@@ -170,7 +170,7 @@ struct DocumentTests {
     @Test func snapshotSavesReadableDeck() throws {
         // The file stores dates with second precision.
         let created = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
-        let document = VocabularyDocument(deck: Deck(cards: [Card(text: CardText(question: "dom", answer: "Haus")!, created: created)]))
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(text: CardText(question: "dom", answer: "Haus")!, created: created)]))
         let snapshot = try document.snapshot(contentType: .vocabularyDeck)
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: snapshot)) == document.deck)
     }
@@ -209,7 +209,7 @@ struct DocumentTests {
         let studied = [(0.0, Grade.good), (60.0, .good), (20.0 * 86400, .good)].reduce(Card(question: "dom", answer: "Haus")) {
             scheduler.review($0, grade: $1.1, at: start.addingTimeInterval($1.0), using: &random)
         }
-        let document = VocabularyDocument(deck: Deck(cards: [studied]))
+        let document = try VocabularyDocument(deck: Deck(cards: [studied]))
         let undoManager = makeUndoManager(for: document)
 
         var options = LearningOptions()
@@ -229,8 +229,8 @@ struct DocumentTests {
         #expect(document.deck.cards == replayed)
     }
 
-    @Test func unchangedLearningOptionsRegisterNoUndo() {
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
+    @Test func unchangedLearningOptionsRegisterNoUndo() throws {
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]))
         let undoManager = makeUndoManager(for: document)
         document.updateLearningOptions(LearningOptions())  // would throw without an open group if it registered anything
         #expect(!undoManager.canUndo)
@@ -238,9 +238,9 @@ struct DocumentTests {
 
     /// Undo and redo of a review run its companion once the deck holds the card as it
     /// was before or after the review (#164).
-    @Test func reviewUndoRunsItsCompanionAfterTheCard() {
+    @Test func reviewUndoRunsItsCompanionAfterTheCard() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
+        let document = try VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
         let undoManager = makeUndoManager(for: document)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
         guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
@@ -264,9 +264,9 @@ struct DocumentTests {
 
     /// The undo actions don't hold their undo manager, which outlives a closed deck
     /// otherwise (#181).
-    @Test func undoActionsLetTheirUndoManagerGo() {
+    @Test func undoActionsLetTheirUndoManagerGo() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
+        let document = try VocabularyDocument(deck: Deck(cards: [card]), calendar: .testing)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
         guard case let .rescheduled(change) = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar) else {
             Issue.record("A study session reschedules the card.")

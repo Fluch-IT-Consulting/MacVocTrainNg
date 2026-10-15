@@ -1,20 +1,20 @@
 import Foundation
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 @MainActor
 struct SessionViewModelTests {
-    private func makeDocument(cards: Int, steps: Int = 1) -> VocabularyDocument {
+    private func makeDocument(cards: Int, steps: Int = 1) throws -> VocabularyDocument {
         var learningOptions = LearningOptions()
         learningOptions.steps = steps
         learningOptions.fuzzing = false
-        return VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }), calendar: .testing)
+        return try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }), calendar: .testing)
     }
 
     @Test func correctResponseMovesOnAndCanBeUndone() throws {
-        let document = makeDocument(cards: 2)
+        let document = try makeDocument(cards: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
@@ -44,7 +44,7 @@ struct SessionViewModelTests {
     }
 
     @Test func undoingAReviewOfAnEarlierSessionOnlyTakesBackTheCard() throws {
-        let document = makeDocument(cards: 2, steps: 2)
+        let document = try makeDocument(cards: 2, steps: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
@@ -87,7 +87,7 @@ struct SessionViewModelTests {
 
     /// Each undo and redo registers the opposite step anew; the stack must stay in order.
     @Test func severalReviewsAreUndoneAndRedoneOneByOne() throws {
-        let document = makeDocument(cards: 3)
+        let document = try makeDocument(cards: 3)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         var places = [Place(model)]
@@ -112,7 +112,7 @@ struct SessionViewModelTests {
     }
 
     @Test func undoingTheReviewThatFinishedTheSessionAsksAgain() throws {
-        let document = makeDocument(cards: 1)
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
@@ -133,7 +133,7 @@ struct SessionViewModelTests {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
         var learningOptions = LearningOptions()
         learningOptions.steps = 1
-        let deck = Deck(learningOptions: learningOptions, cards: [Card(question: "dom", answer: "Haus")])
+        let deck = try Deck(learningOptions: learningOptions, cards: [Card(question: "dom", answer: "Haus")])
         let document = VocabularyDocument(deck: deck, clock: clock.studyClock, calendar: .testing)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
@@ -162,7 +162,7 @@ struct SessionViewModelTests {
         // A long stability, so the fuzz has many days to choose from.
         let learningState = LearningState(phase: .learning, stability: 100, difficulty: 5, lastReview: now.addingTimeInterval(-100 * 86400), due: now)
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock, calendar: .testing)
+        let document = try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: ManualClock(now).studyClock, calendar: .testing)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
@@ -211,14 +211,14 @@ struct SessionViewModelTests {
     }
 
     @Test func undoingAReviewKeepsTheStudySessionFinishedUp() throws {
-        let document = makeDocument(cards: 3)
+        let document = try makeDocument(cards: 3)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         try expectFinishUpOutlastsUndoAndRedo(of: model, undoManager: undoManager)
     }
 
     @Test func undoingAReviewKeepsPracticeFinishedUp() throws {
-        let document = makeDocument(cards: 3)
+        let document = try makeDocument(cards: 3)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         for _ in 0..<20 where model.session.mistakeIDs.count < 3 {
@@ -233,7 +233,7 @@ struct SessionViewModelTests {
     }
 
     @Test func aNewReviewAfterUndoDropsTheRedo() throws {
-        let document = makeDocument(cards: 2)
+        let document = try makeDocument(cards: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let first = try #require(model.currentCard)
@@ -257,7 +257,7 @@ struct SessionViewModelTests {
     }
 
     @Test func wrongResponseAsksForGrade() throws {
-        let document = makeDocument(cards: 2, steps: 2)
+        let document = try makeDocument(cards: 2, steps: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
@@ -275,7 +275,7 @@ struct SessionViewModelTests {
     }
 
     @Test func typoCanBeAcceptedAsCorrect() throws {
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "Tag", answer: "dzień")]))
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(question: "Tag", answer: "dzień")]))
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
@@ -287,10 +287,10 @@ struct SessionViewModelTests {
     }
 
     @Test(arguments: [false, true])
-    func highlightingFollowsTheCaseSensitivityOfTheDeck(caseSensitive: Bool) {
+    func highlightingFollowsTheCaseSensitivityOfTheDeck(caseSensitive: Bool) throws {
         var learningOptions = LearningOptions()
         learningOptions.caseSensitive = caseSensitive
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [Card(question: "Ding", answer: "Wumbel")]))
+        let document = try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [Card(question: "Ding", answer: "Wumbel")]))
         let model = SessionViewModel(document: document, autoAdvance: true)
         #expect(model.highlightedAnswer == nil)
 
@@ -301,8 +301,8 @@ struct SessionViewModelTests {
         #expect(marked == (caseSensitive ? ["W", "e"] : ["e"]))
     }
 
-    @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() {
-        let document = makeDocument(cards: 1)
+    @Test func withoutAutoAdvanceCorrectResponsesAreConfirmed() throws {
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: false)
         model.input = "a0"
@@ -314,7 +314,7 @@ struct SessionViewModelTests {
     }
 
     @Test func practicingMistakesLeavesScheduleAlone() throws {
-        let document = makeDocument(cards: 1)
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
@@ -336,7 +336,7 @@ struct SessionViewModelTests {
 
     /// A mistake suspended later in the session isn't practised (#290).
     @Test func suspendedMistakesAreNotPractised() throws {
-        let document = makeDocument(cards: 1, steps: 2)
+        let document = try makeDocument(cards: 1, steps: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model.currentCard)
@@ -361,7 +361,7 @@ struct SessionViewModelTests {
     }
 
     @Test func undoingPracticeReviewKeepsEarlierSessionIntact() throws {
-        let document = makeDocument(cards: 1)
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "wrong"
@@ -399,8 +399,8 @@ struct SessionViewModelTests {
     }
 
     /// The undo manager doesn't hold the target of an undo action (#174).
-    @Test func undoingPracticeReviewOfAClosedSessionChangesNothing() {
-        let document = makeDocument(cards: 1)
+    @Test func undoingPracticeReviewOfAClosedSessionChangesNothing() throws {
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
         weak let closed = model
@@ -414,8 +414,8 @@ struct SessionViewModelTests {
         #expect(document.deck == scheduled)
     }
 
-    @Test func redoingPracticeReviewOfAClosedSessionChangesNothing() {
-        let document = makeDocument(cards: 1)
+    @Test func redoingPracticeReviewOfAClosedSessionChangesNothing() throws {
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = practicedMistake(in: document, undoManager: undoManager)
         let scheduled = document.deck
@@ -430,8 +430,8 @@ struct SessionViewModelTests {
     }
 
     /// The undo actions don't hold their undo manager (#181).
-    @Test func practiceReviewLetsItsUndoManagerGo() {
-        let document = makeDocument(cards: 1)
+    @Test func practiceReviewLetsItsUndoManagerGo() throws {
+        let document = try makeDocument(cards: 1)
         weak var released: UndoManager?
         autoreleasepool {
             let undoManager = makeUndoManager(for: document)
@@ -443,7 +443,7 @@ struct SessionViewModelTests {
     }
 
     @Test func reviewOfAClosedSessionIsUndoneAndRedone() throws {
-        let document = makeDocument(cards: 1)
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         var model: SessionViewModel? = SessionViewModel(document: document, autoAdvance: true)
         let card = try #require(model?.currentCard)
@@ -462,7 +462,7 @@ struct SessionViewModelTests {
 
     @Test(arguments: [false, true])
     func removingTheCurrentCardMovesOn(whileShowingFeedback: Bool) throws {
-        let document = makeDocument(cards: 2)
+        let document = try makeDocument(cards: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
@@ -482,7 +482,7 @@ struct SessionViewModelTests {
 
     /// The session used to notice removals only by a changed number of cards (#57).
     @Test func removingTheCurrentCardMovesOnEvenIfTheCountStays() throws {
-        let document = makeDocument(cards: 2)
+        let document = try makeDocument(cards: 2)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         let current = try #require(model.currentCard)
@@ -498,7 +498,7 @@ struct SessionViewModelTests {
     }
 
     @Test func undoingAnEditChangesTheCurrentCard() throws {
-        let document = makeDocument(cards: 1)
+        let document = try makeDocument(cards: 1)
         let undoManager = makeUndoManager(for: document)
         let card = document.deck.cards[0]
         step(undoManager) { document.editText(of: card.id, to: CardText(question: "dom", answer: card.answer)!) }
@@ -509,9 +509,9 @@ struct SessionViewModelTests {
         #expect(model.currentCard?.question == "q0")
     }
 
-    @Test func undoingAndRedoingAnAnswerEditRechecksFeedback() {
+    @Test func undoingAndRedoingAnAnswerEditRechecksFeedback() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
         step(undoManager) { document.editText(of: card.id, to: CardText(question: card.question, answer: "Heim")!) }
         let model = SessionViewModel(document: document, autoAdvance: false)
@@ -538,9 +538,9 @@ struct SessionViewModelTests {
 
     /// Editing the card being asked, as the session's edit sheet does, keeps the
     /// response typed so far and asks on (#289).
-    @Test func editingTheCardBeingAskedKeepsTheResponse() {
+    @Test func editingTheCardBeingAskedKeepsTheResponse() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: false)
         let questionNumber = model.questionNumber
@@ -561,7 +561,7 @@ struct SessionViewModelTests {
     /// the edit (#289).
     @Test func fixingTheShownAnswerChecksTheResponseAgain() throws {
         let card = Card(question: "dom", answer: "Heim")
-        let document = VocabularyDocument(deck: Deck(cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.input = "Haus"
@@ -585,11 +585,11 @@ struct SessionViewModelTests {
         #expect(document.card(withID: card.id)?.answer == "Heim")
     }
 
-    @Test func undoingAndRedoingCaseSensitivityRechecksWithoutAutoAdvance() {
+    @Test func undoingAndRedoingCaseSensitivityRechecksWithoutAutoAdvance() throws {
         var options = LearningOptions()
         options.caseSensitive = false
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(learningOptions: options, cards: [card]))
+        let document = try VocabularyDocument(deck: Deck(learningOptions: options, cards: [card]))
         let undoManager = makeUndoManager(for: document)
         options.caseSensitive = true
         step(undoManager) { document.updateLearningOptions(options) }
@@ -618,17 +618,17 @@ struct SessionViewModelTests {
         #expect(model.questionNumber == questionNumber)
     }
 
-    @Test func emptyResponseRevealsTheAnswer() {
-        let document = makeDocument(cards: 1)
+    @Test func emptyResponseRevealsTheAnswer() throws {
+        let document = try makeDocument(cards: 1)
         let model = SessionViewModel(document: document, autoAdvance: true)
         model.submit()
         #expect(model.stage == .feedback(.wrong, response: ""))
     }
 
-    @Test func nothingDueMeansFinished() {
+    @Test func nothingDueMeansFinished() throws {
         let learningState = LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: Date(), due: Date().addingTimeInterval(86400))
         let card = Card(question: "q", answer: "a", learningState: learningState)
-        let model = SessionViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
+        let model = try SessionViewModel(document: VocabularyDocument(deck: Deck(cards: [card])))
         #expect(model.isFinished)
     }
 
@@ -641,7 +641,7 @@ struct SessionViewModelTests {
         learningOptions.steps = 1
         learningOptions.fuzzing = false
         let card = Card(question: "dom", answer: "Haus")
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: calendar)
+        let document = try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: calendar)
         let undoManager = makeUndoManager(for: document)
         let model = SessionViewModel(document: document, autoAdvance: true)
 
@@ -686,7 +686,7 @@ struct SessionViewModelTests {
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
         var learningOptions = LearningOptions()
         learningOptions.fuzzing = false
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: .testing)
+        let document = try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: [card]), clock: clock.studyClock, calendar: .testing)
         let undoManager = makeUndoManager(for: document)
 
         let earlier = sessionStartedBefore ? SessionViewModel(document: document, autoAdvance: true) : nil

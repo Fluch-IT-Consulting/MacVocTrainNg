@@ -10,13 +10,20 @@ struct VersionMergerTests {
     let url = URL(fileURLWithPath: "/Users/learner/Library/Mobile Documents/com~apple~CloudDocs/Polish.voctrain")
     /// 2026-10-05 18:00 in Berlin.
     let start = Date(timeIntervalSince1970: 1_791_216_000)
-    let dom = Card(question: "dom", answer: "Haus")
-    let kot = Card(question: "kot", answer: "Katze")
+    let dom: Card
+    let kot: Card
+    let base: Deck
     let store = FakeVersionStore()
     /// The undo managers of the documents opened, which the documents hold weakly.
     private let undoManagers = UndoManagers()
 
-    var base: Deck { Deck(cards: [dom, kot]) }
+    init() throws {
+        let dom = Card(question: "dom", answer: "Haus")
+        let kot = Card(question: "kot", answer: "Katze")
+        self.dom = dom
+        self.kot = kot
+        base = try Deck(cards: [dom, kot])
+    }
 
     func day(_ days: Double) -> Date {
         start.addingTimeInterval(days * 86400)

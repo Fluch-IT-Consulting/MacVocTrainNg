@@ -14,9 +14,9 @@ struct DeckChangeTests {
         }
     }
 
-    @Test func addingIsRevertedByTheInverse() {
+    @Test func addingIsRevertedByTheInverse() throws {
         let existing = Card(question: "dom", answer: "Haus")
-        var deck = Deck(cards: [existing])
+        var deck = try Deck(cards: [existing])
         let added = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
 
         let inverse = deck.apply(DeckChange(upserts: added), day: 100)
@@ -26,9 +26,9 @@ struct DeckChangeTests {
         #expect(deck.cards == [existing])
     }
 
-    @Test func replacingIsRevertedByTheInverse() {
+    @Test func replacingIsRevertedByTheInverse() throws {
         let card = Card(question: "dom", answer: "Haus")
-        var deck = Deck(cards: [card, Card(question: "kot", answer: "Katze")])
+        var deck = try Deck(cards: [card, Card(question: "kot", answer: "Katze")])
         var edited = card
         edited.answer = "Haus / Heim"
 
@@ -42,9 +42,9 @@ struct DeckChangeTests {
         #expect(deck.cards[0] == edited)
     }
 
-    @Test func removingRestoresOriginalPositions() {
+    @Test func removingRestoresOriginalPositions() throws {
         let cards = (0..<5).map { Card(question: "q\($0)", answer: "a\($0)") }
-        var deck = Deck(cards: cards)
+        var deck = try Deck(cards: cards)
 
         let inverse = deck.apply(DeckChange(removals: [cards[3].id, cards[1].id]), day: 100)
         #expect(deck.cards.map(\.question) == ["q0", "q2", "q4"])
@@ -55,8 +55,8 @@ struct DeckChangeTests {
         #expect(deck.cards.map(\.question) == ["q0", "q2", "q4"])
     }
 
-    @Test func learningOptionsAreRevertedByTheInverse() {
-        var deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+    @Test func learningOptionsAreRevertedByTheInverse() throws {
+        var deck = try Deck(cards: [Card(question: "dom", answer: "Haus")])
         var options = LearningOptions()
         options.steps = 3
 
@@ -80,8 +80,8 @@ struct DeckChangeTests {
         #expect(deck.progress.map(\.total) == [1, 0])
     }
 
-    @Test func learningOptionsAloneRecordNoSnapshot() {
-        var deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+    @Test func learningOptionsAloneRecordNoSnapshot() throws {
+        var deck = try Deck(cards: [Card(question: "dom", answer: "Haus")])
         var options = LearningOptions()
         options.steps = 3
 
@@ -92,16 +92,16 @@ struct DeckChangeTests {
 
     @Test func addingAppendsNewCards() throws {
         let existing = Card(question: "dom", answer: "Haus")
-        var deck = Deck(cards: [existing])
+        var deck = try Deck(cards: [existing])
         let added = [Card(question: "kot", answer: "Katze"), Card(question: "pies", answer: "Hund")]
 
         _ = deck.apply(try #require(DeckChange.adding(added, to: deck)), day: 100)
         #expect(deck.cards == [existing] + added)
     }
 
-    @Test func addingNeverReplacesACard() {
+    @Test func addingNeverReplacesACard() throws {
         let studied = studiedCard()
-        let deck = Deck(cards: [studied])
+        let deck = try Deck(cards: [studied])
         var renamed = studied
         renamed.answer = "Heim"
         let reset = Card(id: studied.id, question: "dom", answer: "Haus")
@@ -130,7 +130,7 @@ struct DeckChangeTests {
 
     @Test func removingOnlyRemovesCardsOfTheDeck() throws {
         let cards = [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")]
-        var deck = Deck(cards: cards)
+        var deck = try Deck(cards: cards)
 
         #expect(DeckChange.removing([UUID()], from: deck) == nil)
         _ = deck.apply(try #require(DeckChange.removing([cards[0].id, UUID()], from: deck)), day: 100)
@@ -139,7 +139,7 @@ struct DeckChangeTests {
 
     @Test func editingTextKeepsTheLearningState() throws {
         let studied = studiedCard()
-        var deck = Deck(cards: [Card(question: "kot", answer: "Katze"), studied])
+        var deck = try Deck(cards: [Card(question: "kot", answer: "Katze"), studied])
 
         let change = try #require(DeckChange.editingText(of: studied.id, to: CardText(question: "dom", answer: "Haus / Heim", hint: "Gebäude")!, in: deck))
         _ = deck.apply(change, day: 100)
@@ -150,9 +150,9 @@ struct DeckChangeTests {
         #expect(edited.created == studied.created)
     }
 
-    @Test func editingTheSameTextOrAMissingCardChangesNothing() {
+    @Test func editingTheSameTextOrAMissingCardChangesNothing() throws {
         let card = Card(question: "dom", answer: "Haus")
-        let deck = Deck(cards: [card])
+        let deck = try Deck(cards: [card])
         #expect(DeckChange.editingText(of: card.id, to: CardText(question: "dom ", answer: "Haus")!, in: deck) == nil)
         #expect(DeckChange.editingText(of: UUID(), to: CardText(question: "kot", answer: "Katze")!, in: deck) == nil)
     }
@@ -161,7 +161,7 @@ struct DeckChangeTests {
         let studied = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 5, difficulty: 5, lastReview: start, due: start))
         let new = Card(question: "kot", answer: "Katze")
         let other = Card(question: "pies", answer: "Hund", learningState: studied.learningState)
-        var deck = Deck(cards: [studied, new, other])
+        var deck = try Deck(cards: [studied, new, other])
 
         let change = try #require(DeckChange.resettingLearningState(of: [studied.id, new.id], in: deck, at: start.addingTimeInterval(0.5)))
         _ = deck.apply(change, day: 100)
@@ -172,14 +172,14 @@ struct DeckChangeTests {
         #expect(deck.cards[2] == other)
     }
 
-    @Test func resettingNewCardsChangesNothing() {
-        let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+    @Test func resettingNewCardsChangesNothing() throws {
+        let deck = try Deck(cards: [Card(question: "dom", answer: "Haus")])
         #expect(DeckChange.resettingLearningState(of: [deck.cards[0].id], in: deck, at: start) == nil)
         #expect(DeckChange.resettingLearningState(of: [UUID()], in: deck, at: start) == nil)
     }
 
-    @Test func unchangedLearningOptionsChangeNothing() {
-        let deck = Deck(cards: [Card(question: "dom", answer: "Haus")])
+    @Test func unchangedLearningOptionsChangeNothing() throws {
+        let deck = try Deck(cards: [Card(question: "dom", answer: "Haus")])
         #expect(DeckChange.changingLearningOptions(LearningOptions(), in: deck, calendar: .testing) == nil)
     }
 
@@ -194,17 +194,17 @@ struct DeckChangeTests {
         #expect(deck.learningOptions.targetRecall == 0.97)
     }
 
-    @Test func learningOptionsThatClampToTheCurrentOnesChangeNothing() {
+    @Test func learningOptionsThatClampToTheCurrentOnesChangeNothing() throws {
         var options = LearningOptions()
         options.steps = 5
-        let deck = Deck(learningOptions: options)
+        let deck = try Deck(learningOptions: options, cards: [])
         options.steps = 6
         #expect(DeckChange.changingLearningOptions(options, in: deck, calendar: .testing) == nil)
     }
 
     @Test func learningOptionsWithoutNewParametersLeaveTheCards() throws {
         let studied = studiedCard()
-        var deck = Deck(cards: [studied])
+        var deck = try Deck(cards: [studied])
         var options = LearningOptions()
         options.steps = 3
 
@@ -222,7 +222,7 @@ struct DeckChangeTests {
             answer: "Katze",
             learningState: LearningState(phase: .review, stability: 12, difficulty: 5, lastReview: start, due: start, reviews: 3)
         )
-        var deck = Deck(cards: [studied, imported])
+        var deck = try Deck(cards: [studied, imported])
 
         var options = LearningOptions()
         var weights = FSRSParameters.default.weights
@@ -264,8 +264,8 @@ struct DeckChangeTests {
         }
     }
 
-    @Test func aChangeThatLeavesTheContentLeavesItsStamp() {
-        var deck = Deck(cards: [Card(question: "dom", answer: "Haus")], contentModified: start)
+    @Test func aChangeThatLeavesTheContentLeavesItsStamp() throws {
+        var deck = try Deck(cards: [Card(question: "dom", answer: "Haus")], contentModified: start)
         let inverse = deck.apply(DeckChange(upserts: [studiedCard()], contentStamp: .keep), at: start.addingTimeInterval(100), calendar: .testing)
         _ = deck.apply(inverse, at: start.addingTimeInterval(200), calendar: .testing)
         #expect(deck.contentModified == start)
@@ -275,7 +275,7 @@ struct DeckChangeTests {
         let studied = studiedCard()
         let new = Card(question: "kot", answer: "Katze")
         let other = Card(question: "pies", answer: "Hund")
-        var deck = Deck(cards: [studied, new, other], contentModified: start)
+        var deck = try Deck(cards: [studied, new, other], contentModified: start)
 
         let change = try #require(DeckChange.settingSuspended(true, of: [studied.id, new.id], in: deck, at: start.addingTimeInterval(0.5)))
         let inverse = deck.apply(change, at: start.addingTimeInterval(1), calendar: .testing)
@@ -300,7 +300,7 @@ struct DeckChangeTests {
     }
 
     @Test func resumingKeepsTheLearningStateAndNotesTheTime() throws {
-        var deck = Deck(cards: [studiedCard()])
+        var deck = try Deck(cards: [studiedCard()])
         let id = deck.cards[0].id
         _ = deck.apply(try #require(DeckChange.settingSuspended(true, of: [id], in: deck, at: start)), day: 100)
         let resumedAt = start.addingTimeInterval(86400)
@@ -314,7 +314,7 @@ struct DeckChangeTests {
     @Test func suspendedCardsAreNeverDue() throws {
         let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: start))
         let new = Card(question: "kot", answer: "Katze")
-        var deck = Deck(cards: [scheduled, new])
+        var deck = try Deck(cards: [scheduled, new])
         #expect(deck.dueCount(at: start) == 2)
 
         _ = deck.apply(try #require(DeckChange.settingSuspended(true, of: [scheduled.id, new.id], in: deck, at: start)), day: 100)
@@ -323,10 +323,10 @@ struct DeckChangeTests {
         #expect(deck.dueCount(at: start) == 0)
     }
 
-    @Test func dueCardsAreCountedAtTheGivenTime() {
+    @Test func dueCardsAreCountedAtTheGivenTime() throws {
         let due = start.addingTimeInterval(3600)
         let scheduled = Card(question: "dom", answer: "Haus", learningState: LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: start, due: due))
-        let deck = Deck(cards: [scheduled, Card(question: "kot", answer: "Katze")])
+        let deck = try Deck(cards: [scheduled, Card(question: "kot", answer: "Katze")])
         #expect(deck.dueCount(at: start) == 1)
         #expect(deck.dueCount(at: due) == 2)
     }
@@ -340,16 +340,16 @@ struct DeckChangeTests {
         var options = LearningOptions()
         options.parameters = try #require(FSRSParameters(FSRSParameters.default.weights.enumerated().map { $0 == 20 ? $1 * 2 : $1 }))
 
-        let standard = try #require(Deck(cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
-        let custom = try #require(Deck(learningOptions: options, cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
+        let standard = try #require(try Deck(cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
+        let custom = try #require(try Deck(learningOptions: options, cards: [card]).recallProbability(of: card, at: later, calendar: calendar))
         #expect(standard < 0.9)
         #expect(custom == Scheduler(learningOptions: options, calendar: calendar).recallProbability(of: learningState, at: later))
         #expect(custom != standard)
         #expect(Deck().recallProbability(of: Card(question: "kot", answer: "Katze"), at: later, calendar: calendar) == nil)
     }
 
-    @Test func cardsAreFoundByTheirQuestion() {
-        let deck = Deck(cards: [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")])
+    @Test func cardsAreFoundByTheirQuestion() throws {
+        let deck = try Deck(cards: [Card(question: "dom", answer: "Haus"), Card(question: "kot", answer: "Katze")])
         #expect(deck.cards(withQuestion: "dom").map(\.answer) == ["Haus"])
         #expect(deck.cards(withQuestion: "pies").isEmpty)
         #expect(deck.cards(withQuestion: "").isEmpty)

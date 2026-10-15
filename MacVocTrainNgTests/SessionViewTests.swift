@@ -1,21 +1,22 @@
 import AppKit
 import SwiftUI
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 extension WindowTests {
     /// The session screen in a real window, typed into through the field editor.
     @MainActor
     struct SessionViewTests {
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "blim", answer: "blom"), Card(question: "frax", answer: "frox")]))
+        let document: VocabularyDocument
         let undoManager: UndoManager
         let model: SessionViewModel
         let window: NSWindow
         private let delegate: DocumentWindowDelegate
 
-        init() {
+        init() throws {
+            document = try VocabularyDocument(deck: Deck(cards: [Card(question: "blim", answer: "blom"), Card(question: "frax", answer: "frox")]))
             // The window has no `DocumentView` to give the document its undo manager.
             undoManager = makeUndoManager(for: document)
             model = SessionViewModel(document: document, autoAdvance: true)

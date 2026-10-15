@@ -2,7 +2,8 @@ import Foundation
 
 /// Per-deck learning options.
 ///
-/// A deck holds only values within the ranges below: `DeckFile` and
+/// A deck holds only values within the ranges below: building a deck from its parts
+/// (`Deck.init(learningOptions:cards:progress:contentModified:)`) and
 /// `DeckChange.changingLearningOptions` clamp them with `sanitize()`.
 public struct LearningOptions: Hashable, Sendable {
     /// Recall probability at which a card becomes due again (FSRS "desired retention").
@@ -30,8 +31,9 @@ public struct LearningOptions: Hashable, Sendable {
 }
 
 extension LearningOptions {
-    /// Clamps values into the ranges the learning options offer, for options from
-    /// hand-edited or corrupt files and for new options set on a deck.
+    /// Clamps values into the ranges the learning options offer, for options of a deck
+    /// built from its parts (from hand-edited or corrupt files, too) and for new options
+    /// set on a deck.
     mutating func sanitize() {
         if !targetRecall.isFinite { targetRecall = LearningOptions().targetRecall }
         targetRecall = targetRecall.clamped(to: Self.targetRecallRange)
@@ -59,12 +61,38 @@ public struct Deck: Hashable, Sendable {
     /// created or saved by an app version without it.
     public internal(set) var contentModified: Date?
 
-    public init(
+    /// Why a deck can't be built from its parts.
+    enum Error: Swift.Error, Equatable {
+        /// `card` has the ID of a card before it.
+        case duplicateCardID(Card)
+    }
+
+    /// An empty deck with the default learning options.
+    public init() {
+        learningOptions = LearningOptions()
+        cards = []
+        progress = []
+        contentModified = nil
+    }
+
+    /// A deck built from its parts, as `DeckFile` reads it or `LegacyImporter` converts
+    /// it. The learning options are clamped like those set on a deck
+    /// (`DeckChange.changingLearningOptions`); cards keep their order.
+    ///
+    /// - Throws: `Error.duplicateCardID` for the first card whose ID is already taken:
+    ///   `apply(_:at:calendar:)` and `ReviewLogEncoder` rely on unique IDs.
+    init(
         learningOptions: LearningOptions = LearningOptions(),
-        cards: [Card] = [],
+        cards: [Card],
         progress: [DailySnapshot] = [],
         contentModified: Date? = nil
-    ) {
+    ) throws {
+        var ids = Set<Card.ID>()
+        if let duplicate = cards.first(where: { !ids.insert($0.id).inserted }) {
+            throw Error.duplicateCardID(duplicate)
+        }
+        var learningOptions = learningOptions
+        learningOptions.sanitize()
         self.learningOptions = learningOptions
         self.cards = cards
         self.progress = progress

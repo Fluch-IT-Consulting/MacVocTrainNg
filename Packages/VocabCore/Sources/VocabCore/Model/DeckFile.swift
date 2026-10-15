@@ -145,7 +145,8 @@ public enum DeckFile {
 
 /// The records of `deck.json`, one property per key. They convert from and to the
 /// domain types and check the values on the way in, with the ranges of those
-/// (`FSRSParameters.ranges`, `LearningOptions.sanitize()`, `LearningState.sanitize()`).
+/// (`FSRSParameters.ranges`, `LearningState.sanitize()`); the deck itself checks its
+/// card IDs and clamps its learning options (`Deck.init(learningOptions:cards:progress:contentModified:)`).
 extension DeckFile {
     private struct Envelope: Codable {
         var format: String
@@ -166,17 +167,16 @@ extension DeckFile {
         }
 
         func deck() throws -> Deck {
-            // `Deck.apply` and `ReviewLogEncoder` rely on unique IDs.
-            var ids = Set<UUID>()
-            if let duplicate = cards.first(where: { !ids.insert($0.id).inserted }) {
-                throw DeckFile.Error.duplicateCardID(question: duplicate.question)
+            do {
+                return try Deck(
+                    learningOptions: try learningOptions.learningOptions(),
+                    cards: cards.map(\.card),
+                    progress: try progress.map { try $0.snapshot() },
+                    contentModified: contentModified
+                )
+            } catch Deck.Error.duplicateCardID(let card) {
+                throw DeckFile.Error.duplicateCardID(question: card.question)
             }
-            return Deck(
-                learningOptions: try learningOptions.learningOptions(),
-                cards: cards.map(\.card),
-                progress: try progress.map { try $0.snapshot() },
-                contentModified: contentModified
-            )
         }
     }
 
@@ -219,7 +219,6 @@ extension DeckFile {
             options.caseSensitive = caseSensitive
             options.fuzzing = fuzzing
             options.parameters = parameters
-            options.sanitize()
             return options
         }
 

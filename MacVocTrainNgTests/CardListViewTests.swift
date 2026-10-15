@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 /// A window that handles clicks like the key window. A test host that isn't active,
 /// such as one started from a terminal, can't activate itself, so no window of it
@@ -17,13 +17,14 @@ extension WindowTests {
     /// synthetic mouse events.
     @MainActor
     struct CardListViewTests {
-        let document = VocabularyDocument(
-            deck: Deck(cards: [Card(question: "frax", answer: "frox"), Card(question: "blim", answer: "blom"), Card(question: "glim", answer: "glom")])
-        )
+        let document: VocabularyDocument
         let undoManager: UndoManager
         let window: NSWindow
 
-        init() {
+        init() throws {
+            document = try VocabularyDocument(
+                deck: Deck(cards: [Card(question: "frax", answer: "frox"), Card(question: "blim", answer: "blom"), Card(question: "glim", answer: "glom")])
+            )
             undoManager = makeUndoManager(for: document)
             window = KeyWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false

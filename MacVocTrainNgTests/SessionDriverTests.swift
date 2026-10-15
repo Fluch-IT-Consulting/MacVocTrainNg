@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 /// The part of a session that Mac and iPhone share: grades, undo and redo, and cards
 /// deleted while the session runs (#264).
@@ -10,11 +10,11 @@ import VocabCore
 struct SessionDriverTests {
     /// A study session over new cards, with a listener as its delegate. The test keeps
     /// the undo manager and the listener, which the document and the driver hold weakly.
-    private func makeDriver(cards: Int) -> (SessionDriver, UndoManager, DriverListener) {
+    private func makeDriver(cards: Int) throws -> (SessionDriver, UndoManager, DriverListener) {
         var learningOptions = LearningOptions()
         learningOptions.steps = 1
         learningOptions.fuzzing = false
-        let document = VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }), calendar: .testing)
+        let document = try VocabularyDocument(deck: Deck(learningOptions: learningOptions, cards: (0..<cards).map { Card(question: "q\($0)", answer: "a\($0)") }), calendar: .testing)
         let undoManager = makeUndoManager(for: document)
         let driver = SessionDriver(document: document, mode: .study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar)))
         let listener = DriverListener()
@@ -23,7 +23,7 @@ struct SessionDriverTests {
     }
 
     @Test func undoAndRedoBringBackTheCardAndThePlace() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let (driver, undoManager, listener) = try makeDriver(cards: 2)
         let document = driver.document
         let first = try #require(driver.currentCard)
 
@@ -51,7 +51,7 @@ struct SessionDriverTests {
     }
 
     @Test func undoOfAPracticeReviewBringsBackThePlace() throws {
-        let (driver, undoManager, _) = makeDriver(cards: 1)
+        let (driver, undoManager, _) = try makeDriver(cards: 1)
         let card = try #require(driver.currentCard)
         driver.start(.practice(Practice(practicing: [card.id], at: driver.document.clock.now)))
         let deck = driver.document.deck
@@ -70,7 +70,7 @@ struct SessionDriverTests {
     }
 
     @Test func undoingAReviewOfAnEarlierSessionOnlyTakesBackTheCard() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let (driver, undoManager, listener) = try makeDriver(cards: 2)
         let first = try #require(driver.currentCard)
         step(undoManager) { driver.grade(.good) }
         driver.start(.study(StudySession(deck: driver.document.deck, at: driver.document.clock.now, calendar: driver.document.calendar)))
@@ -86,7 +86,7 @@ struct SessionDriverTests {
 
     /// Finishing up has no undo of its own (#180).
     @Test func finishingUpOutlastsUndoAndRedo() throws {
-        let (driver, undoManager, _) = makeDriver(cards: 3)
+        let (driver, undoManager, _) = try makeDriver(cards: 3)
         let first = try #require(driver.currentCard)
         step(undoManager) { driver.grade(.again) }
         driver.finishUp()
@@ -104,7 +104,7 @@ struct SessionDriverTests {
 
     /// Suspending is undone like a review: the card and the place in one step (#290).
     @Test func suspendingTheCardBeingAskedMovesOnUntilUndone() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let (driver, undoManager, listener) = try makeDriver(cards: 2)
         let document = driver.document
         let first = try #require(driver.currentCard)
 
@@ -134,7 +134,7 @@ struct SessionDriverTests {
     }
 
     @Test func suspendingTheLastCardFinishesTheSession() throws {
-        let (driver, undoManager, _) = makeDriver(cards: 1)
+        let (driver, undoManager, _) = try makeDriver(cards: 1)
         step(undoManager) { driver.suspendCurrentCard() }
         #expect(driver.session.isFinished)
         #expect(driver.currentCard == nil)
@@ -143,7 +143,7 @@ struct SessionDriverTests {
 
     /// E.g. after a merge with a version from the iPhone that suspended it.
     @Test func aCardSuspendedMeanwhileIsSkipped() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 3)
+        let (driver, undoManager, listener) = try makeDriver(cards: 3)
         let current = try #require(driver.currentCard)
         let other = try #require(driver.document.deck.cards.first { $0.id != current.id })
 
@@ -160,7 +160,7 @@ struct SessionDriverTests {
 
     /// E.g. after undoing "Add Card", or after a merge with a version that deleted it.
     @Test func aDeletedCardBeingAskedIsSkipped() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let (driver, undoManager, listener) = try makeDriver(cards: 2)
         let current = try #require(driver.currentCard)
 
         step(undoManager) { driver.document.delete([current.id]) }
@@ -171,7 +171,7 @@ struct SessionDriverTests {
     }
 
     @Test func aDeletedCardLaterInTheSessionIsSkipped() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 2)
+        let (driver, undoManager, listener) = try makeDriver(cards: 2)
         let current = try #require(driver.currentCard)
         let other = try #require(driver.document.deck.cards.first { $0.id != current.id })
 
@@ -186,7 +186,7 @@ struct SessionDriverTests {
     }
 
     @Test func anEditOfTheCardBeingAskedShowsUp() throws {
-        let (driver, undoManager, listener) = makeDriver(cards: 1)
+        let (driver, undoManager, listener) = try makeDriver(cards: 1)
         let card = try #require(driver.currentCard)
 
         step(undoManager) { driver.document.editText(of: card.id, to: CardText(question: card.question, answer: "Heim")!) }
