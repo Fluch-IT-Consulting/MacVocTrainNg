@@ -237,7 +237,7 @@ einen Tagesstand je Lerntag: wie viele Karten neu waren und wie viele eine Stabi
 von unter 1, 1–2, 2–4, 4–8 … Tagen hatten. Fehlende Felder werden mit Standardwerten
 ergänzt.
 
-Die Schlüssel heißen wie die Begriffe im Glossar (`CONTEXT.md`). Die Versionen 1 (eine
+Die Schlüssel heißen wie die Begriffe im Glossar (`GLOSSARY.md`). Die Versionen 1 (eine
 einzelne JSON-Datei mit dem Verlauf in jeder Karte) und 2 (das Paket mit den Schlüsseln
 von vor dem Glossar) stammen aus der Zeit vor der ersten Veröffentlichung; die App öffnet
 sie nicht mehr.
