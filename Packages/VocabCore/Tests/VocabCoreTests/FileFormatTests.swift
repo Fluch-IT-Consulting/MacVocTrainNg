@@ -81,7 +81,8 @@ struct DeckFileTests {
         #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == String(decoding: data, as: UTF8.self))
     }
 
-    /// Version 3 lacks `contentModified` and is written back as version 4.
+    /// Version 3 lacks `contentModified` and has the former `format`; it is written
+    /// back as version 4 with the current one.
     @Test func fixedDeckOfVersion3IsRead() throws {
         let url = try #require(Bundle.module.url(forResource: "Resources/deck-v3", withExtension: "json"))
         let data = try Data(contentsOf: url)
@@ -89,7 +90,9 @@ struct DeckFileTests {
         expectFixedDeck(deck)
         #expect(deck.contentModified == nil)
 
-        let written = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "\"version\" : 3", with: "\"version\" : 4")
+        let written = String(decoding: data, as: UTF8.self)
+            .replacingOccurrences(of: "\"version\" : 3", with: "\"version\" : 4")
+            .replacingOccurrences(of: "com.mfluch.voctrain.deck", with: DeckFile.format)
         #expect(String(decoding: try DeckFile.encodeDeck(deck), as: UTF8.self) == written)
     }
 
@@ -351,13 +354,6 @@ struct DeckFileTests {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("not json".utf8)) }
         let future = Data("{\"format\": \"de.fluch-it-consulting.voctrain.deck\", \"version\": 99}".utf8)
         #expect(throws: DeckFile.Error.unsupportedVersion(99)) { try DeckFile.decode(future) }
-    }
-
-    @Test func readsDecksWithTheFormerFormat() throws {
-        let deckJSON = """
-            {"format": "com.mfluch.voctrain.deck", "version": 4, "learningOptions": {}, "cards": [], "progress": []}
-            """
-        #expect(try DeckFile.decode(Data(deckJSON.utf8)).cards.isEmpty)
     }
 }
 

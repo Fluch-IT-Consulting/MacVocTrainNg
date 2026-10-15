@@ -45,7 +45,7 @@
     }
   ],
   "contentModified" : "2026-10-05T16:00:00Z",
-  "format" : "com.mfluch.voctrain.deck",
+  "format" : "de.fluch-it-consulting.voctrain.deck",
   "learningOptions" : {
     "cardsPerSession" : null,
     "caseSensitive" : true,
