@@ -410,7 +410,7 @@ struct SessionTests {
         #expect(study.session.isFinished)
         #expect(study.session.duration == 45)
 
-        deck = self.deck(newCards: 0, reviewCards: 2)
+        deck = try self.deck(newCards: 0, reviewCards: 2)
         var skipped = StudySession(deck: deck, at: now, calendar: .testing, random: SeededRandom(seed: 1))
         review(&skipped, deck: &deck, .good, at: now.addingTimeInterval(20))
         skipped.perform(.skip)
