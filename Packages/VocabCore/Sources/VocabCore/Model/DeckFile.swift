@@ -35,7 +35,10 @@ import Foundation
 /// `currentVersion` goes up, and older app versions reject the deck as
 /// `unsupportedVersion`. Incompatible changes always raise it.
 public enum DeckFile {
-    public static let format = "com.mfluch.voctrain.deck"
+    public static let format = "de.fluch-it-consulting.voctrain.deck"
+    /// What decks said in `format` before the app moved to the company's identifiers;
+    /// still read, never written.
+    static let legacyFormats: Set = ["com.mfluch.voctrain.deck"]
     public static let currentVersion = 4
     /// The oldest version this app version reads.
     public static let oldestReadableVersion = 3
@@ -122,7 +125,8 @@ public enum DeckFile {
         decoder.dateDecodingStrategy = .iso8601
 
         let header = try? decoder.decode(Header.self, from: data)
-        guard let header, header.format == format, let version = header.version else {
+        let isDeck = header?.format.map { $0 == format || legacyFormats.contains($0) } ?? false
+        guard let header, isDeck, let version = header.version else {
             throw Error.notADeck
         }
         guard version <= currentVersion else {

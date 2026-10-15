@@ -210,7 +210,7 @@ Stapel.voctrain/
 
 ```json
 {
-  "format": "com.mfluch.voctrain.deck",
+  "format": "de.fluch-it-consulting.voctrain.deck",
   "version": 3,
   "learningOptions": { "targetRecall": 0.9, "steps": 2, "cardsPerSession": 100, "…": "…" },
   "cards": [
