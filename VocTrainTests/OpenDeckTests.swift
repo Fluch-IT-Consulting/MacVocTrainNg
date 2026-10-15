@@ -42,7 +42,9 @@ struct OpenDeckTests {
         let url = try write(Deck(cards: [makeCard("dom")]))
         let deck = OpenDeck(url: url)
         let document = try await waitForDocument(of: deck)
-        document.undoManager = deck.undoManager
+        // Attached before the document shows (#305).
+        #expect(document.undoManager === deck.undoManager)
+        #expect(document.isReadyToEdit)
 
         review(document)
         // Lets the run loop close the undo group, which the UIDocument counts.
@@ -61,7 +63,7 @@ struct OpenDeckTests {
         let document = try await waitForDocument(of: deck)
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
-        document.undoManager = undoManager
+        document.attachUndoManager(undoManager)
         deck.merger.attach(document, fileURL: url, isEditable: true)
         await deck.merger.merging?.value
 

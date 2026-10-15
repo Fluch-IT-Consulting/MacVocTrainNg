@@ -285,6 +285,98 @@ struct DocumentTests {
         }
         #expect(released == nil)
     }
+
+    /// Before its undo manager is attached, the document can be read but not changed
+    /// (#305): a change could be neither undone nor saved.
+    @Test func withoutUndoManagerTheDocumentCanBeReadButNotChanged() throws {
+        let card = Card(question: "dom", answer: "Haus")
+        let document = try VocabularyDocument(deck: Deck(cards: [card]))
+        let deck = document.deck
+        #expect(!document.isReadyToEdit)
+        #expect(document.card(withID: card.id) == card)
+
+        #expect(document.add(CardText(question: "kot", answer: "Katze")!) == nil)
+        document.importCards([Card(question: "pies", answer: "Hund")])
+        document.editText(of: card.id, to: CardText(question: "dom", answer: "Dom")!)
+        document.delete([card.id])
+        document.resetLearningState(of: [card.id])
+        var options = LearningOptions()
+        options.steps = 4
+        document.updateLearningOptions(options)
+        #expect(!document.setSuspended(true, of: [card.id]))
+        #expect(document.deck == deck)
+
+        let undoManager = makeUndoManager(for: document)
+        #expect(document.isReadyToEdit)
+        step(undoManager) { document.delete([card.id]) }
+        #expect(document.deck.cards.isEmpty)
+        #expect(undoManager.canUndo)
+    }
+
+    /// Views learn of the attached undo manager, so their controls follow (#305).
+    @Test func attachingTheUndoManagerTellsObservers() {
+        let document = VocabularyDocument()
+        var changes = 0
+        let observation = document.objectWillChange.sink { changes += 1 }
+        defer { observation.cancel() }
+        let undoManager = UndoManager()
+
+        document.attachUndoManager(undoManager)
+        #expect(document.isReadyToEdit)
+        #expect(changes == 1)
+        document.attachUndoManager(undoManager)
+        #expect(changes == 1)
+        document.attachUndoManager(nil)
+        #expect(!document.isReadyToEdit)
+        #expect(changes == 2)
+    }
+
+    /// The undo actions of the document belong to the history of the undo manager they
+    /// were registered with; another one takes over without them (#305).
+    @Test func anotherUndoManagerTakesOverWithoutTheActionsOfTheFirst() {
+        let document = VocabularyDocument()
+        let first = makeUndoManager(for: document)
+        step(first) { document.add(CardText(question: "dom", answer: "Haus")!) }
+        #expect(first.canUndo)
+
+        let second = makeUndoManager(for: document)
+        #expect(document.undoManager === second)
+        #expect(!first.canUndo)
+        step(second) { document.add(CardText(question: "kot", answer: "Katze")!) }
+        #expect(second.canUndo)
+        second.undo()
+        #expect(document.deck.cards.map(\.question) == ["dom"])
+    }
+
+    /// A detached undo manager keeps the document's undo actions, and undo through it
+    /// still works (#305).
+    @Test func aDetachedUndoManagerKeepsItsActions() {
+        let document = VocabularyDocument()
+        let undoManager = makeUndoManager(for: document)
+        step(undoManager) { document.add(CardText(question: "dom", answer: "Haus")!) }
+
+        document.attachUndoManager(nil)
+        #expect(undoManager.canUndo)
+        document.attachUndoManager(undoManager)
+        undoManager.undo()
+        #expect(document.deck.cards.isEmpty)
+        undoManager.redo()
+        #expect(document.deck.cards.count == 1)
+    }
+
+    /// The document holds its undo manager weakly: it belongs to the file (#305).
+    @Test func theDocumentLetsItsUndoManagerGo() {
+        let document = VocabularyDocument()
+        weak var released: UndoManager?
+        autoreleasepool {
+            let undoManager = UndoManager()
+            document.attachUndoManager(undoManager)
+            #expect(document.isReadyToEdit)
+            released = undoManager
+        }
+        #expect(released == nil)
+        #expect(!document.isReadyToEdit)
+    }
 }
 
 /// The calls of an `UndoCompanion` in a test.

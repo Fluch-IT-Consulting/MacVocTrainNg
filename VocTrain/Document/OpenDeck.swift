@@ -103,8 +103,8 @@ final class OpenDeck {
         guard let deck = file.takeLoadedDeck() else { return }
         if document == nil {
             let document = VocabularyDocument(deck: deck)
-            // Merging needs the undo manager, maybe before the deck's view sets it.
-            document.undoManager = undoManager
+            // Before anyone sees the document: changes and merges need it (#305).
+            document.attachUndoManager(undoManager)
             file.document = document
             self.document = document
         } else {

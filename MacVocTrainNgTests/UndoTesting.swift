@@ -9,7 +9,7 @@ import Foundation
 func makeUndoManager(for document: VocabularyDocument) -> UndoManager {
     let undoManager = UndoManager()
     undoManager.groupsByEvent = false
-    document.undoManager = undoManager
+    document.attachUndoManager(undoManager)
     return undoManager
 }
 

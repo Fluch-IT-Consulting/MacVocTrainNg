@@ -82,10 +82,10 @@ final class VersionMerger {
 
     /// Takes `document` as the current document, saved at `fileURL`. Called by the
     /// document's view when it appears and when the file moves or can be changed or no
-    /// longer, and on the iPhone by `OpenDeck` too. Waits for the document's undo
-    /// manager: merging changes the deck.
+    /// longer, and on the iPhone by `OpenDeck` too. Waits until the document
+    /// `isReadyToEdit`: merging changes the deck (#305).
     func attach(_ document: VocabularyDocument, fileURL: URL?, isEditable: Bool) {
-        guard document.undoManager != nil else { return }
+        guard document.isReadyToEdit else { return }
         let fileURL = isEditable ? fileURL : nil
         guard document !== self.document || fileURL != watch.url else { return }
         let previous = self.document
@@ -141,9 +141,10 @@ final class VersionMerger {
     }
 
     /// Waits for a file that can be changed: an old version in the version browser on
-    /// the Mac can't ever be changed.
+    /// the Mac can't ever be changed. Leaves the decks read again waiting while the
+    /// document can't be changed; the next merge takes them in.
     private func mergeNow() async {
-        guard let document, let store = watch.store else { return }
+        guard let document, document.isReadyToEdit, let store = watch.store else { return }
         let taken = takeReadAgain(into: document)
         var versions = taken.map(\.deck)
         var conflicts: [ConflictVersion] = []
@@ -205,7 +206,7 @@ final class VersionMerger {
     /// the background: the UIDocument takes the file read again as saved, so it would
     /// save nothing the file lacks. Conflicts wait for the app's return.
     private func takeInReadAgainNow() {
-        guard let document, watch.store != nil else { return }
+        guard let document, document.isReadyToEdit, watch.store != nil else { return }
         let taken = readAgain.filter { $0.fileDeck != nil }
         guard !taken.isEmpty else { return }
         readAgain.removeAll { $0.fileDeck != nil }

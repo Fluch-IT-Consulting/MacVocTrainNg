@@ -13,7 +13,7 @@ struct StudyModelTests {
         let document = try VocabularyDocument(deck: Deck(cards: cards), clock: StudyClock { [created] in created.addingTimeInterval(60) })
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
-        document.undoManager = undoManager
+        document.attachUndoManager(undoManager)
         return (document, undoManager)
     }
 

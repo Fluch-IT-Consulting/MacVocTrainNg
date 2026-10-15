@@ -9,8 +9,10 @@ import os
 ///
 /// All changes go through methods that register undo actions. Besides providing
 /// undo, this is how SwiftUI learns that the document has unsaved changes. They
-/// register with `undoManager`, which `documentSync` sets, so no view that changes
-/// the deck has to find the right undo manager itself (#48, #136).
+/// register with `undoManager`, which the app attaches with `attachUndoManager(_:)`,
+/// so no view that changes the deck has to find the right undo manager itself (#48,
+/// #136). Until then the document can be read and shown, but not changed: every way to
+/// change it checks `isReadyToEdit` first (#305).
 ///
 /// Who wants to hear of changes to the deck uses one of two ways, depending on what
 /// it is:
@@ -66,13 +68,12 @@ final class VocabularyDocument: ObservableObject {
     /// Remembers the encoded review log between saves, so autosave stays cheap.
     /// Thread-safe on its own, as saving uses it on a background thread.
     private let reviewLog = ReviewLogEncoder()
-    /// The undo manager of the document's window; every change registers its undo
-    /// action here. SwiftUI creates the document but hands the undo manager only to
-    /// views, so the document's view sets it through `documentSync`, and tests set it
-    /// themselves. Weak: it belongs to the NSDocument behind `DocumentGroup` on the Mac,
-    /// to the app's own UIDocument on the iPhone. Not part of the deck, so setting it
-    /// tells no observer.
-    weak var undoManager: UndoManager?
+    /// The undo manager of the document's file; every change registers its undo action
+    /// here, see `attachUndoManager(_:)`. Weak: it belongs to the NSDocument behind
+    /// `DocumentGroup` on the Mac, to the app's own UIDocument on the iPhone. When it
+    /// goes away, the document can no longer be changed; that happens only as its file
+    /// closes, so it tells no observer then.
+    private(set) weak var undoManager: UndoManager?
     /// Switches the calendar when the machine's time zone changes; ends with the document.
     private var timeZoneObservation: AnyCancellable?
 
@@ -153,6 +154,59 @@ final class VocabularyDocument: ObservableObject {
         try fileWrapper(for: deckToSave)
     }
 
+    // MARK: - Undo manager
+
+    /// Whether the document can be changed: its undo manager is attached (#305). A
+    /// change without it could be neither undone nor saved, as NSDocument and UIDocument
+    /// count unsaved changes through their undo manager. Views that change the deck also
+    /// mind whether the file can be written.
+    var isReadyToEdit: Bool {
+        undoManager != nil
+    }
+
+    /// Attaches the undo manager of the document's file, or detaches it with `nil`;
+    /// observers hear of it, as `isReadyToEdit` may change.
+    ///
+    /// SwiftUI creates the document on the Mac but hands the undo manager only to
+    /// views, so the document's view attaches it, see `attachingUndoManager(to:)`. The
+    /// iPhone app attaches the one of its UIDocument before it shows the document, see
+    /// `OpenDeck`. Tests attach their own.
+    ///
+    /// Another undo manager in place of the one attached takes over without the undo
+    /// actions of the document: they belong to the history of the other one. A detached
+    /// undo manager keeps them, so attaching it again brings back its history.
+    func attachUndoManager(_ undoManager: UndoManager?) {
+        guard undoManager !== self.undoManager else { return }
+        objectWillChange.send()
+        if let previous = self.undoManager, undoManager != nil {
+            previous.removeAllActions(withTarget: self)
+        }
+        self.undoManager = undoManager
+    }
+
+    /// The undo manager a change registers with. Every way to change the deck checks
+    /// `isReadyToEdit` before, so getting here without one is a mistake in the app.
+    private var attachedUndoManager: UndoManager {
+        guard let undoManager else {
+            preconditionFailure("The document changes without an undo manager; check isReadyToEdit first.")
+        }
+        return undoManager
+    }
+
+    /// Registers `companion` as an undo action that changes no card, like a review in
+    /// practice, see `SessionDriver.grade(_:)`. Undo runs it and registers its reverse
+    /// as the redo action, with the undo manager that runs it.
+    func registerUndo(_ companion: UndoCompanion, actionName: String) {
+        Self.registerUndo(companion, actionName: actionName, on: self, with: attachedUndoManager)
+    }
+
+    private static func registerUndo(_ companion: UndoCompanion, actionName: String, on document: VocabularyDocument, with undoManager: UndoManager) {
+        undoManager.registerMainActorUndo(withTarget: document, actionName: actionName) { document, undoManager in
+            companion.undo()
+            registerUndo(companion.reversed, actionName: actionName, on: document, with: undoManager)
+        }
+    }
+
     // MARK: - Queries
 
     func card(withID id: Card.ID) -> Card? {
@@ -169,7 +223,7 @@ final class VocabularyDocument: ObservableObject {
     ///   `SessionDriver.suspendCurrentCard()`.
     @discardableResult
     func setSuspended(_ suspended: Bool, of ids: Set<Card.ID>, alongside companion: UndoCompanion? = nil) -> Bool {
-        guard let change = DeckChange.settingSuspended(suspended, of: ids, in: deck, at: clock.now) else { return false }
+        guard isReadyToEdit, let change = DeckChange.settingSuspended(suspended, of: ids, in: deck, at: clock.now) else { return false }
         let name: String
         if suspended {
             name = ids.count == 1 ? String(localized: "Suspend Card") : String(localized: "Suspend Cards")
@@ -183,7 +237,8 @@ final class VocabularyDocument: ObservableObject {
     /// Stores a card rescheduled after a review in a study session, with the change
     /// `SessionMode.grade(_:in:at:calendar:)` returns. Undo and redo of the review run
     /// `companion` right after the card, in the same undo action; the session brings
-    /// back its place with it, see `SessionDriver.grade(_:)`.
+    /// back its place with it, see `SessionDriver.grade(_:)`, which checks
+    /// `isReadyToEdit` before it grades.
     func applyReview(_ change: DeckChange, alongside companion: UndoCompanion) {
         perform(change, actionName: String(localized: "Review"), alongside: companion)
     }
@@ -192,7 +247,8 @@ final class VocabularyDocument: ObservableObject {
     /// `DeckChange.merging(_:into:calendar:)`. Returns whether the deck changed.
     ///
     /// Groups its undo action itself: it runs outside of events too, when the file
-    /// changed, and closing the group is what tells SwiftUI of the change.
+    /// changed, and closing the group is what tells SwiftUI of the change. Merges only
+    /// once `isReadyToEdit`, see `VersionMerger.attach(_:fileURL:isEditable:)`.
     @discardableResult
     func merge(_ versions: [Deck]) -> Bool {
         var merged = deck
@@ -203,9 +259,10 @@ final class VocabularyDocument: ObservableObject {
             changes.append(change)
         }
         guard !changes.isEmpty else { return false }
-        undoManager?.beginUndoGrouping()
+        let undoManager = attachedUndoManager
+        undoManager.beginUndoGrouping()
         perform(changes, actionName: String(localized: "Merge Versions"))
-        undoManager?.endUndoGrouping()
+        undoManager.endUndoGrouping()
         return true
     }
 
@@ -221,16 +278,19 @@ final class VocabularyDocument: ObservableObject {
     /// `undoManager`. The undo action runs `companion` once the deck holds the inverses;
     /// the redo action it registers runs the companion reversed.
     ///
-    /// Without an undo manager the change could not be undone, and SwiftUI would not
-    /// learn of it: autosave might never write it. Debug builds stop there; the released
-    /// app still changes the deck.
+    /// Without an undo manager the change could be neither undone nor saved, so it stops
+    /// before it changes the deck, see `attachedUndoManager`.
     private func perform(_ changes: [DeckChange], actionName: String, alongside companion: UndoCompanion? = nil) {
-        assert(undoManager != nil, "The document changes without an undo manager; documentSync sets it.")
+        perform(changes, actionName: actionName, alongside: companion, registeringWith: attachedUndoManager)
+    }
+
+    /// Undo and redo register their reverse with the undo manager that runs them.
+    private func perform(_ changes: [DeckChange], actionName: String, alongside companion: UndoCompanion?, registeringWith undoManager: UndoManager) {
         var deck = deck
         let inverses = changes.map { deck.apply($0, at: clock.now, calendar: calendar) }
         self.deck = deck
-        undoManager?.registerMainActorUndo(withTarget: self, actionName: actionName) { document, _ in
-            document.perform(Array(inverses.reversed()), actionName: actionName, alongside: companion?.reversed)
+        undoManager.registerMainActorUndo(withTarget: self, actionName: actionName) { document, undoManager in
+            document.perform(Array(inverses.reversed()), actionName: actionName, alongside: companion?.reversed, registeringWith: undoManager)
             companion?.undo()
         }
     }

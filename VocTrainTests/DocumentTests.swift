@@ -13,7 +13,7 @@ struct DocumentTests {
         let document = try VocabularyDocument(deck: Deck(cards: [card]), clock: StudyClock { created.addingTimeInterval(60) })
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
-        document.undoManager = undoManager
+        document.attachUndoManager(undoManager)
         var mode = SessionMode.study(StudySession(deck: document.deck, at: document.clock.now, calendar: document.calendar))
 
         let outcome = mode.grade(.good, in: document.deck, at: document.clock.now, calendar: document.calendar)

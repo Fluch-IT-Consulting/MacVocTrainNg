@@ -349,6 +349,29 @@ struct VersionMergerTests {
         #expect(!conflict.isResolved)
         #expect(store.events.isEmpty)
     }
+
+    /// Merging changes the deck, so the merger waits until the document is ready to
+    /// edit (#305).
+    @Test func theMergerWaitsForTheUndoManager() async {
+        let conflict = FakeConflict(deck: reviewing(kot, in: base, at: day(2)), store: store)
+        store.conflicts = [conflict]
+        let document = VocabularyDocument(deck: base, clock: ManualClock(day(5)).studyClock, calendar: .testing)
+        let merger = makeMerger()
+
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(merger.document == nil)
+        #expect(store.connections == 0)
+        #expect(document.deck == base)
+
+        let undoManager = makeUndoManager(for: document)
+        undoManagers.all.append(undoManager)
+        merger.attach(document, fileURL: url, isEditable: true)
+        await merger.merging?.value
+        #expect(merger.document === document)
+        #expect(document.deck.card(withID: kot.id)?.log.count == 1)
+        #expect(conflict.isResolved)
+    }
 }
 
 /// Keeps undo managers for as long as a test runs.
