@@ -15,7 +15,7 @@
 			<true/>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.mfluch.voctrain.deck</string>
+				<string>de.fluch-it-consulting.voctrain.deck</string>
 			</array>
 		</dict>
 	</array>
@@ -23,7 +23,7 @@
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>com.mfluch.voctrain.deck</string>
+			<string>de.fluch-it-consulting.voctrain.deck</string>
 			<key>UTTypeDescription</key>
 			<string>MacVocTrain Deck</string>
 			<key>UTTypeConformsTo</key>

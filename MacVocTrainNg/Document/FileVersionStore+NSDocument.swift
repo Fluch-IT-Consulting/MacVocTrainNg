@@ -7,7 +7,7 @@ extension FileVersionStore {
     /// update of the SDK. The merger then keeps the conflicts, and the Mac's log says so.
     struct DocumentNotFound: Error {}
 
-    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.mfluch.voctrain", category: "FileVersionStore")
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "de.fluch-it-consulting.voctrain", category: "FileVersionStore")
 
     /// How the Mac app saves a deck, see `Save`: in place through the NSDocument behind
     /// `DocumentGroup`, like autosave, even if NSDocument hasn't counted the change yet.

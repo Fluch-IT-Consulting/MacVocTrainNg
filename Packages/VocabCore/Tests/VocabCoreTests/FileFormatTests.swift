@@ -52,7 +52,7 @@ struct DeckFileTests {
              "lastReview": "2026-10-05T16:00:00Z", "due": "2026-10-06T02:00:00Z", "reviews": \(reviews), "lapses": \(lapses)}
             """
         let json = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "learningOptions": {"parameters": \(parameters)},
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "progress": [], "learningOptions": {"parameters": \(parameters)},
              "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "learningState": \(learningState)}]}
             """
         return Data(json.utf8)
@@ -114,7 +114,7 @@ struct DeckFileTests {
         #expect(Set(wrapper.fileWrappers!.keys) == [DeckFile.deckFileName, DeckFile.reviewsFileName])
 
         let deckJSON = file(wrapper, DeckFile.deckFileName)
-        #expect(deckJSON.contains("\"format\" : \"com.mfluch.voctrain.deck\""))
+        #expect(deckJSON.contains("\"format\" : \"de.fluch-it-consulting.voctrain.deck\""))
         #expect(deckJSON.contains("\"version\" : 4"))
         #expect(deckJSON.contains("\"question\" : \"dom\""))
         for key in ["learningOptions", "targetRecall", "steps", "learningState", "learningStateReset", "reviews", "hint", "progress", "contentModified", "suspended", "suspensionChanged"] {
@@ -135,7 +135,7 @@ struct DeckFileTests {
     @Test func rejectsVersionsBeforeTheFirstRelease() {
         let version1 = Data(
             """
-            {"format": "com.mfluch.voctrain.deck", "version": 1, "settings": {}, "history": [],
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 1, "settings": {}, "history": [],
              "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus",
                         "created": "2026-10-05T16:00:00Z", "log": [{"date": "2026-10-05T16:00:00Z", "grade": 3}]}]}
             """.utf8)
@@ -143,7 +143,7 @@ struct DeckFileTests {
 
         let version2 = Data(
             """
-            {"format": "com.mfluch.voctrain.deck", "version": 2, "settings": {}, "history": [], "cards": []}
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 2, "settings": {}, "history": [], "cards": []}
             """.utf8)
         let package = FileWrapper(directoryWithFileWrappers: [DeckFile.deckFileName: FileWrapper(regularFileWithContents: version2)])
         #expect(throws: DeckFile.Error.outdatedVersion(2)) { try DeckFile.decode(package) }
@@ -274,7 +274,7 @@ struct DeckFileTests {
 
     @Test func optionalFieldsMayBeMissing() throws {
         let json = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {},
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "learningOptions": {},
              "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus"}],
              "progress": []}
             """
@@ -288,7 +288,7 @@ struct DeckFileTests {
     /// and drops on the next save (see `DeckFile`).
     @Test func unknownKeysAndFilesAreReadAndDroppedOnSave() throws {
         let deckJSON = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "futureDeckKey": 1,
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "progress": [], "futureDeckKey": 1,
              "learningOptions": {"targetRecall": 0.85, "futureOption": 7},
              "cards": [{"id": "6F9619FF-8B86-D011-B42D-00C04FC964FF", "question": "dom", "answer": "Haus", "futureCardKey": "x",
                         "learningState": {"phase": "learning", "step": 1, "stability": 2.3, "difficulty": 2.1, "reviews": 1, "lapses": 0,
@@ -320,7 +320,7 @@ struct DeckFileTests {
 
     @Test func clampsInvalidLearningOptions() throws {
         let json = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "progress": [], "cards": [],
              "learningOptions": {"targetRecall": 0, "steps": 0, "maximumInterval": -5, "cardsPerSession": 0,
                                  "newCardsPerSession": 100000}}
             """
@@ -334,13 +334,13 @@ struct DeckFileTests {
 
     @Test func rejectsInvalidValues() {
         let parameters = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "progress": [], "cards": [],
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "progress": [], "cards": [],
              "learningOptions": {"parameters": [1, 2]}}
             """
         #expect(throws: DecodingError.self) { try DeckFile.decode(Data(parameters.utf8)) }
 
         let day = """
-            {"format": "com.mfluch.voctrain.deck", "version": 3, "learningOptions": {}, "cards": [],
+            {"format": "de.fluch-it-consulting.voctrain.deck", "version": 3, "learningOptions": {}, "cards": [],
              "progress": [{"day": "2026-13-45", "bins": []}]}
             """
         #expect(throws: DecodingError.self) { try DeckFile.decode(Data(day.utf8)) }
@@ -349,8 +349,15 @@ struct DeckFileTests {
     @Test func rejectsForeignAndFutureFiles() {
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("{\"foo\": 1}".utf8)) }
         #expect(throws: DeckFile.Error.notADeck) { try DeckFile.decode(Data("not json".utf8)) }
-        let future = Data("{\"format\": \"com.mfluch.voctrain.deck\", \"version\": 99}".utf8)
+        let future = Data("{\"format\": \"de.fluch-it-consulting.voctrain.deck\", \"version\": 99}".utf8)
         #expect(throws: DeckFile.Error.unsupportedVersion(99)) { try DeckFile.decode(future) }
+    }
+
+    @Test func readsDecksWithTheFormerFormat() throws {
+        let deckJSON = """
+            {"format": "com.mfluch.voctrain.deck", "version": 4, "learningOptions": {}, "cards": [], "progress": []}
+            """
+        #expect(try DeckFile.decode(Data(deckJSON.utf8)).cards.isEmpty)
     }
 }
 
