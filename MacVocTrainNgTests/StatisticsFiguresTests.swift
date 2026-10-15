@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 @MainActor
 struct StatisticsFiguresTests {
@@ -20,9 +20,9 @@ struct StatisticsFiguresTests {
         return Card(question: question, answer: "a", learningState: learningState)
     }
 
-    @Test func summaryFollowsCardsAndTime() {
+    @Test func summaryFollowsCardsAndTime() throws {
         let figures = StatisticsFigures()
-        var deck = Deck(cards: [Card(question: "dom", answer: "Haus"), reviewCard("kot", dueIn: 1)])
+        var deck = try Deck(cards: [Card(question: "dom", answer: "Haus"), reviewCard("kot", dueIn: 1)])
         #expect(figures.summary(of: deck, at: now, calendar: calendar) == DeckStatistics.summary(of: deck, at: now, calendar: calendar))
         // The new card is due right away.
         #expect(figures.summary(of: deck, at: now, calendar: calendar).dueNow == 1)
@@ -30,19 +30,19 @@ struct StatisticsFiguresTests {
         let later = now.addingTimeInterval(2 * 86400)
         #expect(figures.summary(of: deck, at: later, calendar: calendar).dueNow == 2)
 
-        deck = Deck(cards: deck.cards + [reviewCard("pies", dueIn: 3)])
+        deck = try Deck(cards: deck.cards + [reviewCard("pies", dueIn: 3)])
         #expect(figures.summary(of: deck, at: later, calendar: calendar).total == 3)
         #expect(figures.summary(of: deck, at: later, calendar: calendar) == DeckStatistics.summary(of: deck, at: later, calendar: calendar))
     }
 
-    @Test func summaryFollowsLearningOptions() {
+    @Test func summaryFollowsLearningOptions() throws {
         let figures = StatisticsFigures()
         let cards = [reviewCard("kot", dueIn: 5)]
-        let before = figures.summary(of: Deck(cards: cards), at: now, calendar: calendar).averageRecallProbability
+        let before = try figures.summary(of: Deck(cards: cards), at: now, calendar: calendar).averageRecallProbability
 
         var learningOptions = LearningOptions()
         learningOptions.parameters = FSRSParameters(FSRSParameters.default.weights.enumerated().map { $0 == 20 ? $1 * 2 : $1 })!
-        let deck = Deck(learningOptions: learningOptions, cards: cards)
+        let deck = try Deck(learningOptions: learningOptions, cards: cards)
         let after = figures.summary(of: deck, at: now, calendar: calendar).averageRecallProbability
         #expect(after == DeckStatistics.summary(of: deck, at: now, calendar: calendar).averageRecallProbability)
         #expect(after != before)

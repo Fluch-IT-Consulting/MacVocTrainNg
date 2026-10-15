@@ -6,7 +6,7 @@ import Testing
 struct DeckFileTests {
     let date = Date(timeIntervalSince1970: 1_791_216_000)
 
-    func sampleDeck() -> Deck {
+    func sampleDeck() throws -> Deck {
         var learningOptions = LearningOptions()
         learningOptions.targetRecall = 0.85
         learningOptions.newCardsPerSession = 15
@@ -20,7 +20,7 @@ struct DeckFileTests {
         card.suspensionChanged = date.addingTimeInterval(-3600)
         var resumed = Card(question: "kot", answer: "Katze", created: date)
         resumed.suspensionChanged = date.addingTimeInterval(-7200)
-        return Deck(
+        return try Deck(
             learningOptions: learningOptions,
             cards: [card, resumed],
             progress: [DailySnapshot(day: 20_000, bins: [1, 1])],
@@ -59,7 +59,7 @@ struct DeckFileTests {
     }
 
     @Test func packageRoundTripPreservesEverything() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         #expect(try DeckFile.decode(DeckFile.fileWrapper(for: deck)) == deck)
     }
 
@@ -108,7 +108,7 @@ struct DeckFileTests {
     }
 
     @Test func packageHoldsDeckAndReviewLogSeparately() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         let wrapper = try DeckFile.fileWrapper(for: deck)
         #expect(wrapper.isDirectory)
         #expect(Set(wrapper.fileWrappers!.keys) == [DeckFile.deckFileName, DeckFile.reviewsFileName])
@@ -161,14 +161,14 @@ struct DeckFileTests {
     }
 
     @Test func packageWithoutReviewLogOpensWhileAllCardsAreNew() throws {
-        let deck = Deck(cards: [Card(question: "kot", answer: "Katze", created: date)])
+        let deck = try Deck(cards: [Card(question: "kot", answer: "Katze", created: date)])
         let wrapper = try DeckFile.fileWrapper(for: deck)
         wrapper.removeFileWrapper(wrapper.fileWrappers![DeckFile.reviewsFileName]!)
         #expect(try DeckFile.decode(wrapper) == deck)
     }
 
     @Test func reviewsOfUnknownCardsAreRejected() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         let wrapper = try package(of: deck, appendingReviews: [reviewLine(of: UUID())])
         #expect(throws: DeckFile.Error.reviewsOfUnknownCard(line: 3)) { try DeckFile.decode(wrapper) }
 
@@ -178,7 +178,7 @@ struct DeckFileTests {
     }
 
     @Test func reviewLogLongerThanReviewsIsRejected() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         let studied = deck.cards[0]
         let tooLong = try package(of: deck, appendingReviews: [reviewLine(of: studied.id), reviewLine(of: studied.id)])
         #expect(throws: DeckFile.Error.reviewLogTooLong(question: "dom")) { try DeckFile.decode(tooLong) }
@@ -188,15 +188,15 @@ struct DeckFileTests {
     }
 
     @Test func reviewLogShorterThanReviewsIsAllowed() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         let card = try DeckFile.decode(DeckFile.fileWrapper(for: deck)).cards[0]
         #expect(card.log == deck.cards[0].log)
         #expect(card.log.count < card.learningState!.reviews)
     }
 
     @Test func duplicateCardIDsAreRejected() throws {
-        var deck = sampleDeck()
-        deck.cards.append(Card(id: deck.cards[1].id, question: "kot", answer: "Kater", created: date))
+        var deck = try sampleDeck()
+        deck.appendUnchecked([Card(id: deck.cards[1].id, question: "kot", answer: "Kater", created: date)])
         #expect(throws: DeckFile.Error.duplicateCardID(question: "kot")) { try DeckFile.decode(DeckFile.fileWrapper(for: deck)) }
         #expect(throws: DeckFile.Error.duplicateCardID(question: "kot")) { try DeckFile.decode(DeckFile.encodeDeck(deck)) }
     }
@@ -259,7 +259,7 @@ struct DeckFileTests {
 
     /// Only revealed reviews name their mode; a missing or unknown one reads as typed.
     @Test func reviewModesAreReadBack() throws {
-        let deck = sampleDeck()
+        let deck = try sampleDeck()
         let id = deck.cards[0].id.uuidString
         let wrapper = try package(of: deck, appendingReviews: ["{\"card\":\"\(id)\",\"date\":1791302400,\"grade\":3,\"mode\":\"spoken\"}"])
         let fileDeck = try DeckFile.decode(wrapper)

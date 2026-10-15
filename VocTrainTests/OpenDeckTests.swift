@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import VocabCore
 
 @testable import VocTrain
+@testable import VocabCore
 
 /// Opening, saving and reading again a deck with the app's own UIDocument (#285).
 /// A test that waits for the UIDocument in vain fails after a minute instead of
@@ -95,7 +95,7 @@ struct OpenDeckTests {
     /// A study session goes on when the Mac changes the file (#296): the deck gets the
     /// Mac's reviews, and the session skips a card the Mac suspended.
     @Test func aStudySessionGoesOnWhenTheFileChanges() async throws {
-        let original = Deck(cards: ["dom", "kot", "pies"].map(makeCard))
+        let original = try Deck(cards: ["dom", "kot", "pies"].map(makeCard))
         let url = try write(original)
         let deck = OpenDeck(url: url)
         let document = try await waitForDocument(of: deck)
@@ -105,7 +105,7 @@ struct OpenDeckTests {
         // The Mac reviews one of the cards not asked yet and suspends the other.
         var mac = original
         let notAsked = mac.cards.map(\.id).filter { $0 != asked }
-        review(notAsked[0], in: &mac, calendar: document.calendar)
+        try review(notAsked[0], in: &mac, calendar: document.calendar)
         let suspension = try #require(DeckChange.settingSuspended(true, of: [notAsked[1]], in: mac, at: .now))
         _ = mac.apply(suspension, at: .now, calendar: document.calendar)
         try await writeCoordinated(mac, to: url)
@@ -133,9 +133,9 @@ struct OpenDeckTests {
     }
 
     /// Reviews the card `id` with Good, as the Mac does.
-    private func review(_ id: Card.ID, in deck: inout Deck, calendar: StudyCalendar) {
+    private func review(_ id: Card.ID, in deck: inout Deck, calendar: StudyCalendar) throws {
         guard let card = deck.card(withID: id) else { return }
-        var mode = SessionMode.study(StudySession(deck: Deck(cards: [card]), at: .now, calendar: calendar))
+        var mode = try SessionMode.study(StudySession(deck: Deck(cards: [card]), at: .now, calendar: calendar))
         guard case let .rescheduled(change) = mode.grade(.good, in: deck, at: .now, calendar: calendar) else {
             Issue.record("The study session didn't reschedule the card.")
             return

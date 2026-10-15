@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 /// Counts calls of a sendable closure. Only used on the main actor.
 private final class ChangeCount: @unchecked Sendable {
@@ -12,11 +12,11 @@ private final class ChangeCount: @unchecked Sendable {
 
 @MainActor
 struct DueCardCounterTests {
-    @Test func dueCardsAreCountedAsTimePasses() {
+    @Test func dueCardsAreCountedAsTimePasses() throws {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
         let learningState = LearningState(phase: .review, stability: 1, difficulty: 5, lastReview: clock.now, due: clock.now.addingTimeInterval(3600))
         let card = Card(question: "dom", answer: "Haus", learningState: learningState)
-        let document = VocabularyDocument(deck: Deck(cards: [card, Card(question: "kot", answer: "Katze")]), clock: clock.studyClock)
+        let document = try VocabularyDocument(deck: Deck(cards: [card, Card(question: "kot", answer: "Katze")]), clock: clock.studyClock)
         let dueCards = document.dueCards
         #expect(dueCards.count == 1)
 
@@ -47,9 +47,9 @@ struct DueCardCounterTests {
         #expect(document.dueCards.count == 0)
     }
 
-    @Test func dueCardsTellObserversOnlyWhenTheNumberChanges() {
+    @Test func dueCardsTellObserversOnlyWhenTheNumberChanges() throws {
         let clock = ManualClock(Date(timeIntervalSince1970: 1_791_216_000))
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]), clock: clock.studyClock)
+        let document = try VocabularyDocument(deck: Deck(cards: [Card(question: "dom", answer: "Haus")]), clock: clock.studyClock)
         let undoManager = makeUndoManager(for: document)
         let dueCards = document.dueCards
         let changes = ChangeCount()

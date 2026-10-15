@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 extension WindowTests {
     /// The sheet that edits a card, presented in a real window as the card list presents
@@ -19,8 +19,8 @@ extension WindowTests {
         private let delegate: DocumentWindowDelegate
         private let request = SheetRequest()
 
-        init() {
-            document = VocabularyDocument(deck: Deck(cards: [card]))
+        init() throws {
+            document = try VocabularyDocument(deck: Deck(cards: [card]))
             document.undoManager = undoManager
             delegate = DocumentWindowDelegate(undoManager: undoManager)
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 400), styleMask: [.titled], backing: .buffered, defer: false)

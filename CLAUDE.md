@@ -38,6 +38,8 @@ The active developer dir may be the Command Line Tools; prefix with
   options change only through `Deck.apply(_:at:calendar:)`: it returns the inverse change
   and keeps `progress` and `contentModified` in step. `VocabCore` builds each `DeckChange`; a card's learning state and
   log can't be set from outside it (tests reach the full `Card.init` via `@testable`).
+  Outside it there is only the empty `Deck()`; the full `Deck.init`, also via
+  `@testable`, throws on duplicate card IDs and clamps the learning options.
 - Reviews are undoable: the document applies the change `SessionMode.grade` returns and
   runs the restore of the `Session`, an opaque `UndoCompanion`, in the same undo action,
   after the card. The document knows no sessions.

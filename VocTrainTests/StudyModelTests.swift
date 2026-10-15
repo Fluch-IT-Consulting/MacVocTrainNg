@@ -1,16 +1,16 @@
 import Foundation
 import Testing
-import VocabCore
 
 @testable import VocTrain
+@testable import VocabCore
 
 @MainActor
 struct StudyModelTests {
     let created = Date(timeIntervalSince1970: 1_791_216_000)
 
-    func makeDocument(questions: [String] = ["dom", "kot"]) -> (VocabularyDocument, UndoManager) {
+    func makeDocument(questions: [String] = ["dom", "kot"]) throws -> (VocabularyDocument, UndoManager) {
         let cards = questions.map { Card(text: CardText(question: $0, answer: "x")!, created: created) }
-        let document = VocabularyDocument(deck: Deck(cards: cards), clock: StudyClock { [created] in created.addingTimeInterval(60) })
+        let document = try VocabularyDocument(deck: Deck(cards: cards), clock: StudyClock { [created] in created.addingTimeInterval(60) })
         let undoManager = UndoManager()
         undoManager.groupsByEvent = false
         document.undoManager = undoManager
@@ -24,8 +24,8 @@ struct StudyModelTests {
         undoManager.endUndoGrouping()
     }
 
-    @Test func gradingNeedsTheAnswerShown() {
-        let (document, undoManager) = makeDocument()
+    @Test func gradingNeedsTheAnswerShown() throws {
+        let (document, undoManager) = try makeDocument()
         let model = StudyModel(document: document)
         #expect(model.stage == .asking)
 
@@ -38,7 +38,7 @@ struct StudyModelTests {
     }
 
     @Test func reviewsAreRecordedAsRevealed() throws {
-        let (document, undoManager) = makeDocument()
+        let (document, undoManager) = try makeDocument()
         let model = StudyModel(document: document)
         let id = try #require(model.currentCard?.id)
 
@@ -51,7 +51,7 @@ struct StudyModelTests {
     }
 
     @Test func undoTakesBackTheCardAndTheSessionsPlace() throws {
-        let (document, undoManager) = makeDocument()
+        let (document, undoManager) = try makeDocument()
         let model = StudyModel(document: document)
         let card = try #require(model.currentCard)
 
@@ -70,7 +70,7 @@ struct StudyModelTests {
 
     /// On the iPhone too, a card can be suspended in the session, revealed or not (#290).
     @Test func suspendingMovesOnAndCanBeUndone() throws {
-        let (document, undoManager) = makeDocument()
+        let (document, undoManager) = try makeDocument()
         let model = StudyModel(document: document)
         let card = try #require(model.currentCard)
         #expect(!model.hasUndoableSteps)
@@ -91,8 +91,8 @@ struct StudyModelTests {
         #expect(!model.hasUndoableSteps)
     }
 
-    @Test func sessionWithoutDueCardsIsFinished() {
-        let (document, _) = makeDocument(questions: [])
+    @Test func sessionWithoutDueCardsIsFinished() throws {
+        let (document, _) = try makeDocument(questions: [])
         let model = StudyModel(document: document)
         #expect(model.isFinished)
         #expect(model.currentCard == nil)

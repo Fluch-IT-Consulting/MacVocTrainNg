@@ -7,4 +7,10 @@ extension Deck {
     mutating func apply(_ change: DeckChange, day: Int) -> DeckChange {
         apply(change, at: StudyCalendar.testing.start(ofDay: day), calendar: .testing)
     }
+
+    /// Appends `cards` without the checks of building a deck from its parts, for tests
+    /// that need an invalid deck, such as one with duplicate card IDs.
+    mutating func appendUnchecked(_ cards: [Card]) {
+        self.cards += cards
+    }
 }

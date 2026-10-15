@@ -1,20 +1,21 @@
 import AppKit
 import SwiftUI
 import Testing
-import VocabCore
 
 @testable import MacVocTrain
+@testable import VocabCore
 
 extension WindowTests {
     /// The content of a document window in a real window, typed into through the field editor.
     @MainActor
     struct DocumentViewTests {
-        let document = VocabularyDocument(deck: Deck(cards: [Card(question: "frax", answer: "frox")]))
+        let document: VocabularyDocument
         let undoManager: UndoManager
         let window: NSWindow
         private let delegate: DocumentWindowDelegate
 
-        init() {
+        init() throws {
+            document = try VocabularyDocument(deck: Deck(cards: [Card(question: "frax", answer: "frox")]))
             // `DocumentView` gives the document the undo manager of the window.
             undoManager = UndoManager()
             delegate = DocumentWindowDelegate(undoManager: undoManager)

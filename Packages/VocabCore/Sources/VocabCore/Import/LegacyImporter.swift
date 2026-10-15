@@ -81,7 +81,8 @@ public enum LegacyImporter {
         }
 
         let statuses = box.progressMonitor?.progressData ?? []
-        var deck = Deck(learningOptions: learningOptions, cards: cards, progress: progress(from: statuses, neverAsked: cards.filter(\.isNew).count))
+        // Each card has a new ID, so the deck can't reject duplicates.
+        var deck = try Deck(learningOptions: learningOptions, cards: cards, progress: progress(from: statuses, neverAsked: cards.filter(\.isNew).count))
         deck.updateProgress(day: calendar.dayNumber(for: now))
         return deck
     }

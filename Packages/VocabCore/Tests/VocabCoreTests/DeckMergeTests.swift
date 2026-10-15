@@ -21,7 +21,7 @@ struct DeckMergeTests {
     func baseDeck(fuzzing: Bool = true) throws -> Deck {
         var options = LearningOptions()
         options.fuzzing = fuzzing
-        var deck = Deck(learningOptions: options)
+        var deck = try Deck(learningOptions: options, cards: [])
         _ = deck.apply(try #require(DeckChange.adding([dom, kot, pies], to: deck)), at: start, calendar: calendar)
         review(&deck, dom.id, .good, at: start.addingTimeInterval(60))
         review(&deck, dom.id, .good, at: start.addingTimeInterval(120))
@@ -155,7 +155,7 @@ struct DeckMergeTests {
             answer: "Haus",
             learningState: LearningState(phase: .review, stability: 10, difficulty: 5, lastReview: start, due: day(10), reviews: 5)
         )
-        let mac = Deck(cards: [imported], contentModified: start)
+        let mac = try Deck(cards: [imported], contentModified: start)
         var macLater = mac
         review(&macLater, imported.id, .good, at: day(10))
         review(&macLater, imported.id, .hard, at: day(30))
