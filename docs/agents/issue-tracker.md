@@ -53,17 +53,29 @@ mehrere kleine Issues zusammen, nennt der Zweig beide: `bugfix/12-13`.
 
 Auf `main` wird nicht direkt committet. Jeder Zweig endet in einem Pull Request,
 gemergt wird per **Rebase** (keine Merge-Commits), damit jeder Commit mit seinem
-Titel auf `main` landet. Vor dem Pull Request müssen Build und alle Tests grün sein, ohne
-Warnungen, jeder Text übersetzt im String Catalog stehen und swift-format nichts melden:
+Titel auf `main` landet. Vor dem Pull Request müssen Build und Tests der Mac-App grün sein,
+ohne Warnungen, jeder Text übersetzt im String Catalog stehen und swift-format nichts
+melden. Die Mac-App baut dafür inkrementell im gewohnten `build/DerivedData`, nicht in
+einem frischen Ordner:
 
 ```
 xcodebuild -project MacVocTrainNg.xcodeproj -scheme MacVocTrainNg -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
-xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
 swift Tools/check-localizations.swift
 xcrun swift-format lint --strict -r MacVocTrainNg MacVocTrainNgTests VocTrain VocTrainTests Shared Packages/VocabCore/Sources Packages/VocabCore/Tests Packages/VocabCore/Package.swift Tools
 ```
 
-Dasselbe prüft die CI bei jedem Pull Request, dazu den Release-Build.
+Die CI prüft bei jedem Pull Request dasselbe nach einem Neubau, dazu die iPhone-App im
+Simulator und den Release-Build. Auf dem Entwicklungs-Mac (Intel) dauert ein Neubau mit
+Tests rund 6,5 Minuten, in der CI rund 1,5 Minuten. Ein inkrementeller Lauf braucht lokal
+unter einer Minute (gemessen am 16.10.2026, #314). Die iPhone-App lokal zu testen lohnt
+sich nur, wenn eine Änderung sie betrifft und das Ergebnis vor der CI gebraucht wird:
+
+```
+xcodebuild -project MacVocTrainNg.xcodeproj -scheme VocTrain -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build/DerivedData SWIFT_TREAT_WARNINGS_AS_ERRORS=YES test
+```
+
+Agenten ohne Aufsicht prüfen weiter alles lokal, auch die iPhone-App (siehe
+`afk-prompt.md`): Nach ihrem Pull Request sieht niemand für sie nach der CI.
 
 ## Der Commit-Titel nennt Typ und Issue
 
